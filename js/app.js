@@ -7305,11 +7305,19 @@ function _afterLoad() {
                 jobCards = Array.isArray(data.jobCards) ? data.jobCards : [];
                 if (data.settings) settings = data.settings;
 
+                // ── Recycling Bin live sync ──────────────────────────────
+                // Merge incoming recycleBin from Firebase so any item deleted
+                // by another user instantly appears (or disappears) on this device.
+                if (Array.isArray(data.recycleBin)) {
+                    recycleBin = data.recycleBin;
+                    localStorage.setItem('fg3_recyclebin', JSON.stringify(recycleBin));
+                }
+
                 hydrateAttachments(drivers, 'fg3_drivers');
                 hydrateAttachments(trucks, 'fg3_trucks');
                 hydrateAttachments(trailers, 'fg3_trailers');
 
-                // Sync HSC data from Firebase (these were missing from sync entirely)
+                // Sync HSC data from Firebase
                 if (Array.isArray(data.hscPolicies)) {
                     hscPolicies = data.hscPolicies;
                     localStorage.setItem('fg3_hscpolicies', JSON.stringify(hscPolicies));
@@ -7337,6 +7345,11 @@ function _afterLoad() {
                     reopenEntityModal(_uploadModalTarget.entityType, _uploadModalTarget.idx);
                 } else if (!modalOpen) {
                     refreshAllViews();
+                    // If recyclebin page is active, also re-render it so remote deletions
+                    // and restorations appear instantly without a manual page refresh.
+                    if (getActivePage() === 'recyclebin') {
+                        renderRecycleBin();
+                    }
                 }
             }
 
@@ -8457,7 +8470,6 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 }
             }
 
-            // ══════════════════ REPORTS ══════════════════
             function renderReports() {
                 selectedReportDrivers.clear();
                 selectedReportTrucks.clear();
@@ -8475,15 +8487,25 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 if (fromTimeEl && !fromTimeEl.value) fromTimeEl.value = '00:00';
                 if (toTimeEl && !toTimeEl.value)     toTimeEl.value = '23:59';
                 populateJcReportServiceFilter();
+
+                // Always restore the currently active category tab & its panel on every render
+                // (prevents blank / wrong panel after a browser refresh or Firebase live push).
+                const activeCatTab = document.querySelector('#page-reports .rpt-tabs .rpt-tab[data-cat].active');
+                const catToShow = activeCatTab ? activeCatTab.dataset.cat : 'driver';
+                switchReportCategory(catToShow);
             }
 
             function switchReportCategory(cat) {
+                // Scope to reports page tabs only — prevents collision with recyclebin filter tabs
+                // which share the .rpt-tab class.
+                document.querySelectorAll('#page-reports .rpt-tabs .rpt-tab[data-cat]').forEach(t => t.classList.remove('active'));
+                const tab = document.querySelector(`#page-reports .rpt-tabs .rpt-tab[data-cat="${cat}"]`);
+                if (tab) tab.classList.add('active');
+
                 document.querySelectorAll('.rpt-category-panel').forEach(p => p.style.display = 'none');
                 const panel = document.getElementById('rptPanel-' + cat);
                 if (panel) panel.style.display = '';
-                document.querySelectorAll('.rpt-tab').forEach(t => t.classList.remove('active'));
-                const tab = document.querySelector(`.rpt-tab[data-cat="${cat}"]`);
-                if (tab) tab.classList.add('active');
+
                 const dSubj = document.getElementById('rptDriverSubject');
                 const tSubj = document.getElementById('rptTruckSubject');
                 const jSubj = document.getElementById('rptJobCardSubject');
@@ -8791,18 +8813,31 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             }
 
             function generateReport() {
-                const activeTab = document.querySelector('.rpt-tab.active');
-                if (!activeTab) return;
-                const cat = activeTab.dataset.cat;
+                // Scope the tab lookup to the reports category tabs only (not recyclebin filter tabs)
+                // to avoid false matches on shared .rpt-tab class after a fresh browser refresh.
+                const activeTab = document.querySelector('#page-reports .rpt-tabs .rpt-tab[data-cat].active');
+                // Fallback: find whichever category tab has an active class, or force 'driver' as default
+                const cat = (activeTab && activeTab.dataset.cat) || 
+                            (() => {
+                                const firstActive = document.querySelector('#page-reports .rpt-tabs .rpt-tab[data-cat]');
+                                if (firstActive) {
+                                    firstActive.classList.add('active');
+                                    switchReportCategory(firstActive.dataset.cat);
+                                    return firstActive.dataset.cat;
+                                }
+                                return 'driver';
+                            })();
                 let selectedTypes = [...document.querySelectorAll(`#rptPanel-${cat} .rpt-check:checked`)].map(cb => cb.value);
                 
-                // If user hasn't selected any specific report card in this panel, default to selecting all cards in panel
+                // If no report types are checked, auto-select all types in this panel silently
+                // (never block the user with a toast — they already see the category)
                 if (!selectedTypes.length) {
                     toggleAllReports(cat, true);
                     selectedTypes = [...document.querySelectorAll(`#rptPanel-${cat} .rpt-check:checked`)].map(cb => cb.value);
                 }
                 
-                if (!selectedTypes.length) { showToast('Please select at least one report type'); return; }
+                // If still empty (panel has no cards — should not happen), show friendly message
+                if (!selectedTypes.length) { showToast('No report types found in this category'); return; }
                 const dateFrom = document.getElementById('rptDateFrom')?.value || '';
                 const timeFrom = document.getElementById('rptTimeFrom')?.value || '00:00';
                 const dateTo   = document.getElementById('rptDateTo')?.value || '';
