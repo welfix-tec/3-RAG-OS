@@ -267,11 +267,18 @@
             // ─────────── RECYCLING BIN ENGINE ───────────────────
             // ═══════════════════════════════════════════════════════
 
+            // ═══════════════════════════════════════════════════════
+            // ─────────── RECYCLING BIN ENGINE ───────────────────
+            // ═══════════════════════════════════════════════════════
+
             let _recycleFilter = 'all';
+            let _recycleSort = 'newest';
+            let _selectedRecycleIds = new Set();
 
             function purgeExpiredRecycleBin() {
                 const cutoff = Date.now() - 72 * 60 * 60 * 1000;
                 recycleBin = recycleBin.filter(item => item.deletedAt > cutoff);
+                _selectedRecycleIds = new Set([..._selectedRecycleIds].filter(id => recycleBin.some(item => item.id === id)));
             }
 
             function sendToRecycleBin(type, label, data, meta) {
@@ -295,7 +302,6 @@
 
                 switch (item.type) {
                     case 'driver':
-                        // Ensure no duplicate _idx
                         if (drivers.some(d => d._idx === restored._idx)) {
                             restored._idx = drivers.length ? Math.max(...drivers.map(d => d._idx)) + 1 : 0;
                         }
@@ -341,6 +347,7 @@
                 }
 
                 recycleBin = recycleBin.filter(x => x.id !== itemId);
+                _selectedRecycleIds.delete(itemId);
                 saveAll();
                 renderRecycleBin();
                 updateSidebarBadges();
@@ -352,6 +359,7 @@
                 if (!item) return;
                 if (!confirm(`Permanently delete "${item.label}"? This cannot be undone.`)) return;
                 recycleBin = recycleBin.filter(x => x.id !== itemId);
+                _selectedRecycleIds.delete(itemId);
                 saveAll();
                 renderRecycleBin();
                 updateSidebarBadges();
@@ -362,6 +370,7 @@
                 if (!recycleBin.length) { showToast('Recycling Bin is already empty'); return; }
                 if (!confirm(`Permanently delete all ${recycleBin.length} item(s) in the bin? This cannot be undone.`)) return;
                 recycleBin = [];
+                _selectedRecycleIds.clear();
                 saveAll();
                 renderRecycleBin();
                 updateSidebarBadges();
@@ -376,15 +385,135 @@
                 renderRecycleBin();
             }
 
+            function setRecycleSort(sort) {
+                _recycleSort = sort;
+                renderRecycleBin();
+            }
+
+            function toggleRecycleSelectAll(checked) {
+                const filtered = _getFilteredRecycleBin();
+                if (checked) {
+                    filtered.forEach(item => _selectedRecycleIds.add(item.id));
+                } else {
+                    filtered.forEach(item => _selectedRecycleIds.delete(item.id));
+                }
+                renderRecycleBin();
+            }
+
+            function toggleRecycleItemSelect(itemId, checked) {
+                if (checked) {
+                    _selectedRecycleIds.add(itemId);
+                } else {
+                    _selectedRecycleIds.delete(itemId);
+                }
+                renderRecycleBin();
+            }
+
+            function restoreSelectedFromBin() {
+                if (!_selectedRecycleIds.size) { showToast('No items selected'); return; }
+                const count = _selectedRecycleIds.size;
+                if (!confirm(`Restore ${count} selected item(s) back to original locations?`)) return;
+                
+                const ids = Array.from(_selectedRecycleIds);
+                ids.forEach(id => {
+                    restoreFromRecycleBin(id);
+                });
+                showToast(`✅ ${count} item(s) restored successfully`);
+            }
+
+            function permanentDeleteSelectedFromBin() {
+                if (!_selectedRecycleIds.size) { showToast('No items selected'); return; }
+                const count = _selectedRecycleIds.size;
+                if (!confirm(`Permanently delete ${count} selected item(s)? This cannot be undone.`)) return;
+                
+                const ids = Array.from(_selectedRecycleIds);
+                recycleBin = recycleBin.filter(x => !ids.includes(x.id));
+                _selectedRecycleIds.clear();
+                saveAll();
+                renderRecycleBin();
+                updateSidebarBadges();
+                showToast(`${count} item(s) permanently deleted`);
+            }
+
+            function previewRecycleItem(itemId) {
+                const item = recycleBin.find(x => x.id === itemId);
+                if (!item) return;
+                
+                const ti = _recycleTypeInfo(item.type);
+                const cd = _recycleCountdown(item.deletedAt);
+                const deletedDate = new Date(item.deletedAt).toLocaleString('en-ZA', { dateStyle: 'full', timeStyle: 'short' });
+                
+                let detailsHtml = '';
+                if (item.data) {
+                    const keys = Object.keys(item.data).filter(k => typeof item.data[k] !== 'object' && item.data[k] !== undefined && item.data[k] !== '');
+                    detailsHtml = keys.map(k => `
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px">
+                            <span style="color:var(--text2);text-transform:capitalize">${xmlEscape(k.replace(/_/g, ' '))}:</span>
+                            <span style="font-weight:600;color:var(--text)">${xmlEscape(String(item.data[k]))}</span>
+                        </div>
+                    `).join('');
+                }
+
+                openModal(`
+                    <div class="modal-header">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:24px">${ti.icon}</span>
+                            <div>
+                                <h3 style="font-size:16px;margin:0">${xmlEscape(item.label)}</h3>
+                                <span style="font-size:11px;color:var(--text3)">Deleted Item Inspection · ${ti.label}</span>
+                            </div>
+                        </div>
+                        <div class="modal-close" onclick="App.closeModal()">✕</div>
+                    </div>
+                    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+                        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between">
+                            <div>
+                                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">Deleted Timestamp</div>
+                                <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:2px">${deletedDate}</div>
+                            </div>
+                            <span class="recycle-countdown ${cd.cls}">${cd.text}</span>
+                        </div>
+
+                        <div>
+                            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Restoration Snapshot Properties</div>
+                            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:0 14px;max-height:260px;overflow-y:auto">
+                                ${detailsHtml || '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">No property snapshot available</div>'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
+                        <button class="btn btn-ghost" onclick="App.closeModal()">Close</button>
+                        <div style="display:flex;gap:8px">
+                            <button class="btn btn-ghost" style="color:var(--red);border-color:rgba(240,76,90,0.3)" onclick="App.closeModal();App.permanentDeleteFromBin('${item.id}')">🗑 Permanent Delete</button>
+                            <button class="btn btn-primary" onclick="App.closeModal();App.restoreFromRecycleBin('${item.id}')">↩ Restore Item</button>
+                        </div>
+                    </div>
+                `);
+            }
+
+            function _getFilteredRecycleBin() {
+                const search = (document.getElementById('recycleBinSearch')?.value || '').toLowerCase().trim();
+                return recycleBin.filter(item => {
+                    if (_recycleFilter !== 'all' && item.type !== _recycleFilter) return false;
+                    if (search && !item.label.toLowerCase().includes(search) && !item.type.includes(search)) return false;
+                    return true;
+                }).sort((a, b) => {
+                    if (_recycleSort === 'oldest') return a.deletedAt - b.deletedAt;
+                    if (_recycleSort === 'expiring') return a.deletedAt - b.deletedAt;
+                    if (_recycleSort === 'name') return a.label.localeCompare(b.label);
+                    return b.deletedAt - a.deletedAt;
+                });
+            }
+
             function _recycleCountdown(deletedAt) {
                 const expiresAt = deletedAt + 72 * 60 * 60 * 1000;
                 const remaining = expiresAt - Date.now();
                 if (remaining <= 0) return { text: 'Expiring now', cls: 'recycle-countdown-critical' };
                 const h = Math.floor(remaining / 3600000);
                 const m = Math.floor((remaining % 3600000) / 60000);
-                if (h < 6) return { text: `${h}h ${m}m left`, cls: 'recycle-countdown-critical' };
-                if (h < 24) return { text: `${h}h ${m}m left`, cls: 'recycle-countdown-warn' };
-                return { text: `${h}h ${m}m left`, cls: 'recycle-countdown-ok' };
+                if (h < 6) return { text: `${h}h ${m}m remaining`, cls: 'recycle-countdown-critical' };
+                if (h < 24) return { text: `${h}h ${m}m remaining`, cls: 'recycle-countdown-warn' };
+                return { text: `${h}h ${m}m remaining`, cls: 'recycle-countdown-ok' };
             }
 
             function _recycleTypeInfo(type) {
@@ -405,20 +534,21 @@
                 const statsEl = document.getElementById('recycleBinStats');
                 if (!list) return;
 
-                const search = (document.getElementById('recycleBinSearch')?.value || '').toLowerCase().trim();
-                const filtered = recycleBin.filter(item => {
-                    if (_recycleFilter !== 'all' && item.type !== _recycleFilter) return false;
-                    if (search && !item.label.toLowerCase().includes(search) && !item.type.includes(search)) return false;
-                    return true;
-                }).sort((a, b) => b.deletedAt - a.deletedAt);
+                const counts = { driver: 0, truck: 0, trailer: 0, order: 0, jobcard: 0, violation: 0 };
+                recycleBin.forEach(i => { if (counts[i.type] !== undefined) counts[i.type]++; });
+                
+                // Update tab counts
+                const tabCounts = { all: recycleBin.length, ...counts };
+                Object.keys(tabCounts).forEach(k => {
+                    const el = document.getElementById(`rTabCount-${k}`);
+                    if (el) el.textContent = tabCounts[k];
+                });
 
                 // Stats row
                 if (statsEl) {
-                    const counts = { driver: 0, truck: 0, trailer: 0, order: 0, jobcard: 0, violation: 0 };
-                    recycleBin.forEach(i => { if (counts[i.type] !== undefined) counts[i.type]++; });
                     const criticalCount = recycleBin.filter(i => (i.deletedAt + 72 * 3600000 - Date.now()) < 6 * 3600000).length;
                     statsEl.innerHTML = `
-                        <div class="recycle-stat-card"><div class="recycle-stat-num">${recycleBin.length}</div><div class="recycle-stat-lbl">Total Items</div></div>
+                        <div class="recycle-stat-card"><div class="recycle-stat-num">${recycleBin.length}</div><div class="recycle-stat-lbl">Total Deleted</div></div>
                         <div class="recycle-stat-card recycle-stat-warn"><div class="recycle-stat-num">${criticalCount}</div><div class="recycle-stat-lbl">Expiring &lt;6h</div></div>
                         <div class="recycle-stat-card"><div class="recycle-stat-num">${counts.driver}</div><div class="recycle-stat-lbl">Drivers</div></div>
                         <div class="recycle-stat-card"><div class="recycle-stat-num">${counts.truck}</div><div class="recycle-stat-lbl">Trucks</div></div>
@@ -427,12 +557,34 @@
                     `;
                 }
 
+                const filtered = _getFilteredRecycleBin();
+
+                // Update bulk actions visibility & select all checkbox state
+                const selectAllCb = document.getElementById('recycleSelectAll');
+                const bulkActionsEl = document.getElementById('recycleBulkActions');
+                const selectedCountEl = document.getElementById('recycleSelectedCount');
+                
+                const currentFilteredIds = filtered.map(x => x.id);
+                const selectedCountInFilter = currentFilteredIds.filter(id => _selectedRecycleIds.has(id)).length;
+
+                if (selectAllCb) {
+                    selectAllCb.checked = filtered.length > 0 && selectedCountInFilter === filtered.length;
+                }
+                if (bulkActionsEl && selectedCountEl) {
+                    if (_selectedRecycleIds.size > 0) {
+                        bulkActionsEl.style.display = 'flex';
+                        selectedCountEl.textContent = _selectedRecycleIds.size;
+                    } else {
+                        bulkActionsEl.style.display = 'none';
+                    }
+                }
+
                 if (!filtered.length) {
                     list.innerHTML = `
                         <div class="recycle-empty">
                             <div class="recycle-empty-icon">🗑</div>
                             <div class="recycle-empty-title">${_recycleFilter === 'all' ? 'Recycling Bin is Empty' : 'No ' + _recycleTypeInfo(_recycleFilter).label + 's in Bin'}</div>
-                            <div class="recycle-empty-sub">Deleted items will appear here and be kept for 72 hours before permanent removal.</div>
+                            <div class="recycle-empty-sub">Deleted items will appear here and be held for 72 hours before permanent automated removal.</div>
                         </div>`;
                     return;
                 }
@@ -442,13 +594,20 @@
                     const cd = _recycleCountdown(item.deletedAt);
                     const deletedDate = new Date(item.deletedAt).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
                     const progressPct = Math.max(0, Math.min(100, ((Date.now() - item.deletedAt) / (72 * 3600000)) * 100));
-                    return `<div class="recycle-item">
+                    const isChecked = _selectedRecycleIds.has(item.id);
+
+                    return `<div class="recycle-item ${isChecked ? 'selected' : ''}">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="App.toggleRecycleItemSelect('${item.id}', this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">
                         <div class="recycle-item-type-badge" style="background:${ti.color}22;color:${ti.color};border:1px solid ${ti.color}44">
                             ${ti.icon} ${ti.label}
                         </div>
                         <div class="recycle-item-body">
                             <div class="recycle-item-name">${xmlEscape(item.label)}</div>
-                            <div class="recycle-item-meta">Deleted on ${deletedDate}</div>
+                            <div class="recycle-item-meta">
+                                <span>Deleted on ${deletedDate}</span>
+                                <span>•</span>
+                                <span style="color:var(--text2)">72h Retention Lifecycle</span>
+                            </div>
                             <div class="recycle-progress-bar">
                                 <div class="recycle-progress-fill ${progressPct > 75 ? 'recycle-progress-danger' : progressPct > 40 ? 'recycle-progress-warn' : ''}" style="width:${progressPct.toFixed(1)}%"></div>
                             </div>
@@ -456,6 +615,7 @@
                         <div class="recycle-item-right">
                             <span class="recycle-countdown ${cd.cls}">${cd.text}</span>
                             <div class="recycle-item-actions">
+                                <button class="btn btn-ghost btn-xs recycle-preview-btn" onclick="App.previewRecycleItem('${item.id}')">👁 Preview</button>
                                 <button class="btn btn-ghost btn-xs recycle-restore-btn" onclick="App.restoreFromRecycleBin('${item.id}')">↩ Restore</button>
                                 <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="App.permanentDeleteFromBin('${item.id}')">🗑 Delete</button>
                             </div>
@@ -11400,7 +11560,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 handleTrailerFileUpload, renameTrailerAttachment, deleteTrailerAttachment, previewTrailerAttachment,
                 editTrailerCustom, exportTrailerData,
                 editTrailerEssentialDetails, saveTrailerEssentialDetails, cancelEditTrailerEssentialDetails,
-                renderRecycleBin, setRecycleFilter, restoreFromRecycleBin, permanentDeleteFromBin, emptyRecycleBin
+                renderRecycleBin, setRecycleFilter, setRecycleSort, toggleRecycleSelectAll, toggleRecycleItemSelect, restoreSelectedFromBin, permanentDeleteSelectedFromBin, previewRecycleItem, restoreFromRecycleBin, permanentDeleteFromBin, emptyRecycleBin
             };
         })();
 
