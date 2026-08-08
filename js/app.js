@@ -6849,9 +6849,13 @@ function _afterLoad() {
                 }
                 if (!base64) throw new Error('File payload is empty.');
 
+                // Google Apps Script deployed web apps redirect via 302 before serving
+                // the response. fetch with mode:'cors' cannot follow these redirects and
+                // throws a CORS error. Using redirect:'follow' allows the chain to complete.
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     mode: 'cors',
+                    redirect: 'follow',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
                         base64,
@@ -6862,12 +6866,18 @@ function _afterLoad() {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Upload request failed (${response.status})`);
+                    throw new Error(`Upload failed — server returned ${response.status}. Please check your internet connection and try again.`);
                 }
 
-                const result = await response.json();
+                let result;
+                try {
+                    result = await response.json();
+                } catch (parseErr) {
+                    throw new Error('Upload server returned an invalid response. Please try again.');
+                }
+
                 if (!result || !result.url) {
-                    throw new Error(result?.error || 'Upload did not return a Google Drive URL');
+                    throw new Error(result?.error || 'Upload did not return a Google Drive URL. Please try again.');
                 }
                 return { url: result.url, id: result.id || null };
             }
@@ -7075,14 +7085,26 @@ function _afterLoad() {
 
                     try {
                         const tasks = pending.map(({ file, name, mimeType, fileId }) => {
-                            const processFile = isPdfFile(file)
+                            // Choose correct read strategy per file type:
+                            // Videos are read as-is (data URL), PDFs as data URL, images are compressed.
+                            const processFile = isVideoFile(file)
                                 ? readFileAsDataUrl(file)
-                                : compressImageFile(file);
+                                : isPdfFile(file)
+                                    ? readFileAsDataUrl(file)
+                                    : compressImageFile(file);
+
                             return processFile.then(async data => {
-                                const ext = isPdfFile(file) ? 'pdf' : 'jpg';
+                                // Build a safe filename preserving the correct extension
+                                const ext = isPdfFile(file) ? 'pdf'
+                                    : isVideoFile(file) ? (file.name.split('.').pop() || 'mp4')
+                                    : 'jpg';
                                 const safeFileName = `${name.replace(/[^\w.-]+/g, '_') || fileId}.${ext}`;
+
                                 let driveUrl = null;
                                 let driveId = null;
+                                let uploadedToDrive = false;
+                                let driveError = null;
+
                                 try {
                                     const result = await uploadToGoogleDrive({
                                         base64: dataUrlToBase64(data),
@@ -7092,41 +7114,74 @@ function _afterLoad() {
                                     });
                                     driveUrl = result.url;
                                     driveId = result.id || extractDriveFileId(result.url) || undefined;
-                                } catch (_) {
-                                    // Google Drive upload failed — store as local data URL fallback
+                                    uploadedToDrive = true;
+                                } catch (err) {
+                                    // Capture the Drive error — we'll report it clearly to the user.
+                                    driveError = err.message || 'Google Drive upload failed';
                                 }
+
                                 return {
                                     id: fileId,
                                     name,
                                     mimeType,
                                     uploadedAt: formatDate(),
+                                    // If Drive upload succeeded, store the Drive URL.
+                                    // If it failed, store the local data URL as a fallback so the
+                                    // file is not permanently lost, but we will warn the user.
                                     data: driveUrl || data,
-                                    driveId
+                                    driveId,
+                                    _uploadedToDrive: uploadedToDrive,
+                                    _driveError: driveError
                                 };
                             });
                         });
 
                         const results = await Promise.allSettled(tasks);
-                        const added = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-                        const skipped = Array.from(files).length - pending.length;
-                        const failed = results.filter(r => r.status === 'rejected').map(r => r.reason?.message || 'Upload failed');
-                        const messages = [];
+                        const added = results
+                            .filter(r => r.status === 'fulfilled' && r.value)
+                            .map(r => r.value);
+                        const rejected = results
+                            .filter(r => r.status === 'rejected')
+                            .map(r => r.reason?.message || 'Could not process file');
+                        const validationSkipped = Array.from(files).length - pending.length;
+
+                        // Separate Drive-successful from Drive-fallback uploads
+                        const driveSuccess = added.filter(f => f._uploadedToDrive);
+                        const localFallback = added.filter(f => !f._uploadedToDrive);
 
                         if (added.length) {
+                            // Strip internal tracking flags before saving
+                            added.forEach(f => {
+                                delete f._uploadedToDrive;
+                                delete f._driveError;
+                            });
                             target.files = target.files || [];
                             target.files.push(...added);
                             if (entityType === 'driver') ensureDriverCollections(target);
                             else if (entityType === 'trailer') ensureTrailerCollections(target);
                             else ensureTruckCollections(target);
                             saveAll();
-                            messages.push(`${added.length} attachment${added.length === 1 ? '' : 's'} uploaded to Google Drive`);
                         }
-                        if (skipped) messages.push(`${skipped} file${skipped === 1 ? '' : 's'} skipped`);
-                        if (failed.length) messages.push(...failed);
-                        if (messages.length) showToast(messages.join(' · '));
-                        if (added.length) showToast(`Uploaded ${added.length} file${added.length === 1 ? '' : 's'} successfully`);
+
+                        // Build a single, clear notification message
+                        const parts = [];
+                        if (driveSuccess.length) {
+                            parts.push(`✅ ${driveSuccess.length} file${driveSuccess.length === 1 ? '' : 's'} uploaded to Google Drive successfully`);
+                        }
+                        if (localFallback.length) {
+                            parts.push(`⚠️ ${localFallback.length} file${localFallback.length === 1 ? '' : 's'} saved locally (Google Drive upload failed — check your connection)`);
+                        }
+                        if (validationSkipped) {
+                            parts.push(`⏭ ${validationSkipped} file${validationSkipped === 1 ? '' : 's'} skipped (unsupported type or too long)`);
+                        }
+                        if (rejected.length) {
+                            parts.push(`❌ ${rejected.length} file${rejected.length === 1 ? '' : 's'} could not be processed`);
+                        }
+
+                        if (parts.length) showToast(parts.join(' · '));
+
                     } catch (err) {
-                        showToast(err.message || 'Upload failed');
+                        showToast('❌ Upload error: ' + (err.message || 'An unexpected error occurred. Please try again.'));
                     } finally {
                         hideUploadLoading();
                         _uploadModalTarget = null;
