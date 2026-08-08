@@ -881,34 +881,73 @@
                     <!-- Preview area -->
                     <div id="rptPreview" style="display:none" class="rpt-preview-wrap"></div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- ═══════════════════ RECYCLING BIN PAGE ═══════════════════ -->
-    <div class="page" id="page-recyclebin">
-        <div class="recycle-header-banner">
-            <div class="recycle-header-icon">🗑</div>
-            <div>
-                <h2 class="recycle-header-title">Recycling Bin</h2>
-                <p class="recycle-header-sub">Deleted items are kept for <strong>72 hours</strong> before permanent removal. Restore anything before the countdown ends.</p>
+                <!-- ═══════════════════ RECYCLING BIN PAGE ═══════════════════ -->
+                <div class="page" id="page-recyclebin">
+                    <!-- Glassmorphic Header Banner -->
+                    <div class="recycle-header-banner">
+                        <div class="recycle-header-icon">
+                            <span>⏱️</span>
+                            <span class="recycle-icon-ring"></span>
+                        </div>
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
+                                <h2 class="recycle-header-title">Recycling Bin</h2>
+                                <span class="recycle-purge-badge">⚡ 72-Hour Auto-Purge Active</span>
+                            </div>
+                            <p class="recycle-header-sub">Deleted drivers, trucks, trailers, job cards, orders, and violations are held safely for <strong>72 hours</strong>. Restore any item back to its original location before the countdown expires.</p>
+                        </div>
+                        <button class="btn btn-danger btn-sm" style="margin-left:auto;flex-shrink:0" onclick="App.emptyRecycleBin()">🗑 Empty Bin</button>
+                    </div>
+
+                    <!-- Live Stats Dashboard Cards -->
+                    <div class="recycle-stats-row" id="recycleBinStats"></div>
+
+                    <!-- Category Tabs & Controls -->
+                    <div class="recycle-controls-card">
+                        <div class="rpt-tabs" id="recycleBinFilterTabs" style="flex:1;flex-wrap:wrap">
+                            <button class="rpt-tab active" data-rfilter="all" onclick="App.setRecycleFilter('all')">All Items <span class="recycle-tab-count" id="rTabCount-all">0</span></button>
+                            <button class="rpt-tab" data-rfilter="driver" onclick="App.setRecycleFilter('driver')">👤 Drivers <span class="recycle-tab-count" id="rTabCount-driver">0</span></button>
+                            <button class="rpt-tab" data-rfilter="truck" onclick="App.setRecycleFilter('truck')">🚛 Trucks <span class="recycle-tab-count" id="rTabCount-truck">0</span></button>
+                            <button class="rpt-tab" data-rfilter="trailer" onclick="App.setRecycleFilter('trailer')">🔗 Trailers <span class="recycle-tab-count" id="rTabCount-trailer">0</span></button>
+                            <button class="rpt-tab" data-rfilter="jobcard" onclick="App.setRecycleFilter('jobcard')">🧾 Job Cards <span class="recycle-tab-count" id="rTabCount-jobcard">0</span></button>
+                            <button class="rpt-tab" data-rfilter="order" onclick="App.setRecycleFilter('order')">📦 Orders <span class="recycle-tab-count" id="rTabCount-order">0</span></button>
+                            <button class="rpt-tab" data-rfilter="violation" onclick="App.setRecycleFilter('violation')">⚠ Violations <span class="recycle-tab-count" id="rTabCount-violation">0</span></button>
+                        </div>
+
+                        <!-- Secondary Toolbar: Search, Sort & Bulk Selection -->
+                        <div class="recycle-toolbar">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;user-select:none">
+                                <input type="checkbox" id="recycleSelectAll" onchange="App.toggleRecycleSelectAll(this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)">
+                                <span>Select All</span>
+                            </label>
+
+                            <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap">
+                                <div id="recycleBulkActions" style="display:none;align-items:center;gap:8px">
+                                    <button class="btn btn-ghost btn-xs recycle-restore-btn" onclick="App.restoreSelectedFromBin()">↩ Restore Selected (<span id="recycleSelectedCount">0</span>)</button>
+                                    <button class="btn btn-ghost btn-xs" style="color:var(--red);border-color:rgba(240,76,90,0.3)" onclick="App.permanentDeleteSelectedFromBin()">🗑 Delete Selected</button>
+                                </div>
+
+                                <div style="display:flex;align-items:center;gap:6px">
+                                    <span style="font-size:11px;color:var(--text3)">Sort:</span>
+                                    <select id="recycleSortSelect" onchange="App.setRecycleSort(this.value)" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none">
+                                        <option value="newest">Newest Deleted</option>
+                                        <option value="oldest">Oldest Deleted</option>
+                                        <option value="expiring">Expiring Soonest</option>
+                                        <option value="name">Item Name (A-Z)</option>
+                                    </select>
+                                </div>
+
+                                <input id="recycleBinSearch" type="text" placeholder="🔍 Search deleted items…" oninput="App.renderRecycleBin()" style="padding:7px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12.5px;width:200px;outline:none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items List Container -->
+                    <div id="recycleBinList" style="display:flex;flex-direction:column;gap:12px;padding:4px 0 24px"></div>
+                </div>
             </div>
-            <button class="btn btn-danger btn-sm" style="margin-left:auto;flex-shrink:0" onclick="App.emptyRecycleBin()">🗑 Empty Bin</button>
         </div>
-        <div class="recycle-stats-row" id="recycleBinStats"></div>
-        <div class="recycle-toolbar">
-            <div class="rpt-tabs" id="recycleBinFilterTabs" style="flex:1;flex-wrap:wrap">
-                <button class="rpt-tab active" data-rfilter="all" onclick="App.setRecycleFilter('all')">All</button>
-                <button class="rpt-tab" data-rfilter="driver" onclick="App.setRecycleFilter('driver')">👤 Drivers</button>
-                <button class="rpt-tab" data-rfilter="truck" onclick="App.setRecycleFilter('truck')">🚛 Trucks</button>
-                <button class="rpt-tab" data-rfilter="trailer" onclick="App.setRecycleFilter('trailer')">🔗 Trailers</button>
-                <button class="rpt-tab" data-rfilter="jobcard" onclick="App.setRecycleFilter('jobcard')">🧾 Job Cards</button>
-                <button class="rpt-tab" data-rfilter="order" onclick="App.setRecycleFilter('order')">📦 Orders</button>
-                <button class="rpt-tab" data-rfilter="violation" onclick="App.setRecycleFilter('violation')">⚠ Violations</button>
-            </div>
-            <input id="recycleBinSearch" type="text" placeholder="Search deleted items…" oninput="App.renderRecycleBin()" style="padding:8px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;width:220px;outline:none;flex-shrink:0">
-        </div>
-        <div id="recycleBinList" style="display:flex;flex-direction:column;gap:10px;padding:4px 0 24px"></div>
     </div>
 
     <div id="app-loading-msg" style="
