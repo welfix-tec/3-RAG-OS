@@ -7044,10 +7044,10 @@ function _afterLoad() {
 
             function addEntityFiles(entityType, idx, files) {
                 const target = entityType === 'driver'
-                    ? drivers.find(x => x._idx === idx)
+                    ? drivers.find(x => String(x._idx) === String(idx))
                     : entityType === 'trailer'
-                        ? trailers.find(x => x._idx === idx)
-                        : trucks.find(x => x._idx === idx);
+                        ? trailers.find(x => String(x._idx) === String(idx))
+                        : trucks.find(x => String(x._idx) === String(idx));
                 if (!target || !files || !files.length) return;
 
                 (async () => {
@@ -7191,19 +7191,28 @@ function _afterLoad() {
             }
 
             function deleteAttachment(entityType, idx, fileId) {
-                const target = entityType === 'driver' ? drivers.find(x => x._idx === idx) : trucks.find(x => x._idx === idx);
+                const target = entityType === 'driver' 
+                    ? drivers.find(x => String(x._idx) === String(idx)) 
+                    : entityType === 'trailer'
+                        ? trailers.find(x => String(x._idx) === String(idx))
+                        : trucks.find(x => String(x._idx) === String(idx));
                 if (!target || !Array.isArray(target.files)) return;
                 const removed = target.files.find(f => f.id === fileId);
                 target.files = target.files.filter(f => f.id !== fileId);
                 if (removed) deleteAttachmentFromStorage(removed);
                 saveAll();
                 if (entityType === 'driver') App.openDriverModal(idx);
+                else if (entityType === 'trailer') App.openTrailerModal(idx);
                 else App.openTruckModal(idx);
                 showToast('Attachment deleted');
             }
 
             function renameAttachment(entityType, idx, fileId) {
-                const target = entityType === 'driver' ? drivers.find(x => x._idx === idx) : trucks.find(x => x._idx === idx);
+                const target = entityType === 'driver' 
+                    ? drivers.find(x => String(x._idx) === String(idx)) 
+                    : entityType === 'trailer'
+                        ? trailers.find(x => String(x._idx) === String(idx))
+                        : trucks.find(x => String(x._idx) === String(idx));
                 if (!target || !Array.isArray(target.files)) return;
                 const file = target.files.find(f => f.id === fileId);
                 if (!file) return;
@@ -7212,12 +7221,17 @@ function _afterLoad() {
                 file.name = newName.trim() || file.name;
                 saveAll();
                 if (entityType === 'driver') App.openDriverModal(idx);
+                else if (entityType === 'trailer') App.openTrailerModal(idx);
                 else App.openTruckModal(idx);
                 showToast('Attachment renamed');
             }
 
             function previewAttachment(entityType, idx, fileId) {
-                const target = entityType === 'driver' ? drivers.find(x => x._idx === idx) : trucks.find(x => x._idx === idx);
+                const target = entityType === 'driver' 
+                    ? drivers.find(x => String(x._idx) === String(idx)) 
+                    : entityType === 'trailer'
+                        ? trailers.find(x => String(x._idx) === String(idx))
+                        : trucks.find(x => String(x._idx) === String(idx));
                 const file = target?.files?.find(f => f.id === fileId);
                 if (!file) return;
 
@@ -7285,10 +7299,10 @@ function _afterLoad() {
 
             function downloadAttachment(entityType, idx, fileId) {
                 const target = entityType === 'driver'
-                    ? drivers.find(x => x._idx === idx)
+                    ? drivers.find(x => String(x._idx) === String(idx))
                     : entityType === 'trailer'
-                        ? trailers.find(x => x._idx === idx)
-                        : trucks.find(x => x._idx === idx);
+                        ? trailers.find(x => String(x._idx) === String(idx))
+                        : trucks.find(x => String(x._idx) === String(idx));
                 const file = target?.files?.find(f => f.id === fileId);
                 if (!file) return;
 
@@ -8359,20 +8373,27 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 }
                 try {
                     const dataUrl = await compressImageFile(file);
-                    const result = await uploadToGoogleDrive({
-                        base64: dataUrlToBase64(dataUrl),
-                        fileName: file.name || 'report-logo.jpg',
-                        mimeType: file.type || 'image/jpeg',
-                        folder: 'fleetguard/reports/logos'
-                    });
-                    reportLogo = result.url;
+                    let uploadedUrl = null;
+                    try {
+                        const result = await uploadToGoogleDrive({
+                            base64: dataUrlToBase64(dataUrl),
+                            fileName: file.name || 'report-logo.jpg',
+                            mimeType: file.type || 'image/jpeg',
+                            folder: 'fleetguard/reports/logos'
+                        });
+                        uploadedUrl = result.url;
+                        showToast('Logo uploaded to Google Drive');
+                    } catch (_) {
+                        uploadedUrl = dataUrl;
+                        showToast('Logo attached locally');
+                    }
+                    reportLogo = uploadedUrl;
                     const statusEl = document.getElementById('rptLogoStatus');
                     const clearBtn = document.getElementById('rptLogoClearBtn');
                     if (statusEl) statusEl.textContent = file.name + ' ✓';
                     if (clearBtn) clearBtn.style.display = '';
-                    showToast('Logo uploaded to Google Drive');
                 } catch (err) {
-                    showToast('Logo upload failed: ' + err.message);
+                    showToast('Logo processing failed: ' + err.message);
                 }
             }
 
@@ -10443,17 +10464,23 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 const ext = isPdf ? '.pdf' : (file.type === 'image/png' ? '.png' : '.jpg');
                 const finalName = (customName && customName.trim()) ? customName.trim() + ext : file.name;
                 try {
-                    let result;
+                    let fileData, fileSize, fileType;
                     if (isPdf) {
-                        result = await readPdfFile(file);
+                        const pdfRes = await readPdfFile(file);
+                        fileData = pdfRes.data;
+                        fileSize = pdfRes.size;
+                        fileType = 'application/pdf';
                     } else {
-                        result = await compressImageFile(file);
+                        const dataUrl = await compressImageFile(file);
+                        fileData = dataUrl;
+                        fileSize = Math.round(dataUrl.length * 0.75);
+                        fileType = file.type || 'image/jpeg';
                     }
                     return {
                         name: finalName,
-                        type: result.type,
-                        data: result.data,
-                        size: result.size,
+                        type: fileType,
+                        data: fileData,
+                        size: fileSize,
                         uploadedAt: new Date().toISOString().split('T')[0]
                     };
                 } catch (err) {
