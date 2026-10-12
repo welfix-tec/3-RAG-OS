@@ -249,6 +249,9 @@ hr.div{border:none;border-top:1px solid var(--border);margin:24px 0 20px}
 .timebar select,.timebar input{width:auto;padding:6px 9px;font-size:12px;font-weight:600;background:var(--bg2)}
 .search{position:relative;display:inline-flex;align-items:center;min-width:260px}
 .search input{padding:8px 30px 8px 30px;background:var(--bg2)}
+.search input[type=search]{-webkit-appearance:none;appearance:none}
+.search input[type=search]::-webkit-search-cancel-button,.search input[type=search]::-webkit-search-decoration{-webkit-appearance:none;display:none}
+.ask-pin{margin:0}
 .search .s-ic{position:absolute;left:10px;color:var(--text3);font-size:14px}
 .search .s-x{position:absolute;right:6px;background:transparent;border:none;color:var(--text3);font-size:12px;padding:4px 6px}
 .search .s-x:hover{color:var(--text)}
@@ -724,7 +727,7 @@ function sample(){
 let S;
 function load(){
   ['fg_orders_trial_v1','fg_orders_v2'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});   /* fresh start — old trial stores are discarded */
-  try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):sample()}catch(e){S=sample()} const d=sample();if(!S.ui)S.ui=d.ui;Object.keys(d.ui).forEach(k=>{if(S.ui[k]===undefined)S.ui[k]=d.ui[k]});if(!S.capacities)S.capacities={};if(!S.compliance)S.compliance=d.compliance;S.ui.invModal=null;S.ui.docModal=null;S.ui.nomModal=null;if(!S.ui.range)S.ui.range={mode:'month',from:'',to:''};if(!S.ui.q)S.ui.q={};delete S.fleet;
+  try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):sample()}catch(e){S=sample()} const d=sample();if(!S.ui)S.ui=d.ui;if(S.ui.q)Object.keys(S.ui.q).forEach(k=>{if(isAutofilledEmail(S.ui.q[k]))S.ui.q[k]=''});Object.keys(d.ui).forEach(k=>{if(S.ui[k]===undefined)S.ui[k]=d.ui[k]});if(!S.capacities)S.capacities={};if(!S.compliance)S.compliance=d.compliance;S.ui.invModal=null;S.ui.docModal=null;S.ui.nomModal=null;if(!S.ui.range)S.ui.range={mode:'month',from:'',to:''};if(!S.ui.q)S.ui.q={};delete S.fleet;
   if(!Array.isArray(S.allocPlaces))S.allocPlaces=[];S.allocPlaces.forEach(registerPlace);
   if(!Array.isArray(S.roadStatuses))S.roadStatuses=[];S.roadStatuses.forEach(registerRoad);
   S.orders=(S.orders||[]).map(normOrder);
@@ -750,6 +753,8 @@ function normOrder(o){
 }
 /* the browser keeps a copy (and the per-person view settings); signed in, every change also goes to Firebase */
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}cloudPush()}
+/* Nobody searches orders by an e-mail address: a search that is only an e-mail is Chrome's autofill (Oct 2026). */
+function isAutofilledEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v==null?'':v).trim())}
 
 /* ===== SHARED ORDERS IN FIREBASE (Oct 2026) =====
    The Orders page is the ONLY writer of order data. Each order is its own record, so two people working on
@@ -1081,9 +1086,9 @@ document.addEventListener('click',()=>{if(S&&S.ui&&S.ui.notifOpen){S.ui.notifOpe
 /* ---------- per-page search ---------- */
 function q(page){return ((S.ui.q||{})[page]||'').trim().toLowerCase()}
 function matchQ(o,page){const v=q(page);if(!v)return true;const hay=[o.client,o.clientOrderNo,o.product,o.depot,o.destination,o.vessel,...(o.trips||[]).flatMap(t=>[t.plate,t.driver,t.report&&t.report.aaNo]),...(o.nominees||[]).flatMap(n=>[n.plate,n.driver])].filter(Boolean).join(' ').toLowerCase();return v.split(/\s+/).every(w=>hay.includes(w))}
-function searchBox(page,ph){return `<div class="search"><span class="s-ic">⌕</span><input id="q-${page}" value="${esc((S.ui.q||{})[page]||'')}" placeholder="${esc(ph||'Search order, client, plate, driver…')}" oninput="T.setQ('${page}',this.value)" autocomplete="off">${(S.ui.q||{})[page]?`<button class="s-x" onclick="T.setQ('${page}','')">✕</button>`:''}</div>`}
+function searchBox(page,ph){return `<div class="search"><span class="s-ic">⌕</span><input id="q-${page}" type="search" name="q-${page}" value="${esc((S.ui.q||{})[page]||'')}" placeholder="${esc(ph||'Search order, client, plate, driver…')}" oninput="T.setQ('${page}',this.value)" autocomplete="off">${(S.ui.q||{})[page]?`<button class="s-x" onclick="T.setQ('${page}','')">✕</button>`:''}</div>`}
 let _qT=null;
-function setQ(page,v){S.ui.q=S.ui.q||{};S.ui.q[page]=v;clearTimeout(_qT);_qT=setTimeout(()=>{S._qFocus=page;render();const el=document.getElementById('q-'+page);if(el){el.focus();const L=el.value.length;el.setSelectionRange(L,L)}S._qFocus=null},220)}
+function setQ(page,v){if(isAutofilledEmail(v)){v='';const el=document.getElementById('q-'+page);if(el)el.value=''}S.ui.q=S.ui.q||{};S.ui.q[page]=v;clearTimeout(_qT);_qT=setTimeout(()=>{S._qFocus=page;render();const el=document.getElementById('q-'+page);if(el){el.focus();const L=el.value.length;el.setSelectionRange(L,L)}S._qFocus=null},220)}
 
 /* ---- 1 orders ---- */
 function stageChip(o){const s=STAGES[o.stage];return `<span class="chip ${s.c}">${s.l}</span>`}
@@ -2148,7 +2153,12 @@ function ask(o){
   return new Promise(res=>{
     if(_askDone)_askDone(o.input?null:false);
     const box=document.getElementById('ask'),ov=document.getElementById('askOv');
-    box.innerHTML=`<h3>${esc(o.title||'Please confirm')}</h3>${o.msg?`<p>${esc(o.msg).replace(/\n/g,'<br>')}</p>`:''}${o.input?`<input id="askIn" type="${o.type||'text'}" value="${esc(o.value??'')}" placeholder="${esc(o.placeholder||'')}" autocomplete="off">`:''}<div class="ask-f"><button class="btn" id="askNo">${esc(o.cancel||'Cancel')}</button><button class="btn ${o.danger?'danger':'primary'}" id="askYes">${esc(o.ok||'OK')}</button></div>`;
+    box.innerHTML=`<h3>${esc(o.title||'Please confirm')}</h3>${o.msg?`<p>${esc(o.msg).replace(/\n/g,'<br>')}</p>`:''}${o.input?(o.type==='password'
+      /* Oct 2026: a password box made Chrome's password manager drop the saved sign-in e-mail into the
+         nearest text box above it — the search bar — when Finance asked for its PIN. A PIN is a one-time
+         code, in its own form, so there is no "username" field to fill and no saved password offered. */
+      ?`<form class="ask-pin" onsubmit="return false" autocomplete="off"><input id="askIn" type="password" name="pin-${Date.now()}" value="${esc(o.value??'')}" placeholder="${esc(o.placeholder||'')}" autocomplete="one-time-code" inputmode="numeric" data-lpignore="true" data-1p-ignore="true"></form>`
+      :`<input id="askIn" type="${o.type||'text'}" value="${esc(o.value??'')}" placeholder="${esc(o.placeholder||'')}" autocomplete="off">`):''}<div class="ask-f"><button class="btn" id="askNo">${esc(o.cancel||'Cancel')}</button><button class="btn ${o.danger?'danger':'primary'}" id="askYes">${esc(o.ok||'OK')}</button></div>`;
     const done=v=>{_askDone=null;ov.classList.remove('on');res(v)};
     _askDone=done;
     box.querySelector('#askNo').onclick=()=>done(o.input?null:false);

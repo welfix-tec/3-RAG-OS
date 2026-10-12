@@ -2321,7 +2321,11 @@ function _afterLoad() {
                             <div class="confirm-box" role="dialog" aria-modal="true">
                                 <div class="confirm-title">${esc(opts.title || (opts.danger ? 'Please confirm' : 'Confirm'))}</div>
                                 <div class="confirm-msg">${esc(message)}</div>
-                                ${opts.inputLabel ? `<label class="confirm-label">${esc(opts.inputLabel)}</label><input id="confirmDialogInput" type="${esc(opts.inputType || 'text')}" placeholder="${esc(opts.inputPlaceholder || '')}" value="${esc(opts.inputValue || '')}">` : ''}
+                                ${opts.inputLabel ? `<label class="confirm-label">${esc(opts.inputLabel)}</label>${opts.inputType === 'password'
+                                    // Oct 2026: a PIN box is a one-time code in its own form. As a plain password box, Chrome's
+                                    // password manager dropped the saved sign-in e-mail into the nearest text box (a search bar).
+                                    ? `<form class="confirm-pin" onsubmit="return false" autocomplete="off"><input id="confirmDialogInput" type="password" name="pin-${Date.now()}" autocomplete="one-time-code" inputmode="numeric" data-lpignore="true" data-1p-ignore="true" placeholder="${esc(opts.inputPlaceholder || '')}" value="${esc(opts.inputValue || '')}"></form>`
+                                    : `<input id="confirmDialogInput" type="${esc(opts.inputType || 'text')}" placeholder="${esc(opts.inputPlaceholder || '')}" value="${esc(opts.inputValue || '')}">`}` : ''}
                                 <div class="confirm-actions">
                                     <button class="btn btn-ghost btn-sm" id="confirmDialogCancel">${esc(opts.cancelLabel || 'Cancel')}</button>
                                     <button class="btn btn-sm ${opts.danger ? 'btn-danger' : 'btn-primary'}" id="confirmDialogOk">${esc(opts.okLabel || 'Confirm')}</button>
@@ -6900,7 +6904,7 @@ function _afterLoad() {
                 const inputStyle = 'padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:12px';
                 host.innerHTML = `
                     <div class="toolbar" style="flex-wrap:wrap;gap:10px">
-                        <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="violationSearch" placeholder="Search violations…" oninput="App.onViolationFilterChange()"></div>
+                        <div class="search-wrap"><span class="search-icon">⌕</span><input type="search" id="violationSearch" placeholder="Search violations…" oninput="App.onViolationFilterChange()"></div>
                         <select id="violationTypeFilter" onchange="App.onViolationFilterChange()"><option value="">All types</option></select>
                         <select id="violationSeverityFilter" onchange="App.onViolationFilterChange()">
                             <option value="">All severities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
@@ -10458,7 +10462,7 @@ function _afterLoad() {
                             </div>
                         </div>
                         <div class="toolbar" style="margin-bottom:14px;flex-wrap:wrap;gap:10px">
-                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="hscPolicySearch" placeholder="Search policies…" value="${esc(hscPolicySearch)}" oninput="App.onHscPolicySearchInput(this.value)"></div>
+                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="search" id="hscPolicySearch" placeholder="Search policies…" value="${esc(hscPolicySearch)}" oninput="App.onHscPolicySearchInput(this.value)"></div>
                             <select onchange="App.setHscPolicyCategory(this.value)" style="${selStyle}"><option value="all">All categories</option>${categories.map(c => `<option value="${esc(c)}" ${hscPolicyCategory === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
                             <select onchange="App.setHscPolicySeverity(this.value)" style="${selStyle}"><option value="all">All severities</option>${['high', 'medium', 'low'].map(s => `<option value="${s}" ${hscPolicySeverity === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>
                         </div>

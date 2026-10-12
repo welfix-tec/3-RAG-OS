@@ -3957,3 +3957,9 @@ td .driver-doc-alert { font-weight: 500; margin-top: 4px; }
 .jc-multiline:focus { outline: none; border-color: var(--accent); }
 .jc-multiline-preview { font-size: 11px; color: var(--green); margin-bottom: 8px; min-height: 0; }
 .jc-multiline-preview:empty { display: none; }
+
+/* Search boxes are type="search" (Oct 2026) so Chrome never fills a saved sign-in e-mail into them;
+   hide the browser's own clear button and styling so they look exactly as before. */
+input[type="search"] { -webkit-appearance: none; appearance: none; }
+input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+.confirm-pin { margin: 0; }

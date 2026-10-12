@@ -169,7 +169,7 @@
                 <div class="page" id="page-drivers">
                     <div class="metrics-row" id="driverMetrics"></div>
                     <div class="toolbar">
-                        <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="driverSearch"
+                        <div class="search-wrap"><span class="search-icon">⌕</span><input type="search" id="driverSearch"
                                 placeholder="Search drivers…" oninput="App.renderDriverCards()"></div>
                         <select id="driverStatusFilter" onchange="App.renderDriverCards()">
                             <option value="">All statuses</option>
@@ -223,7 +223,7 @@
                     <div id="trucks-panel">
                         <div class="metrics-row" id="truckMetrics"></div>
                         <div class="toolbar" style="flex-wrap:wrap;row-gap:8px">
-                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="truckSearch"
+                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="search" id="truckSearch"
                                     placeholder="Search plate, brand, chassis, trailer…" oninput="App.onTruckFilterChange()"></div>
                             <select id="truckStatusFilter" onchange="App.onTruckFilterChange()" title="Fleet status">
                                 <option value="">All statuses</option>
@@ -272,7 +272,7 @@
                     <div id="trailers-panel" style="display:none">
                         <div class="metrics-row" id="trailerMetrics"></div>
                         <div class="toolbar">
-                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="trailerSearch"
+                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="search" id="trailerSearch"
                                     placeholder="Search trailers…" oninput="App.renderTrailerCards()"></div>
                             <select id="trailerDocFilter" onchange="App.renderTrailerCards()">
                                 <option value="">All docs</option>
@@ -317,7 +317,7 @@
                     </div>
                     <div id="jc-pipeline-panel">
                         <div class="toolbar jc-toolbar">
-                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="jobcardSearch"
+                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="search" id="jobcardSearch"
                                     placeholder="Search job cards…" oninput="App.renderJcKanban()"></div>
                             <select id="jobcardTruckFilter" onchange="App.renderJcKanban()">
                                 <option value="">All Trucks</option>
@@ -349,7 +349,7 @@
                     </div>
                     <div id="jc-history-panel" style="display:none">
                         <div class="toolbar">
-                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="historySearch"
+                            <div class="search-wrap"><span class="search-icon">⌕</span><input type="search" id="historySearch"
                                     placeholder="Search completed cards…" oninput="App.renderJcHistory()"></div>
                             <select id="historyTruckFilter" onchange="App.renderJcHistory()">
                                 <option value="">All Trucks</option>
@@ -405,7 +405,7 @@
                     <div class="toolbar">
                         <div class="search-wrap" style="position:relative;flex:1;min-width:280px">
                             <span class="search-icon">🔍</span>
-                            <input type="text" id="orderSearch" placeholder="Search by order, client, destination, plate (e.g. RAD801E), or driver…" oninput="App.handleOrderSearchInput(this.value)" onfocus="App.handleOrderSearchInput(this.value)" onkeydown="App.handleOrderSearchKey(event)" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="orderSearchDropdown" aria-expanded="false">
+                            <input type="search" id="orderSearch" placeholder="Search by order, client, destination, plate (e.g. RAD801E), or driver…" oninput="App.handleOrderSearchInput(this.value)" onfocus="App.handleOrderSearchInput(this.value)" onkeydown="App.handleOrderSearchKey(event)" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="orderSearchDropdown" aria-expanded="false">
                             <button id="orderSearchClearBtn" type="button" onclick="App.clearOrderSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 6px" title="Clear search">✕</button>
                             <div id="orderSearchDropdown" role="listbox" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 36px rgba(0,0,0,0.45);max-height:380px;overflow-y:auto;z-index:100;padding:8px"></div>
                         </div>
@@ -1049,7 +1049,7 @@
                                 <!-- DRIVER SELECTION -->
                                 <div id="rptDriverSubject" class="rpt-field">
                                     <label style="display:flex;align-items:center;gap:4px;margin-bottom:8px">👥 Select Drivers</label>
-                                    <input type="text" id="rptDriverSearch" placeholder="🔍 Search drivers..." style="width:100%;padding:8px;margin-bottom:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px" oninput="App.filterDriverList()">
+                                    <input type="search" id="rptDriverSearch" placeholder="🔍 Search drivers..." style="width:100%;padding:8px;margin-bottom:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px" oninput="App.filterDriverList()">
                                     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px;margin-bottom:8px;background:var(--bg2);border-radius:6px;border:1px solid var(--border)">
                                         <input type="checkbox" id="rptDriverSelectAll" onchange="App.toggleAllDrivers(this.checked)" style="cursor:pointer;width:16px;height:16px">
                                         <strong style="flex:1">Select All Drivers</strong>
@@ -1061,7 +1061,7 @@
                                 <!-- TRUCK SELECTION -->
                                 <div id="rptTruckSubject" class="rpt-field" style="display:none">
                                     <label style="display:flex;align-items:center;gap:4px;margin-bottom:8px">🚗 Select Trucks</label>
-                                    <input type="text" id="rptTruckSearch" placeholder="🔍 Search trucks..." style="width:100%;padding:8px;margin-bottom:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px" oninput="App.filterTruckList()">
+                                    <input type="search" id="rptTruckSearch" placeholder="🔍 Search trucks..." style="width:100%;padding:8px;margin-bottom:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px" oninput="App.filterTruckList()">
                                     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px;margin-bottom:8px;background:var(--bg2);border-radius:6px;border:1px solid var(--border)">
                                         <input type="checkbox" id="rptTruckSelectAll" onchange="App.toggleAllTrucks(this.checked)" style="cursor:pointer;width:16px;height:16px">
                                         <strong style="flex:1">Select All Trucks</strong>
@@ -1168,7 +1168,7 @@
                                     </select>
                                 </div>
 
-                                <input id="recycleBinSearch" type="text" placeholder="🔍 Search deleted items…" oninput="App.renderRecycleBin()" style="padding:7px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12.5px;width:200px;outline:none">
+                                <input id="recycleBinSearch" type="search" placeholder="🔍 Search deleted items…" oninput="App.renderRecycleBin()" style="padding:7px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12.5px;width:200px;outline:none">
                             </div>
                         </div>
                     </div>
