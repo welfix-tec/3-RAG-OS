@@ -1,0 +1,10 @@
+# Only the app is published. Local copies and business files never go online.
+*.backup*
+_backup-*/
+_v2-release/
+*.xlsx
+*.xls
+*.pdf
+*.py
+.claude/
+.cursor/

@@ -19,31 +19,50 @@
   // Monitor authorization state automatically
   let appInitialized = false;
 
-  window.auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
+  // The sign-in box starts hidden and the loader shows while Firebase restores a saved
+  // session — a refresh no longer flashes the sign-in screen at someone who is signed in.
+  // If Firebase has not answered after 10 s (offline, blocked), show the sign-in box anyway.
+  let authAnswered = false;
+  setTimeout(() => {
+      if (authAnswered) return;
+      const overlay = document.getElementById('auth-overlay');
+      const loader = document.getElementById('app-loading-msg');
+      if (loader) loader.style.display = 'none';
+      if (overlay) overlay.style.display = 'flex';
+  }, 10000);
+
+  // Oct 2026: sign in every time the page is opened — the session lives in this tab only and closing the tab signs out
+  // (SESSION). A new tab asks again. "Sign out" in the sidebar footer still signs out at once.
+  window.auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
+      .catch((err) => console.warn('[Auth] persistence not available, falling back to default', err))
       .then(() => {
-          // Force sign out on page load to ensure re-authentication every refresh
-          window.auth.signOut().then(() => {
-              window.auth.onAuthStateChanged((user) => {
-                  const overlay = document.getElementById('auth-overlay');
-                  if (user) {
-                      console.log("[Security] Dispatcher authenticated:", user.email);
-                      overlay.style.display = 'none';
+          window.auth.onAuthStateChanged((user) => {
+              authAnswered = true;
+              const overlay = document.getElementById('auth-overlay');
+              if (user) {
+                  console.log("[Security] Dispatcher authenticated:", user.email);
+                  if (overlay) overlay.style.display = 'none';
+                  // Show the loading spinner straight after sign-in, until live data arrives.
+                  const loader = document.getElementById('app-loading-msg');
+                  if (loader) loader.style.display = 'flex';
 
-                      const rolePromise = (window.App && typeof App.loadUserRoleFromFirebase === 'function')
-                          ? App.loadUserRoleFromFirebase(user.uid)
-                          : Promise.resolve(null);
+                  const rolePromise = (window.App && typeof App.loadUserRoleFromFirebase === 'function')
+                      ? App.loadUserRoleFromFirebase(user.uid)
+                      : Promise.resolve(null);
 
-                      rolePromise.finally(() => {
-                          if (!appInitialized && window.App && typeof window.App.init === 'function') {
-                              appInitialized = true;
-                              App.init();
-                          }
-                      });
-                  } else {
-                      appInitialized = false;
-                      overlay.style.display = 'flex';
-                  }
-              });
+                  rolePromise.finally(() => {
+                      if (window.__fgAccessDenied) return;   // turned off, or not allowed on FleetGuard (Settings → Users)
+                      if (!appInitialized && window.App && typeof window.App.init === 'function') {
+                          appInitialized = true;
+                          App.init();
+                      }
+                  });
+              } else {
+                  appInitialized = false;
+                  const loader = document.getElementById('app-loading-msg');
+                  if (loader) loader.style.display = 'none';
+                  if (overlay) overlay.style.display = 'flex';
+              }
           });
       });
 
@@ -77,6 +96,7 @@
           return;
       }
       
+      window.__fgAccessDenied = false;
       try {
           btn.textContent = "Verifying Credentials...";
           btn.disabled = true;
@@ -87,7 +107,7 @@
           console.error("Login Failure:", error);
           errorEl.textContent = "Access Denied: Invalid email or password confirmation.";
           errorEl.style.display = "block";
-          btn.textContent = "Initialize Control Center";
+          btn.textContent = "Sign in";
           btn.disabled = false;
       }
   }
