@@ -2187,7 +2187,7 @@ function renderGate(){
   if(on&&!g.dataset.focused){g.dataset.focused='1';setTimeout(()=>{const i=document.getElementById('gateEmail');if(i&&!i.value)i.focus()},50)}
   if(!on)delete g.dataset.focused;
   const a=document.getElementById('sideAcct');
-  if(a)a.innerHTML=DEMO?'<span class="demo-tag">DEMO · this computer only</span><button class="btn sm" onclick="T.exitDemo()">Exit demo</button>':FB.user?`<div class="acct-ic">${FB.access&&FB.access.pages&&FB.access.pages.fleetguard===false?'':`<button class="acct-b" onclick="T.openFleetGuard()" title="Open FleetGuard (new tab)" aria-label="Open FleetGuard in a new tab"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>`}<button class="acct-b out" onclick="T.signOutOrders()" title="Sign out · ${esc(FB.user.email||'')}" aria-label="Sign out ${esc(FB.user.email||'')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button></div>`:'';
+  if(a)a.innerHTML=DEMO?'<span class="demo-tag">DEMO · this computer only</span><button class="btn sm" onclick="T.exitDemo()">Exit demo</button>':FB.user?`<div class="acct-ic">${!FB.access||!accessPages(FB.access).fleetguard?'':`<button class="acct-b" onclick="T.openFleetGuard()" title="Open FleetGuard (new tab)" aria-label="Open FleetGuard in a new tab"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>`}<button class="acct-b out" onclick="T.signOutOrders()" title="Sign out · ${esc(FB.user.email||'')}" aria-label="Sign out ${esc(FB.user.email||'')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button></div>`:'';
 }
 function gateSignIn(){
   const e=document.getElementById('gateEmail').value.trim(),p=document.getElementById('gatePass').value,er=document.getElementById('gateErr'),b=document.getElementById('gateBtn');
@@ -2236,18 +2236,35 @@ async function setRole(r){
 }
 /* ===== Access (Oct 2026): FleetGuard → Settings → Users decides who may use this page. A turned-off account, or one
    without "Orders", is signed out. An account with no record yet is registered at its first sign-in. ===== */
-function ordersAccessBlock(r){if(!r)return'';if(r.active===false)return'This account has been turned off. Ask the administrator.';if(r.pages&&r.pages.orders===false)return'This account is not allowed on the Orders page.';return''}
-function denyOrders(msg){if(FB.accessWatch){FB.accessWatch.off();FB.accessWatch=null}ordersSignedHere(false);firebase.auth().signOut().catch(()=>{});setTimeout(()=>{const e=document.getElementById('gateErr');if(e){e.textContent=msg;e.classList.add('on')}},60)}
+/* Oct 2026: an account opens a page only when its tick for that page is on (same rules as userPages() in js/app.js):
+   no record → nothing · older record without ticks → FleetGuard only · older record registered here and never changed
+   by the admin → Orders only · Admin role → always FleetGuard. */
+function accessPages(r){
+  if(!r||typeof r!=='object')return{fleetguard:false,orders:false};
+  const p=r.pages&&typeof r.pages==='object'?r.pages:null;let a;
+  if(!p)a={fleetguard:true,orders:false};
+  else if(r.via==='Orders page'&&!r.pagesSetAt)a={fleetguard:false,orders:true};
+  else a={fleetguard:p.fleetguard===true,orders:p.orders===true};
+  if(r.role==='Admin')a.fleetguard=true;
+  return a;
+}
+const NO_ACCESS='This account has no access yet. Ask the administrator to give it access in FleetGuard → Settings → Users.';
+function ordersAccessBlock(r){if(!r)return NO_ACCESS;if(r.active===false)return'This account has been turned off. Ask the administrator.';const a=accessPages(r);if(!a.orders)return a.fleetguard?'This account is for FleetGuard only.':NO_ACCESS;return''}
+function denyOrders(msg,rec){if(FB.accessWatch){FB.accessWatch.off();FB.accessWatch=null}FB.access=null;ordersSignedHere(false);firebase.auth().signOut().catch(()=>{});
+  const fg=!!(rec&&rec.active!==false&&accessPages(rec).fleetguard);
+  setTimeout(()=>{const e=document.getElementById('gateErr');if(e){e.textContent=msg;if(fg){const l=document.createElement('a');l.href='index.html';l.textContent='Go to FleetGuard →';l.style.cssText='display:block;margin-top:6px;color:#fff;font-weight:600';e.appendChild(l)}e.classList.add('on')}},60)}
 function ordersAccess(u){
   const ref=firebase.database().ref('users/'+u.uid);
   return ref.once('value').then(snap=>{
-    let rec=snap.val();
-    if(!rec){rec={email:u.email||'',role:'Driver',pages:{orders:true,fleetguard:true},active:true,firstSeen:Date.now(),via:'Orders page'};ref.set(rec).catch(()=>{})}
+    const rec=snap.val();
+    if(!rec){   /* first sign-in of an account nobody added: register it with no access, so it shows in Settings → Users */
+      ref.set({email:u.email||'',role:'Driver',pages:{orders:false,fleetguard:false},pagesSetAt:Date.now(),pagesSetBy:'first sign-in (no access yet)',active:true,firstSeen:Date.now(),via:'Orders page'}).catch(()=>{});
+      denyOrders('Your account is registered. Ask the administrator to give it access in FleetGuard → Settings → Users, then sign in again.');return false}
+    const why=ordersAccessBlock(rec);if(why){denyOrders(why,rec);return false}
     FB.access=rec;
-    const why=ordersAccessBlock(rec);if(why){denyOrders(why);return false}
-    if(!FB.accessWatch){FB.accessWatch=ref;ref.on('value',s=>{const r=s.val();if(!r)return;FB.access=r;const w=ordersAccessBlock(r);if(w)denyOrders(w);else renderGate()},()=>{})}
+    if(!FB.accessWatch){FB.accessWatch=ref;ref.on('value',s=>{const r=s.val();const w=ordersAccessBlock(r);if(w){denyOrders(w,r);return}FB.access=r;renderGate()},()=>{})}
     return true;
-  }).catch(e=>{console.warn('[Access] users record',e&&e.message);return true});   /* rules may not allow it — keep working as before */
+  }).catch(e=>{console.warn('[Access] users record',e&&e.message);denyOrders('Could not check this account\'s access — check the internet connection and try again.');return false});
 }
 function gateEye(){const i=document.getElementById('gatePass');i.type=i.type==='password'?'text':'password'}
 function signOutOrders(){

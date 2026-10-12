@@ -1095,7 +1095,22 @@
                 usersList = null; usersErr = '';
                 renderUsersAdmin();
             }
-            function userPages(u) { const p = (u && u.pages) || null; return { fleetguard: !p || p.fleetguard !== false, orders: !p || p.orders !== false }; }
+            /* Page access (Oct 2026) — an account opens a page only when its tick for that page is on.
+               Same rules as accessPages() in orders-page.html; keep the two in step.
+               - no record: nothing (a new account is registered with both ticks off; the admin decides)
+               - older record without ticks (FleetGuard's own first sign-in): FleetGuard only
+               - older record registered by the Orders page, never changed by the admin: Orders only
+               - Admin role: always FleetGuard, so the administrator can never be locked out of Users */
+            function userPages(u) {
+                if (!u || typeof u !== 'object') return { fleetguard: false, orders: false };
+                const p = u.pages && typeof u.pages === 'object' ? u.pages : null;
+                let r;
+                if (!p) r = { fleetguard: true, orders: false };
+                else if (u.via === 'Orders page' && !u.pagesSetAt) r = { fleetguard: false, orders: true };
+                else r = { fleetguard: p.fleetguard === true, orders: p.orders === true };
+                if (u.role === 'Admin') r.fleetguard = true;
+                return r;
+            }
             function renderUsersAdmin() {
                 const box = document.getElementById('usersAdminBody'), btn = document.getElementById('usersAdminButton');
                 if (btn) { btn.classList.toggle('open', usersOpen()); btn.setAttribute('aria-expanded', usersOpen() ? 'true' : 'false'); const h = btn.querySelector('.users-dd-hint'); if (h) h.textContent = usersOpen() ? 'open · locks after 5 min' : 'admin PIN'; }
@@ -1127,7 +1142,7 @@
                     <thead><tr><th>User</th><th style="text-align:center">FleetGuard</th><th style="text-align:center">Orders</th><th>Job-card role</th><th style="text-align:center">Active</th><th></th></tr></thead>
                     <tbody>${rows.map(u => { const p = userPages(u), self = u.uid === me, on = u.active !== false; return `<tr style="${on ? '' : 'opacity:.55'}">
                         <td><b>${esc(u.email || '(no email)')}</b>${self ? ' <span style="font-size:10.5px;color:var(--text3)">(you)</span>' : ''}${u.name ? `<div style="font-size:11px;color:var(--text3)">${esc(u.name)}</div>` : ''}</td>
-                        <td style="text-align:center"><input type="checkbox" ${p.fleetguard ? 'checked' : ''} ${self ? 'disabled title="You cannot remove your own FleetGuard access"' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','fleetguard',this.checked)"></td>
+                        <td style="text-align:center"><input type="checkbox" ${p.fleetguard ? 'checked' : ''} ${self ? 'disabled title="You cannot remove your own FleetGuard access"' : u.role === 'Admin' ? 'disabled title="Admins always have FleetGuard — change the role first"' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','fleetguard',this.checked)"></td>
                         <td style="text-align:center"><input type="checkbox" ${p.orders ? 'checked' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','orders',this.checked)"></td>
                         <td><select style="padding:4px 26px 4px 8px;font-size:12px;min-width:118px" onchange="App.setUserRole('${escAttr(u.uid)}',this.value)">${USER_ROLES.map(r => `<option ${(u.role || 'Driver') === r ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
                         <td style="text-align:center"><input type="checkbox" ${on ? 'checked' : ''} ${self ? 'disabled title="You cannot turn off your own account"' : ''} onchange="App.setUserActive('${escAttr(u.uid)}',this.checked)"></td>
@@ -1147,7 +1162,7 @@
                 const me = window.auth && window.auth.currentUser ? window.auth.currentUser.uid : '';
                 if (uid === me && page === 'fleetguard' && !on) { renderUsersAdmin(); return; }
                 const p = userPages(usersList && usersList[uid]); p[page] = !!on;
-                userWrite(uid, { pages: p }, `${userLabel(uid)}: ${page === 'orders' ? 'Orders page' : 'FleetGuard'} ${on ? 'allowed' : 'removed'}`);
+                userWrite(uid, { pages: p, pagesSetAt: Date.now(), pagesSetBy: getCurrentUserLabel() }, `${userLabel(uid)}: ${page === 'orders' ? 'Orders page' : 'FleetGuard'} ${on ? 'allowed' : 'removed'}`);
             }
             function setUserActive(uid, on) {
                 const me = window.auth && window.auth.currentUser ? window.auth.currentUser.uid : '';
@@ -1183,7 +1198,7 @@
                     await sec.auth().setPersistence(firebase.auth.Auth.Persistence.NONE);
                     const cred = await sec.auth().createUserWithEmailAndPassword(email, pass);
                     if (name) await cred.user.updateProfile({ displayName: name }).catch(() => {});
-                    await database.ref('users/' + cred.user.uid).set({ email, name, role, pages, active: true, createdAt: Date.now(), createdBy: getCurrentUserLabel() });
+                    await database.ref('users/' + cred.user.uid).set({ email, name, role, pages, pagesSetAt: Date.now(), pagesSetBy: getCurrentUserLabel(), active: true, createdAt: Date.now(), createdBy: getCurrentUserLabel() });
                     await sec.auth().signOut().catch(() => {});
                     const where = [pages.fleetguard && 'FleetGuard', pages.orders && 'Orders'].filter(Boolean).join(' + ');
                     logAudit('add-user', 'users', cred.user.uid, `Added ${email} (${where}, ${role})`); saveAll(['auditTrail']);
@@ -1199,26 +1214,31 @@
                     try { if (sec) await sec.auth().signOut(); } catch (x) { /* ignore */ }
                 } finally { if (g('uaBtn')) { g('uaBtn').disabled = false; g('uaBtn').textContent = '＋ Add user'; } }
             }
-            /* Access check at sign-in and while signed in: a turned-off account, or one without FleetGuard, is signed out. */
+            /* Access check at sign-in and while signed in: only an active account with the FleetGuard tick gets in. */
             function fgAccessBlock(rec) {
-                if (!rec) return '';
+                if (!rec) return 'This account has no access yet. Ask the administrator to give it access in Settings → Users.';
                 if (rec.active === false) return 'This account has been turned off. Ask the administrator.';
-                if (rec.pages && rec.pages.fleetguard === false) return 'This account is not allowed to use FleetGuard.';
+                if (!userPages(rec).fleetguard) return userPages(rec).orders ? 'This account is for the Orders page only.' : 'This account has no access yet. Ask the administrator to give it access in Settings → Users.';
                 return '';
             }
             let _ownAccessRef = null;
-            function fgDenyAccess(msg) {
+            function fgDenyAccess(msg, rec) {
                 window.__fgAccessDenied = true;
                 if (_ownAccessRef) { _ownAccessRef.off(); _ownAccessRef = null; }
                 const er = document.getElementById('auth-error'), b = document.getElementById('btn-login');
-                if (er) { er.textContent = msg; er.style.display = 'block'; }
+                if (er) {
+                    er.textContent = msg;
+                    if (rec && rec.active !== false && userPages(rec).orders) { const a = document.createElement('a'); a.href = 'orders-page.html'; a.textContent = 'Go to Orders →'; a.style.cssText = 'display:block;margin-top:6px;color:#fff;font-weight:600'; er.appendChild(a); }
+                    er.style.display = 'block';
+                }
+                const ld = document.getElementById('app-loading-msg'); if (ld) ld.style.display = 'none';
                 if (b) { b.textContent = 'Sign in'; b.disabled = false; }
                 try { window.auth.signOut(); } catch (e) { /* overlay shows anyway */ }
             }
             function fgWatchAccess(uid) {
                 if (_ownAccessRef) _ownAccessRef.off();
                 _ownAccessRef = database.ref('users/' + uid);
-                _ownAccessRef.on('value', snap => { const why = fgAccessBlock(snap.val()); if (why) fgDenyAccess(why); }, () => { /* rules may not allow it — keep working */ });
+                _ownAccessRef.on('value', snap => { const rec = snap.val(); const why = fgAccessBlock(rec); if (why) fgDenyAccess(why, rec); }, () => { /* the sign-in check already passed — keep working */ });
             }
             // Audit S11: explicit sign-out (config.js keeps the Firebase session with Persistence.LOCAL — see DEPLOY_NOTES.md).
             async function signOutApp() {
@@ -15210,8 +15230,14 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 if (!uid || typeof database === 'undefined') return Promise.resolve(null);
                 return database.ref('users/' + uid).once('value').then(snap => {
                     const rec = snap.val() || null;
+                    if (!rec) {
+                        // First sign-in of an account nobody added: register it with no access, so it shows in Settings → Users.
+                        database.ref('users/' + uid).set({ email: (window.auth?.currentUser?.email || ''), role: 'Driver', pages: { fleetguard: false, orders: false }, pagesSetAt: Date.now(), pagesSetBy: 'first sign-in (no access yet)', active: true, firstSeen: Date.now(), via: 'FleetGuard' }).catch(() => {});
+                        fgDenyAccess('Your account is registered. Ask the administrator to give it access in Settings → Users, then sign in again.');
+                        return null;
+                    }
                     const why = fgAccessBlock(rec);
-                    if (why) { fgDenyAccess(why); return null; }
+                    if (why) { fgDenyAccess(why, rec); return null; }
                     fgWatchAccess(uid);
                     const role = rec && rec.role;
                     if (role) {
@@ -15223,7 +15249,11 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         database.ref('users/' + uid).update({ role: 'Driver', email: (window.auth?.currentUser?.email || ''), firstSeen: Date.now() }).catch(() => {});
                     }
                     return role;
-                }).catch(() => null);
+                }).catch(e => {
+                    console.warn('[Access] users record', e && e.message);
+                    fgDenyAccess('Could not check this account\'s access — check the internet connection and try again.');
+                    return null;
+                });
             }
             function setJcStatusFilter(status) {
                 jcStatusFilter = status;
