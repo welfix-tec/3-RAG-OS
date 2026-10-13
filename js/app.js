@@ -15751,7 +15751,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     </div>
                     <div class="jobcard-services">${serviceList || '<div class="jobcard-service-item" style="color:var(--text3)">No services listed</div>'}</div>
                     <div class="jobcard-actions">${actions}</div>
-                    ${canActAsMechanic(role) && !canActAsDriver(role) && jc.status === 'In-Progress' ? `<button type="button" class="jc-bin-btn" onclick="event.stopPropagation();App.deleteJobCard('${id}')" title="Move ${escAttr(jc.id)} to the Recycling Bin" aria-label="Move ${escAttr(jc.id)} to the Recycling Bin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>` : ''}
+                    ${canActAsMechanic(role) && jc.status === 'In-Progress' ? `<button type="button" class="jc-bin-btn" onclick="event.stopPropagation();App.deleteJobCard('${id}')" title="Move ${escAttr(jc.id)} to the Recycling Bin" aria-label="Move ${escAttr(jc.id)} to the Recycling Bin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>` : ''}
                 </div>`;
             }
             function renderJcCarouselBlock(cards, sectionId) {
