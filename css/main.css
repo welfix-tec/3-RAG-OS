@@ -3963,3 +3963,15 @@ td .driver-doc-alert { font-weight: 500; margin-top: 4px; }
 input[type="search"] { -webkit-appearance: none; appearance: none; }
 input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; display: none; }
 .confirm-pin { margin: 0; }
+
+        /* Oct 2026: small red bin on a job card (Mechanic, In-Progress) — the card goes to the Recycling Bin */
+        .jobcard-card { position: relative; }
+        .jc-bin-btn {
+            position: absolute; right: 8px; bottom: 8px; width: 26px; height: 26px; padding: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(240, 76, 90, 0.12); border: 1px solid rgba(240, 76, 90, 0.35); border-radius: 7px;
+            color: var(--red, #f04c5a); cursor: pointer; transition: background .15s, border-color .15s;
+        }
+        .jc-bin-btn:hover, .jc-bin-btn:focus-visible { background: rgba(240, 76, 90, 0.25); border-color: var(--red, #f04c5a); outline: none; }
+        .jc-bin-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .jobcard-card:has(.jc-bin-btn) .jobcard-actions { padding-right: 34px; }

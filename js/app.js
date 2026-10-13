@@ -15432,7 +15432,9 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             // cards) falls back to the approval date, and only then to the card's own date — which, on cards
             // made before 6 Oct, is simply the day the card was added, not the day the work was done.
             function jcDoneDate(jc, line) {
-                return String((line && line.completedAt) || jc.approvedAt || jc.releasedAt || jc.date || '').slice(0, 10);
+                // Oct 2026: a service counts as done on the job card's own date (the service date typed on the card),
+                // not on the day it was ticked in the system; the tick date is only for cards without a date.
+                return String(jc.date || (line && line.completedAt) || jc.approvedAt || jc.releasedAt || '').slice(0, 10);
             }
             // A truck-history entry written by approving a card takes its date from that card's own service line,
             // so entries saved with another date (approvals on 12 Oct 2026 stored the card date) read correctly.
@@ -15749,6 +15751,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     </div>
                     <div class="jobcard-services">${serviceList || '<div class="jobcard-service-item" style="color:var(--text3)">No services listed</div>'}</div>
                     <div class="jobcard-actions">${actions}</div>
+                    ${canActAsMechanic(role) && !canActAsDriver(role) && jc.status === 'In-Progress' ? `<button type="button" class="jc-bin-btn" onclick="event.stopPropagation();App.deleteJobCard('${id}')" title="Move ${escAttr(jc.id)} to the Recycling Bin" aria-label="Move ${escAttr(jc.id)} to the Recycling Bin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>` : ''}
                 </div>`;
             }
             function renderJcCarouselBlock(cards, sectionId) {
@@ -16660,7 +16663,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     if (!row) return;
                     const v = state[key];
                     const set = (sel, val) => { const el = row.querySelector(sel); if (el && val !== undefined) el.value = val; };
-                    const d = row.querySelector('.jc-m-done'); if (d) d.checked = v.done;
+                    const d = row.querySelector('.jc-m-done'); if (d) { d.checked = v.done; onJcDoneToggle(d); }
                     set('.jc-m-parts', v.parts); set('.jc-m-labour', v.labour);
                     set('.jc-m-mech', v.mech); set('.jc-m-reason', v.reason);
                     if (row.querySelector('.jc-extra-name')) set('.jc-extra-name', v.name);
@@ -16693,19 +16696,20 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                                 ${isExtra ? '<div style="font-size:10px;color:var(--teal);margin-bottom:4px">Extra work (not on job card)</div>' : ''}
                                 ${nameField}${histNote}
                                 <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px">
-                                    <input type="checkbox" class="jc-m-done" ${m.done ? 'checked' : ''}> Completed
+                                    <input type="checkbox" class="jc-m-done" ${m.done ? 'checked' : ''} onchange="App.onJcDoneToggle(this)"> Completed
                                 </label>
                                 <div class="info-grid" style="grid-template-columns:1fr 1fr 1fr">
                                     <input type="number" class="jc-m-parts" value="${m.partsCost || ''}" placeholder="Parts (RWF)" step="1" min="0" style="padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text)">
                                     <input type="number" class="jc-m-labour" value="${m.labourCost || ''}" placeholder="Labour (RWF)" step="1" min="0" style="padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text)">
                                     <input type="text" class="jc-m-mech" value="${esc(jcPersonName(m.mechanic) || defaultMech)}" placeholder="Mechanic name" style="padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text)">
                                 </div>
-                                ${isExtra ? `<button class="btn btn-danger btn-xs" style="margin-top:8px" onclick="App.removeMechanicExtraLine('${id}','${escAttr(lineId)}')">Remove extra</button>` : `<input type="text" class="jc-m-reason" value="${esc(m.notDoneReason || '')}" placeholder="If not done, reason" style="width:100%;margin-top:8px;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px">`}
+                                ${jcNoteBoxHtml(m)}
+                                ${isExtra ? `<button class="btn btn-danger btn-xs" style="margin-top:8px" onclick="App.removeMechanicExtraLine('${id}','${escAttr(lineId)}')">Remove extra</button>` : ''}
                             </div>`;
                         }
                         return `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:8px;border:1px solid ${isExtra ? 'var(--teal)' : 'var(--border)'}">
                             <strong>${esc(label)}</strong>${isExtra ? ' <span style="color:var(--teal);font-size:10px">(extra)</span>' : ''} — ${m.done ? '✅' : '⏳'}
-                            ${m.done ? `<div style="font-size:11px;margin-top:4px">${formatRwf(m.actualCost)}${jcPersonName(m.mechanic) ? ' · ' + esc(jcPersonName(m.mechanic)) : ''}</div>` : (m.notDoneReason ? `<div style="font-size:11px;color:var(--amber)">${esc(m.notDoneReason)}</div>` : '')}
+                            ${m.done ? `<div style="font-size:11px;margin-top:4px">${formatRwf(m.actualCost)}${jcPersonName(m.mechanic) ? ' · ' + esc(jcPersonName(m.mechanic)) : ''}</div>${m.comment ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">💬 ${esc(m.comment)}</div>` : ''}` : (m.notDoneReason ? `<div style="font-size:11px;color:var(--amber)">${esc(m.notDoneReason)}</div>` : '')}
                             ${histNote}
                         </div>`;
                     };
@@ -16834,6 +16838,18 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 const labour = parseFloat(row.querySelector('.jc-m-labour')?.value) || 0;
                 /* total shown on save */
             }
+            // Oct 2026: one box per service — a comment once "Completed" is ticked, the reason when it is not.
+            function jcNoteBoxHtml(m) {
+                const done = !!m.done, val = done ? (m.comment || '') : (m.notDoneReason || '');
+                return `<div class="jc-note-wrap"><div class="jc-note-label" style="font-size:10.5px;margin-top:8px;color:${done ? 'var(--text3)' : 'var(--amber)'}">${done ? '💬 Comment (optional)' : '⚠ Reason not done'}</div>
+                    <input type="text" class="jc-m-reason" value="${esc(val)}" placeholder="${done ? 'Comment on this work, e.g. used OEM pads' : 'If not done, reason'}" style="width:100%;margin-top:4px;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px"></div>`;
+            }
+            function onJcDoneToggle(cb) {
+                const row = cb.closest('.jc-line-row, .jc-extra-row'); if (!row) return;
+                const lab = row.querySelector('.jc-note-label'), box = row.querySelector('.jc-m-reason');
+                if (lab) { lab.textContent = cb.checked ? '💬 Comment (optional)' : '⚠ Reason not done'; lab.style.color = cb.checked ? 'var(--text3)' : 'var(--amber)'; }
+                if (box) box.placeholder = cb.checked ? 'Comment on this work, e.g. used OEM pads' : 'If not done, reason';
+            }
             function applyMechRowFromDom(row, m) {
                 m.done = row.querySelector('.jc-m-done')?.checked || false;
                 m.actualHours = m.actualHours || 0; // the hours box is gone; keep what older cards recorded
@@ -16841,7 +16857,9 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 m.labourCost = parseFloat(row.querySelector('.jc-m-labour')?.value) || 0;
                 m.actualCost = m.partsCost + m.labourCost;
                 m.mechanic = row.querySelector('.jc-m-mech')?.value?.trim() || ''; // a typed name only — never the signed-in e-mail
-                m.notDoneReason = row.querySelector('.jc-m-reason')?.value?.trim() || '';
+                const note = row.querySelector('.jc-m-reason')?.value?.trim() || '';
+                m.comment = m.done ? note : '';
+                m.notDoneReason = m.done ? '' : note;
                 if (m.unplanned) m.name = row.querySelector('.jc-extra-name')?.value?.trim() || m.name || '';
                 if (m.done && !m.completedAt) m.completedAt = todayYMD();
                 if (!m.done) m.completedAt = null;
@@ -17086,6 +17104,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                             <div class="preview-detail"><div class="preview-detail-label">Total</div><div class="preview-detail-value">${formatRwf(m.actualCost || 0)}</div></div>
                         </div>
                         <div style="font-size:10px;color:var(--text3)">${esc(jcPersonName(m.mechanic))}${!m.done && m.notDoneReason ? (jcPersonName(m.mechanic) ? ' · ' : '') + '<span style="color:var(--amber)">Not done: ' + esc(m.notDoneReason) + '</span>' : ''}</div>
+                        ${m.done && m.comment ? `<div style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${esc(m.comment)}</div>` : ''}
                     </div>`;
                 }).join('') + (jc.mechanicLines || []).filter(m => m.unplanned).map(m => `
                     <div class="preview-item" style="border-left:2px solid var(--teal)">
@@ -17095,6 +17114,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                             <div class="preview-detail"><div class="preview-detail-label">Labour</div><div class="preview-detail-value">${formatRwf(m.labourCost || 0)}</div></div>
                             <div class="preview-detail"><div class="preview-detail-label">Total</div><div class="preview-detail-value">${formatRwf(m.actualCost || 0)}</div></div>
                         </div>
+                        ${m.done && m.comment ? `<div style="font-size:11px;color:var(--text2);margin-top:3px">💬 ${esc(m.comment)}</div>` : ''}${!m.done && m.notDoneReason ? `<div style="font-size:10px;color:var(--amber)">Not done: ${esc(m.notDoneReason)}</div>` : ''}
                     </div>`).join('');
 
                 // Compact proof badge (no embedded preview — that lives in the combined preview window)
@@ -17468,7 +17488,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         // Audit J7: planned lines use the driver line name, unplanned lines their own real name.
                         const dl = (jc.driverLines || []).find(d => d.lineId === m.driverLineId);
                         const name = (m.unplanned ? (m.name || '').trim() : (dl && dl.name)) || (m.name || '').trim() || 'Service';
-                        const d = m.completedAt ? String(m.completedAt).slice(0, 10) : releaseDay; // the day the service was done
+                        const d = jcDoneDate(jc, m) || releaseDay; // Oct 2026: the job card's own service date
                         if (!trk.lastServices[name] || String(trk.lastServices[name]) < d) trk.lastServices[name] = d;
                         const dup = trk.maintenanceLog.some(x => x.jobCardId === jc.id && x.service === name && x.date === d);
                         if (!dup) trk.maintenanceLog.push({
@@ -17507,7 +17527,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             async function deleteJobCard(jobCardId) {
                 const jc = jobCards.find(j => j.id === jobCardId);
                 if (!jc) return;
-                if (!(canActAsDriver() && jc.status === 'Draft') && !isSupervisorRole()) { showToast('Only draft cards can be deleted by their driver'); return; }
+                if (!(canActAsDriver() && jc.status === 'Draft') && !(canActAsMechanic() && jc.status === 'In-Progress') && !isSupervisorRole()) { showToast('Only draft cards (driver) or cards in progress (mechanic) can be deleted'); return; }
                 const ok = await confirmDialog(`Move job card "${jc.id}" (${jc.plate || 'Vehicle'}) to the Recycling Bin?`, { danger: true, okLabel: 'Move to bin' });
                 if (!ok) return;
                 sendToRecycleBin('jobcard', `Job Card ${jc.id} (${jc.plate || 'Vehicle'})`, jc);
@@ -17588,7 +17608,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     const dl = (jc.driverLines || []).find(d => d.lineId === m.driverLineId);
                     const label = m.unplanned ? (m.name || 'Extra work') : (dl?.name || 'Service');
                     return `<tr>
-                        <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px">${esc(label)}${m.unplanned ? ' <span style="color:#0d9488">(extra)</span>' : ''}</td>
+                        <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px">${esc(label)}${m.unplanned ? ' <span style="color:#0d9488">(extra)</span>' : ''}${m.comment ? `<div style="font-size:10.5px;color:#475569;margin-top:2px">Comment: ${esc(m.comment)}</div>` : ''}</td>
                         <td style="border:1px solid #cbd5e1;padding:7px 10px;text-align:right;font-size:12px">${formatRwf(m.partsCost || 0)}</td>
                         <td style="border:1px solid #cbd5e1;padding:7px 10px;text-align:right;font-size:12px">${formatRwf(m.labourCost || 0)}</td>
                         <td style="border:1px solid #cbd5e1;padding:7px 10px;text-align:right;font-size:12px;font-weight:600">${formatRwf(m.actualCost || 0)}</td>
@@ -17800,7 +17820,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport,
                 exportDriverData, exportTruckData,
                 exportAllData, importAllData, resetAllData,
-                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, toggleSettingsLock, restoreFromBackup,
+                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, toggleSettingsLock, restoreFromBackup,
                 handleDriverFileUpload, handleTruckFileUpload, deleteAttachment, previewAttachment, downloadAttachment,
                 renderReports, refreshReportsOnDataChange, switchReportCategory, toggleReportCard, onReportCheckChange, toggleAllReports, generateReport, printReport, downloadReport, quickReport,
                 setReportPeriodPreset, populateJcReportServiceFilter,
