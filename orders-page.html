@@ -381,6 +381,13 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 .st-x:hover{background:rgba(220,38,38,.1);color:var(--red)}
 .ic-btn{width:28px;height:28px;margin-left:6px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);font-size:14px;line-height:1;padding:0;cursor:pointer;vertical-align:middle}
 .ic-btn:hover{border-color:var(--accent);color:var(--accent)}
+.more-menu{position:relative;display:inline-block}
+.more-menu>summary{list-style:none;cursor:pointer}.more-menu>summary::-webkit-details-marker{display:none}
+.more-pop{position:absolute;bottom:calc(100% + 6px);left:0;z-index:5;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);white-space:nowrap}
+.del-form{display:flex;flex-direction:column;gap:6px}.del-form label{font-size:12px;color:var(--text2);margin-top:6px}
+.del-form input,.del-form select{padding:8px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px}
+.deleted-note{margin-top:14px;text-align:right}
+.linkish{background:none;border:0;padding:4px 0;color:var(--text3);font-size:12px;cursor:pointer;text-decoration:underline}.linkish:hover{color:var(--text)}
 .nom-q-btn{display:inline-flex;align-items:center;justify-content:center;margin:0 6px 0 0;vertical-align:middle}
 .nom-q-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
 .nom-q-btn.on{border-color:var(--accent,#c8102e);color:var(--accent,#c8102e)}
@@ -483,6 +490,7 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
     <hr class="div">
     <div class="filters" id="orderFilters"></div>
     <div class="grid g3" id="orderCards"></div>
+    <div id="deletedNote" class="deleted-note"></div>
   </div>
 
   <!-- 2 NOMINATION -->
@@ -752,6 +760,7 @@ function load(){
   ['fg_orders_trial_v1','fg_orders_v2'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});   /* fresh start — old trial stores are discarded */
   try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):sample()}catch(e){S=sample()} const d=sample();if(!S.ui)S.ui=d.ui;if(S.ui.q)Object.keys(S.ui.q).forEach(k=>{if(isAutofilledEmail(S.ui.q[k]))S.ui.q[k]=''});Object.keys(d.ui).forEach(k=>{if(S.ui[k]===undefined)S.ui[k]=d.ui[k]});if(!S.capacities)S.capacities={};if(!S.compliance)S.compliance=d.compliance;S.ui.invModal=null;S.ui.docModal=null;S.ui.nomModal=null;if(!S.ui.range)S.ui.range={mode:'month',from:'',to:''};if(!S.ui.q)S.ui.q={};delete S.fleet;
   if(!Array.isArray(S.allocPlaces))S.allocPlaces=[];S.allocPlaces.forEach(registerPlace);
+  if(!Array.isArray(S.deletedOrders))S.deletedOrders=[];purgeDeleted();
   if(!Array.isArray(S.roadStatuses))S.roadStatuses=[];S.roadStatuses.forEach(registerRoad);
   S.orders=(S.orders||[]).map(normOrder);
   S.role='Operations';}   /* Finance opens only with its PIN, never from a saved page */
@@ -792,7 +801,7 @@ const cloudOn=()=>!!(FB.user&&CLOUD.ready&&typeof firebase!=='undefined');
 /* shared mode: offload reports are filled in FleetGuard and arrive here; on this browser alone (demo) they are filled here */
 const fgReports=()=>cloudOn();
 const cloudErr=e=>{CLOUD.err=(e&&e.message)||String(e);console.error('[Orders] Firebase write failed',e);toast('⚠ Not saved to the shared list: '+CLOUD.err)};
-function settingsDoc(){return {compliance:Object.entries(S.compliance||{}).map(([client,c])=>({client,contractRef:c.contractRef||'',signedAt:c.signedAt||'',plates:asArr(c.plates)})),capOverride:S.capOverride||{},allocPlaces:S.allocPlaces||[],roadStatuses:S.roadStatuses||[],removedClients:S.removedClients||[]}}
+function settingsDoc(){purgeDeleted();return {deletedOrders:asArr(S.deletedOrders),compliance:Object.entries(S.compliance||{}).map(([client,c])=>({client,contractRef:c.contractRef||'',signedAt:c.signedAt||'',plates:asArr(c.plates)})),capOverride:S.capOverride||{},allocPlaces:S.allocPlaces||[],roadStatuses:S.roadStatuses||[],removedClients:S.removedClients||[]}}
 function cloudPush(){
   if(!cloudOn())return;
   const db=firebase.database(),seen=new Set();
@@ -826,7 +835,7 @@ function applyCloudOrders(val){
 function applyCloudSettings(v){
   if(v&&Object.keys(v).length){
     const comp={};asArr(v.compliance).forEach(c=>{if(c&&c.client)comp[c.client]={contractRef:c.contractRef||'',signedAt:c.signedAt||'',plates:asArr(c.plates)}});
-    S.compliance=comp;S.capOverride=v.capOverride||{};S.removedClients=asArr(v.removedClients);
+    S.compliance=comp;S.capOverride=v.capOverride||{};S.removedClients=asArr(v.removedClients);S.deletedOrders=asArr(v.deletedOrders).filter(d=>d&&d.order).map(d=>({...d,order:normOrder(d.order)}));purgeDeleted();
     S.allocPlaces=asArr(v.allocPlaces);S.allocPlaces.forEach(registerPlace);S.roadStatuses=asArr(v.roadStatuses);S.roadStatuses.forEach(registerRoad);
   }
   /* nothing shared yet: leave setSent empty so this browser's lists are written as the starting shared ones */
@@ -1148,6 +1157,7 @@ function renderOrders(){
     ${(u.view!=='active'||u.fClient!=='all'||u.fStatus!=='all')?`<button class="btn" onclick="T.clearF()">Clear filters</button>`:''}
     <div class="spacer"></div><span class="muted" id="orderCount"></span>`;
   const list=O.filter(matchOrder).filter(orderInRange).filter(x=>matchQ(x,'orders')).sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt));
+  {const dn=document.getElementById('deletedNote');if(dn){const n=asArr(S.deletedOrders).length;dn.innerHTML=S.role==='Operations'&&n?`<button class="linkish" onclick="T.openDeleted()">🗑 Deleted orders (${n}) — restore within ${DEL_DAYS} days</button>`:''}}
   document.getElementById('orderCount').textContent=`${list.length} of ${O.length} orders · ${rangeLabel()}`;
   document.getElementById('orderCards').innerHTML=list.length?list.map(o=>{
     const off=o.trips.filter(t=>t.status==='Offloaded').length;
@@ -1183,7 +1193,7 @@ function openOrder(id){
     </div>
     <details class="tl section"><summary>Timeline · ${o.history.length} event${o.history.length===1?'':'s'}<button class="tl-dl" title="Download the order timeline as a PDF" onclick="event.preventDefault();event.stopPropagation();T.timelinePdf('${o.id}')">⬇</button></summary><div class="tl-body">${o.history.slice().reverse().map(h=>`<div class="row between"><span>${esc(h.ev)}</span><span class="tiny mono">${dt(h.at)} · ${esc(h.by||'')}</span></div>`).join('')}</div></details>
   </div>
-  <div class="modal-f">${S.role==='Operations'&&['received','nominated'].includes(o.stage)?`<button class="btn danger sm" onclick="T.deleteOrder('${o.id}')">Delete order</button>`:''}${S.role==='Operations'&&o.stage!=='invoiced'?`<button class="btn sm" onclick="T.openOrderEdit('${o.id}')" title="Edit the order details">✎ Edit</button>`:''}<div class="spacer"></div><button class="btn" onclick="T.closeModal()">Close</button><button class="btn primary" onclick="T.closeModal();T.focus('${o.id}','${next[1]}')">${next[0]} →</button></div>`);
+  <div class="modal-f">${S.role==='Operations'?`<details class="more-menu"><summary class="btn sm" title="More actions">⋯ More</summary><div class="more-pop">${orderInvoiced(o)?`<span class="tiny" style="display:block;max-width:220px">Invoiced orders can't be deleted — Finance's records depend on them.</span>`:`<button class="btn danger sm" onclick="T.deleteOrder('${o.id}')">🗑 Delete order…</button>`}</div></details>`:''}${S.role==='Operations'&&o.stage!=='invoiced'?`<button class="btn sm" onclick="T.openOrderEdit('${o.id}')" title="Edit the order details">✎ Edit</button>`:''}<div class="spacer"></div><button class="btn" onclick="T.closeModal()">Close</button><button class="btn primary" onclick="T.closeModal();T.focus('${o.id}','${next[1]}')">${next[0]} →</button></div>`);
 }
 const tripChip=t=>`<span class="chip ${TRIP_COLOR[t.status]||'gray'}" title="${TRIP_LABEL[t.status]||''}">${TRIP_SHORT[t.status]||t.status}</span>`;
 const nomChip=n=>`<span class="chip ${{proposed:'gray',sent:'amber',accepted:'green',rejected:'red'}[n.status]}">${{proposed:'Not sent',sent:'Awaiting client',accepted:'Accepted',rejected:'Rejected'}[n.status]}</span>`;
@@ -1274,7 +1284,89 @@ function saveOrderEdit(id){
   toast(noCap.length?`Saved — ${noCap.join(', ')}: no ${o.product} capacity, kept the old figure`:'Order updated');
   render();openOrder(id);
 }
-async function deleteOrder(id){const o=byId(id);if(!o)return;if(!await ask({title:`Delete ${o.clientOrderNo}?`,msg:'The order and its nomination list are removed. This cannot be undone.',ok:'Delete order',danger:true}))return;S.orders=S.orders.filter(o=>o.id!==id);closeModal();render()}
+/* ===== Delete an order (Oct 2026) — rare, so deliberately not quick: Operations only, from the order window's ⋯ More menu;
+   type the order number, pick a reason, and re-enter the sign-in password. Invoiced orders are blocked. The order is not
+   destroyed: it waits 30 days in "Deleted orders" (shared with everyone through the Orders settings) and can be restored. ===== */
+const DEL_DAYS=30,DEL_REASONS=['Duplicate order','Entered by mistake','Cancelled by the client','Other'];
+const orderInvoiced=o=>o.stage==='invoiced'||(o.trips||[]).some(t=>t.invoice&&t.invoice.status==='invoiced');
+function purgeDeleted(){const cut=Date.now()-DEL_DAYS*864e5;S.deletedOrders=asArr(S.deletedOrders).filter(d=>d&&d.order&&new Date(d.at).getTime()>cut)}
+const normNo=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function deleteOrder(id){
+  const o=byId(id);if(!o)return;
+  if(S.role!=='Operations'){toast('Only Operations can delete an order');return}
+  if(orderInvoiced(o)){toast("Invoiced orders can't be deleted");return}
+  const onRoad=o.trips.filter(t=>t.status!=='Offloaded').length,off=o.trips.filter(t=>t.status==='Offloaded').length,noms=o.nominees.filter(n=>n.status!=='rejected').length;
+  const what=[o.trips.length?`${o.trips.length} truck${o.trips.length>1?'s':''} assigned${off?` (${off} offloaded)`:''}`:'',!o.trips.length&&noms?`${noms} truck${noms>1?'s':''} nominated`:''].filter(Boolean).join(' · ')||'No trucks on it yet';
+  modal(`<div class="modal-h"><h3>🗑 Delete ${esc(o.clientOrderNo)}</h3><button class="x" onclick="T.openOrder('${o.id}')" aria-label="Back to the order">✕</button></div>
+  <div class="modal-b">
+    <div class="alert warn"><b>${esc(o.client)} · ${esc(o.clientOrderNo)}</b> — ${esc(o.product)} ${fmt(o.volumeL)} L · received ${esc(fmtD(o.receivedAt))}<br>${esc(what)}${onRoad?`. ${onRoad>1?'The '+onRoad+' trucks still on it become':'The truck still on it becomes'} free for other orders.`:'.'}</div>
+    <p class="tiny" style="margin:10px 0 12px">The order goes to <b>Deleted orders</b> for ${DEL_DAYS} days and can be restored from there; after that it is removed for good.</p>
+    <form class="del-form" onsubmit="return false" autocomplete="off">
+      <label>Type the order number to confirm: <b class="mono">${esc(o.clientOrderNo)}</b></label>
+      <input id="delNo" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" placeholder="${esc(o.clientOrderNo)}" oninput="T.delCheck('${o.id}')">
+      <label>Reason</label>
+      <select id="delWhy" onchange="T.delCheck('${o.id}')"><option value="">— choose —</option>${DEL_REASONS.map(r=>`<option>${r}</option>`).join('')}</select>
+      <input id="delWhyTxt" type="text" placeholder="Say why" style="display:none" oninput="T.delCheck('${o.id}')">
+      ${DEMO?'<p class="tiny">Demo: no password check.</p>':`<label>Your sign-in password (${esc((FB.user&&FB.user.email)||'')})</label>
+      <input id="delPw" type="password" name="del-pw-${Date.now()}" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" oninput="T.delCheck('${o.id}')">`}
+      <div class="gate-err" id="delErr" role="alert"></div>
+    </form>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="T.openOrder('${o.id}')">Cancel</button><div class="spacer"></div><button class="btn danger" id="delGo" disabled onclick="T.confirmDeleteOrder('${o.id}')">Delete order</button></div>`);
+  setTimeout(()=>{const i=document.getElementById('delNo');if(i)i.focus()},50);
+}
+function delReason(){const w=(document.getElementById('delWhy')||{}).value||'';const t=document.getElementById('delWhyTxt');if(t)t.style.display=w==='Other'?'':'none';return w==='Other'?((t&&t.value.trim())||''):w}
+function delCheck(id){
+  const o=byId(id),b=document.getElementById('delGo');if(!o||!b)return;
+  const okNo=normNo((document.getElementById('delNo')||{}).value)===normNo(o.clientOrderNo)&&!!normNo(o.clientOrderNo);
+  const pw=document.getElementById('delPw');
+  b.disabled=!(okNo&&delReason()&&(DEMO||(pw&&pw.value)));
+}
+async function confirmDeleteOrder(id){
+  const o=byId(id),b=document.getElementById('delGo'),er=document.getElementById('delErr');if(!o||!b)return;
+  const fail=m=>{if(er){er.textContent=m;er.classList.add('on')}b.disabled=false;b.textContent='Delete order'};
+  if(S.role!=='Operations')return fail('Only Operations can delete an order.');
+  if(orderInvoiced(o))return fail("Invoiced orders can't be deleted.");
+  if(normNo(document.getElementById('delNo').value)!==normNo(o.clientOrderNo))return fail('The order number does not match.');
+  const reason=delReason();if(!reason)return fail('Choose a reason.');
+  b.disabled=true;b.textContent='Checking…';if(er){er.textContent='';er.classList.remove('on')}
+  if(!DEMO){
+    const u=firebase.auth().currentUser,pw=document.getElementById('delPw').value;
+    if(!u||!u.email)return fail('Sign in again first.');
+    try{await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,pw))}
+    catch(x){const c=String(x&&x.code||'');return fail(/too-many/.test(c)?'Too many tries — wait a few minutes.':/network/.test(c)?'No connection — try again.':'Wrong password.')}
+  }
+  /* trucks queued on other orders behind this one start there now, as if it had offloaded */
+  let freed=0;
+  S.orders.forEach(o2=>{if(o2.id===o.id)return;
+    o2.trips.forEach(t2=>{if(t2.status===QUEUED&&t2.queuedBehind&&t2.queuedBehind.oid===o.id){t2.status='Allocated to Dar';t2.queuedBehind=null;t2.history.push({to:'Allocated to Dar',at:now(),by:'System',note:'released — '+o.clientOrderNo+' was deleted'});log(o2,`${t2.plate} released from queue — ${o.clientOrderNo} was deleted`);freed++}});
+    o2.nominees.forEach(n=>{if(n.queuedBehind&&n.queuedBehind.oid===o.id)n.queuedBehind=null})});
+  log(o,'Order deleted — '+reason);
+  purgeDeleted();
+  S.deletedOrders.unshift({order:JSON.parse(JSON.stringify(o)),at:now(),by:who(),reason});
+  S.orders=S.orders.filter(x=>x.id!==o.id);
+  if(S.ui.nomModal===o.id)S.ui.nomModal=null;if(S.ui.assignOrder===o.id)S.ui.assignOrder=null;if(S.ui.nomOrder===o.id)S.ui.nomOrder=null;
+  save();closeModal();render();
+  toast(`${o.clientOrderNo} moved to Deleted orders — restore it within ${DEL_DAYS} days${freed?` · ${freed>1?freed+' queued trucks started their next order':'1 queued truck started its next order'}`:''}`);
+}
+function openDeleted(){
+  purgeDeleted();const L=S.deletedOrders,ops=S.role==='Operations';
+  modal(`<div class="modal-h"><h3>🗑 Deleted orders</h3><button class="x" onclick="T.closeModal()" aria-label="Close">✕</button></div>
+  <div class="modal-b">${L.length?`<p class="tiny" style="margin:0 0 10px">Kept ${DEL_DAYS} days after deleting, then removed for good.</p><div class="tbl"><table><thead><tr><th>Order</th><th>Deleted</th><th>Reason</th><th>Removed in</th><th></th></tr></thead><tbody>${L.map(d=>{const o=d.order,left=Math.max(0,DEL_DAYS-Math.floor((Date.now()-new Date(d.at).getTime())/864e5));
+      return `<tr><td><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span> <b class="mono">${esc(o.clientOrderNo)}</b><div class="tiny">${esc(o.product)} ${fmt(o.volumeL)} L · ${(o.trips||[]).length} truck(s)</div></td><td>${esc(dt(d.at))}<div class="tiny">${esc(d.by||'')}</div></td><td>${esc(d.reason||'')}</td><td>${left} day${left===1?'':'s'}</td><td>${ops?`<button class="btn sm" onclick="T.restoreOrder('${esc(o.id)}')">↺ Restore</button>`:''}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted">No deleted orders.</p>'}</div>
+  <div class="modal-f"><div class="spacer"></div><button class="btn" onclick="T.closeModal()">Close</button></div>`,true);
+}
+async function restoreOrder(id){
+  if(S.role!=='Operations'){toast('Only Operations can restore an order');return}
+  purgeDeleted();const d=S.deletedOrders.find(x=>x.order&&x.order.id===id);if(!d)return;
+  const o=normOrder(JSON.parse(JSON.stringify(d.order)));
+  if(byId(o.id)){S.deletedOrders=S.deletedOrders.filter(x=>x!==d);save();openDeleted();return}
+  const busy=busyPlates(),clash=o.trips.filter(t=>t.status!=='Offloaded'&&busy.has(t.plate)).map(t=>t.plate);
+  if(!await ask({title:`Restore ${o.clientOrderNo}?`,msg:'It comes back exactly as it was when deleted.'+(clash.length?`\n\nNote: ${clash.join(', ')} ${clash.length>1?'are now busy on another order — check them':'is now busy on another order — check it'} after restoring.`:''),ok:'Restore'}))return;
+  log(o,'Order restored (deleted '+fmtD(d.at)+' — '+(d.reason||'')+')');
+  S.orders.push(o);S.deletedOrders=S.deletedOrders.filter(x=>x!==d);
+  save();render();openDeleted();toast(o.clientOrderNo+' restored');
+}
 
 /* ---- 2 nomination ---- */
 const NOM_STAGES=['received','nominated','approved'];
@@ -2331,7 +2423,7 @@ function exitDemo(){DEMO=false;try{sessionStorage.removeItem('fg_demo')}catch(e)
 window.T={
   go,focus,focusTrip,closeModal,
   setRole,openFleetGuard,fmtD,setDateFmt,
-  setF:(k,v)=>{S.ui[k]=v;render()},clearF:()=>{S.ui.view='active';S.ui.fClient='all';S.ui.fStatus='all';render()},openOrder,openNewOrder,createOrder,deleteOrder,
+  setF:(k,v)=>{S.ui[k]=v;render()},clearF:()=>{S.ui.view='active';S.ui.fClient='all';S.ui.fStatus='all';render()},openOrder,openNewOrder,createOrder,deleteOrder,delCheck,confirmDeleteOrder,openDeleted,restoreOrder,
   nomOrder:id=>{S.ui.nomOrder=id;render()},setCap,exportXlsx,downloadXlsx,signInBox,fbSignIn,openCompliance,setCompliant,saveCompliance,openDrawer,closeDrawer,addCompliant,newClient,setContract,openNom,closeNom,closeSub,setQ,setRange:m=>{S.ui.range.mode=m;render()},setRangeDates:(f,t)=>{if(f!==null)S.ui.range.from=f;if(t!==null)S.ui.range.to=t;render()},toggleAllFleet:()=>{S.ui.showAllFleet=!S.ui.showAllFleet;render()},nomSearch,nomSearchInput,nomSearchBlur:()=>{NOMQ.focus=false},toggleNominee,removeNominee,sendNomination,reopenNomination,answer,approveNomination,showTemplate,copyTpl,csvTpl,
   assignOrder:id=>{S.ui.assignOrder=id;render()},assign,openAssign,setTripStatus,confirmLoaded,fromAssign,toggleTrip,openAmend,amendPick,amendCancel,amendSend,amendAnswer,amendXlsx,setAView:v=>{S.ui.aView=v;render()},
   setDoc,undoReceived,openDocs,closeDocs,docTab:t=>{S.ui.docTab=t;render()},openReport,calcLoss,saveReport,
