@@ -658,7 +658,7 @@
 
                 const ti = _recycleTypeInfo(item.type);
                 const cd = _recycleCountdown(item.deletedAt);
-                const deletedDate = new Date(item.deletedAt).toLocaleString('en-ZA', { dateStyle: 'full', timeStyle: 'short' });
+                const deletedDate = fmtDT(item.deletedAt);
 
                 let detailsHtml = '';
                 if (item.data && typeof item.data === 'object') {
@@ -843,7 +843,7 @@
                 list.innerHTML = noticeHtml + filtered.map(item => {
                     const ti = _recycleTypeInfo(item.type);
                     const cd = _recycleCountdown(item.deletedAt);
-                    const deletedDate = new Date(item.deletedAt).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
+                    const deletedDate = fmtDT(item.deletedAt);
                     const progressPct = Math.max(0, Math.min(100, ((Date.now() - (item.deletedAt || 0)) / getRecycleRetentionMs()) * 100));
                     const isChecked = _selectedRecycleIds.has(item.id);
                     const daysLeft = Math.max(0, Math.ceil(_recycleRemainingMs(item) / 86400000));
@@ -1065,7 +1065,7 @@
                 const b = document.getElementById('financePinButton'), st = document.getElementById('financePinStatus');
                 if (b) b.textContent = financePinRec ? 'Change Finance PIN' : 'Set Finance PIN';
                 if (st) st.innerHTML = financePinRec
-                    ? `Finance PIN is set${financePinRec.setAt ? ' (' + esc(new Date(financePinRec.setAt).toLocaleDateString()) + (financePinRec.setBy ? ' by ' + esc(financePinRec.setBy) : '') + ')' : ''}. The Orders page asks for it when switching to Finance.`
+                    ? `Finance PIN is set${financePinRec.setAt ? ' (' + esc(fmtD(financePinRec.setAt)) + (financePinRec.setBy ? ' by ' + esc(financePinRec.setBy) : '') + ')' : ''}. The Orders page asks for it when switching to Finance.`
                     : '<span style="color: var(--amber);">No Finance PIN yet — Finance on the Orders page stays closed until one is set.</span>';
             }
             /* ===== Users (Oct 2026): Settings → Admin Security → Users. Opens with the admin PIN and locks again after
@@ -1338,7 +1338,7 @@
                 const resultEl = document.getElementById('backupRestoreResult');
                 try {
                     const info = parseBackupFile(await readFileText(file));
-                    const msg = `Restore "${file.name}" (backup v${info.version}${info.exportedAt ? ', exported ' + new Date(info.exportedAt).toLocaleString() : ''}${info.company ? ', ' + info.company : ''})?\n\nThis REPLACES the live data for every collection in the file:\n${backupSummaryLines(info)}\n\nA backup of the current data will be downloaded first.`;
+                    const msg = `Restore "${file.name}" (backup v${info.version}${info.exportedAt ? ', exported ' + fmtDT(info.exportedAt) : ''}${info.company ? ', ' + info.company : ''})?\n\nThis REPLACES the live data for every collection in the file:\n${backupSummaryLines(info)}\n\nA backup of the current data will be downloaded first.`;
                     const ok = await confirmDialog(msg, { danger: true, title: 'Restore from backup', okLabel: 'Restore now' });
                     if (!ok) { input.value = ''; return; }
                     if (hasAdminPin() && !await requireAdminPin('Enter admin PIN to restore the backup')) { input.value = ''; return; }
@@ -1670,7 +1670,7 @@
                         <div class="ops-card-h"><span class="ops-client">${esc(o.client)}</span><b class="ops-no">${esc(o.clientOrderNo)}</b>${opsStageChip(o)}</div>
                         <div class="ops-kv"><div><span>Product</span><b>${esc(o.product)}</b></div><div><span>${vol ? 'To load' : 'Volume'}</span><b>${opsFmt(vol || o.volumeL)} L</b></div><div><span>Trucks</span><b>${trips.length || opsArr(o.nominees).length}</b></div></div>
                         <div class="ops-route">${esc(o.depot || '')} → ${esc(o.destination || '')}</div>
-                        <div class="ops-foot">${Object.entries(counts).map(([k, n]) => `<span class="ops-mini">${n} ${esc(k)}</span>`).join('')}${wait ? `<span class="ops-mini warn">🔔 ${wait} report${wait === 1 ? '' : 's'} to fill</span>` : ''}<span style="margin-left:auto;font-size:11px;color:var(--text3)">${trips.length ? `${off}/${trips.length} offloaded` : esc(String(o.receivedAt || '').slice(0, 10))}</span></div>
+                        <div class="ops-foot">${Object.entries(counts).map(([k, n]) => `<span class="ops-mini">${n} ${esc(k)}</span>`).join('')}${wait ? `<span class="ops-mini warn">🔔 ${wait} report${wait === 1 ? '' : 's'} to fill</span>` : ''}<span style="margin-left:auto;font-size:11px;color:var(--text3)">${trips.length ? `${off}/${trips.length} offloaded` : esc(fmtD(o.receivedAt))}</span></div>
                     </div>`;
                 }).join('');
             }
@@ -1693,7 +1693,7 @@
                 <div class="modal-body">
                     <div class="ops-facts">
                         <div><span>Product</span><b>${esc(o.product)}</b></div><div><span>Volume to load</span><b>${vol ? opsFmt(vol) + ' L' : '—'}</b></div><div><span>Requested</span><b>${opsFmt(o.volumeL)} L</b></div>
-                        <div><span>Loading depot</span><b>${esc(o.depot || '—')}</b></div><div><span>Destination</span><b>${esc(o.destination || '—')}</b></div><div><span>Received</span><b>${esc(String(o.receivedAt || '').slice(0, 10))}</b></div>
+                        <div><span>Loading depot</span><b>${esc(o.depot || '—')}</b></div><div><span>Destination</span><b>${esc(o.destination || '—')}</b></div><div><span>Received</span><b>${esc(fmtD(o.receivedAt))}</b></div>
                         ${o.vessel ? `<div><span>Vessel</span><b>${esc(o.vessel)}</b></div>` : ''}
                     </div>
                     ${o.note ? `<div style="margin-top:10px;font-size:12px;color:var(--text2)">📝 ${esc(o.note)}</div>` : ''}
@@ -1882,6 +1882,8 @@
                 _afterLoad();
                 cacheCollectionsLocally(changed);
                 if (initial) { try { fillTrailerCapacityDefaults(); } catch (e) { console.warn('[Trailers] capacity fill skipped', e); } }
+                if (initial) { try { applyBrandCapacityList(); } catch (e) { console.warn('[Fleet] brand/capacity list skipped', e); } }
+                if (initial) { try { applyPendingAttachments(); } catch (e) { console.warn('[Import] pending files skipped', e); } }
 
                 // Re-render only when a remote change actually arrived (audit X9).
                 const modalOpen = document.getElementById('modalOverlay') &&
@@ -2147,16 +2149,10 @@ function _afterLoad() {
             function isOrderActive(o) { return !!o && o.status !== 'Completed' && o.status !== 'At Garage'; }
             function formatDisplayDate(value) {
                 if (!value) return '';
-                if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-                    const [year, month, day] = value.split('-');
-                    return `${day}/${month}/${year}`;
-                }
+                if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return fmtD(value);
                 const d = new Date(value);
                 if (Number.isNaN(d.getTime())) return value;
-                const day = String(d.getDate()).padStart(2, '0');
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const year = d.getFullYear();
-                return `${day}/${month}/${year}`;
+                return fmtD(d);
             }
             function getOrderStatusText(order) {
                 if (!order) return 'Pending';
@@ -2558,7 +2554,7 @@ function _afterLoad() {
                     ? '<p style="color:var(--text3);font-size:11px;text-align:center;padding:10px">No recent assignment logs.</p>'
                     : `<div class="log-list">${logs.map(l => {
                         const when = l.timestamp ? new Date(l.timestamp) : parseYMD(l.date);
-                        const dateStr = when && !isNaN(when.getTime()) ? (l.timestamp ? when.toLocaleString() : toYMD(when)) : (l.date || '—');
+                        const dateStr = when && !isNaN(when.getTime()) ? (l.timestamp ? fmtDT(when) : fmtD(when)) : (fmtD(l.date) || '—');
                         const actionColor = /release|unassign/i.test(l.action) ? 'var(--red)' : /swap/i.test(l.action) ? 'var(--amber)' : 'var(--green)';
                         return `<div class="log-item">
                             <div class="log-item-top">
@@ -2808,6 +2804,39 @@ function _afterLoad() {
                 return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
             }
             function todayYMD() { return toYMD(new Date()); }
+            // Oct 2026: every date the app SHOWS (screens, printed cards, PDFs) follows Settings → Date format.
+            // Stored values and date inputs stay YYYY-MM-DD; text that is not a date is returned unchanged.
+            function dateFormatSetting() {
+                const f = settings && settings.locale && settings.locale.dateFormat;
+                return f === 'YYYY-MM-DD' || f === 'MM/DD/YYYY' ? f : 'DD/MM/YYYY';
+            }
+            function fmtD(v) {
+                if (v === null || v === undefined || v === '') return '';
+                let y, mo, d;
+                if (v instanceof Date || typeof v === 'number') {
+                    const dt = new Date(v);
+                    if (isNaN(dt.getTime())) return String(v);
+                    y = dt.getFullYear(); mo = dt.getMonth() + 1; d = dt.getDate();
+                } else {
+                    const s = String(v).trim();
+                    const m = /^(\d{4})-(\d{2})-(\d{2})(?=$|[T ])/.exec(s);
+                    if (!m) return s;
+                    if (s.length > 10 && /T\d{2}:\d{2}/.test(s)) {           // a timestamp: its LOCAL calendar day
+                        const dt = new Date(s);
+                        if (!isNaN(dt.getTime())) { y = dt.getFullYear(); mo = dt.getMonth() + 1; d = dt.getDate(); }
+                    }
+                    if (!y) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+                }
+                const DD = String(d).padStart(2, '0'), MM = String(mo).padStart(2, '0');
+                const f = dateFormatSetting();
+                return f === 'YYYY-MM-DD' ? `${y}-${MM}-${DD}` : f === 'MM/DD/YYYY' ? `${MM}/${DD}/${y}` : `${DD}/${MM}/${y}`;
+            }
+            // Date + time for logs, in the same date format.
+            function fmtDT(v) {
+                const dt = v instanceof Date ? v : new Date(v);
+                if (!v || isNaN(dt.getTime())) return v ? String(v) : '';
+                return `${fmtD(dt)} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+            }
             // Parse 'YYYY-MM-DD' as LOCAL midnight (new Date('YYYY-MM-DD') would be UTC midnight).
             function parseYMD(s) {
                 if (!s) return null;
@@ -2824,15 +2853,18 @@ function _afterLoad() {
             function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
             function addMonths(d, n) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
             // Company profile (audit D-S1 / S-S2)
+            // Oct 2026: the job card's contact corner prints these unless Settings → Company profile gives others.
+            const COMPANY_CONTACT_DEFAULT = { address: 'POBOX : 6578 KIGALI-RWANDA', phone: '0784 037 906, 0788 528 795', email: '3rag@robert.com', web: 'www.3rag.com' };
             function getCompany() {
                 const c = (settings && settings.company) || {};
                 return {
                     name: c.name || '3 RAG company LTD',
                     shortName: c.shortName || '3 RAG',
                     logo: c.logo || 'images/Logo 123.jpg',
-                    address: c.address || '',
-                    phone: c.phone || '',
-                    email: c.email || '',
+                    address: c.address || COMPANY_CONTACT_DEFAULT.address,
+                    phone: c.phone || COMPANY_CONTACT_DEFAULT.phone,
+                    email: c.email || COMPANY_CONTACT_DEFAULT.email,
+                    web: c.web || COMPANY_CONTACT_DEFAULT.web,
                     currency: c.currency || 'RWF'
                 };
             }
@@ -3113,7 +3145,7 @@ function _afterLoad() {
                             groupKey: 'truck:' + t._idx, groupLabel: formatTruckLabel(t), groupIcon: '🚛',
                             id: `truck:${t._idx}|${d.type}|${d.expiryDate}`, urgency: urgencyOf(d),
                             title: `${esc(d.type)} ${st === 'expired' ? 'EXPIRED' : 'expiring'}`,
-                            desc: st === 'expired' ? `Expired on ${esc(d.expiryDate)}` : `Expires ${esc(d.expiryDate)} (${docDaysLeft(d)} days)`,
+                            desc: st === 'expired' ? `Expired on ${esc(fmtD(d.expiryDate))}` : `Expires ${esc(fmtD(d.expiryDate))} (${docDaysLeft(d)} days)`,
                             action: `App.showPage('trucks');App.setTruckSubTab('trucks');App.openTruckModal(${t._idx})`
                         });
                     });
@@ -3135,7 +3167,7 @@ function _afterLoad() {
                             groupKey: 'trailer:' + tr._idx, groupLabel: `Trailer ${esc(tr.id || 'N/A')}`, groupIcon: '🛞',
                             id: `trailer:${tr._idx}|${d.type}|${d.expiryDate}`, urgency: urgencyOf(d),
                             title: `${esc(d.type)} ${st === 'expired' ? 'EXPIRED' : 'expiring'}`,
-                            desc: st === 'expired' ? `Expired on ${esc(d.expiryDate)}` : `Expires ${esc(d.expiryDate)} (${docDaysLeft(d)} days)`,
+                            desc: st === 'expired' ? `Expired on ${esc(fmtD(d.expiryDate))}` : `Expires ${esc(fmtD(d.expiryDate))} (${docDaysLeft(d)} days)`,
                             action: `App.showPage('trucks');App.setTruckSubTab('trailers');setTimeout(()=>App.openTrailerModal(${tr._idx}),100)`
                         });
                     });
@@ -3148,7 +3180,7 @@ function _afterLoad() {
                             groupKey: 'driver:' + d._idx, groupLabel: esc(driverDisplayName(d)), groupIcon: '👤',
                             id: `driver:${d._idx}|${doc.type}|${doc.expiryDate}`, urgency: urgencyOf(doc),
                             title: `${esc(doc.type || 'Document')} ${st === 'expired' ? 'EXPIRED' : 'expiring'}`,
-                            desc: st === 'expired' ? `Expired on ${esc(doc.expiryDate)}` : `Expires ${esc(doc.expiryDate)} (${docDaysLeft(doc)} days)`,
+                            desc: st === 'expired' ? `Expired on ${esc(fmtD(doc.expiryDate))}` : `Expires ${esc(fmtD(doc.expiryDate))} (${docDaysLeft(doc)} days)`,
                             action: `App.openDriverModalFromAnyPage(${d._idx})`
                         });
                     });
@@ -3163,7 +3195,7 @@ function _afterLoad() {
                         alerts.push({
                             groupKey: truckInfo ? 'truck:' + truckInfo._idx : 'jc:' + esc(jc.plate || ''), groupLabel: truckInfo ? formatTruckLabel(truckInfo) : esc(jc.plate || 'Job card'), groupIcon: '🚛',
                             id: `jc:${jc.id}`, urgency: 3,
-                            title: `Job card ${esc(jc.id || '')} in mechanics`, desc: `${daysAtMechanic} days at mechanic (since ${esc(toYMD(jcDate))})`,
+                            title: `Job card ${esc(jc.id || '')} in mechanics`, desc: `${daysAtMechanic} days at mechanic (since ${esc(fmtD(jcDate))})`,
                             action: `App.showPage('jobcards')`
                         });
                     }
@@ -3182,7 +3214,7 @@ function _afterLoad() {
                 nominationAttention().forEach(({ key, req, live }) => {
                     const t = live.truck, d = live.driver;
                     const forOrder = req.orderNo ? ` for ${esc(req.client || '')} ${esc(req.orderNo)}` : '';
-                    const sent = `Asked by ${esc(req.sentBy || 'Operations')}${forOrder}${req.sentAt ? ' on ' + esc(String(req.sentAt).slice(0, 10)) : ''}`;
+                    const sent = `Asked by ${esc(req.sentBy || 'Operations')}${forOrder}${req.sentAt ? ' on ' + esc(fmtD(req.sentAt)) : ''}`;
                     live.issues.forEach(issue => {
                         const aboutDriver = /licen|passport|driver/i.test(issue) && d && d._idx !== undefined && !/no driver/i.test(issue);
                         const trailerId = String((t && t.trailer) || (d && d.custom && d.custom.Trailer) || '').trim().toUpperCase();
@@ -3851,7 +3883,7 @@ function _afterLoad() {
                         <td>${formatDriverVehicleLabel(d) || '<span style="color:var(--text3)">—</span>'}</td>
                         <td>${driverStatusBadgeHtml(d)}</td>
                         <td><span class="badge badge-${rl === 'high' ? 'critical' : rl === 'medium' ? 'warn' : 'good'}">${rl.toUpperCase()} · ${riskPct(d.violations)}</span></td>
-                        <td><span class="doc-chip ${licSt}">${esc(d.licenseExpiry || 'missing')}</span></td>
+                        <td><span class="doc-chip ${licSt}">${esc(fmtD(d.licenseExpiry) || 'missing')}</span></td>
                         <td class="mono">${esc(d.phone || '—')}</td>
                         <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="App.openTruckAssignmentDrawer(${d._idx})" title="Change truck">🔁</button></td>
                     </tr>`;
@@ -4025,7 +4057,7 @@ function _afterLoad() {
                         <span>·</span>`}
                         <span>Vehicle: ${formatDriverVehicleLabel(d) || '<span style="color:var(--text3)">none</span>'}</span>
                         <button class="btn btn-ghost btn-xs" style="padding:2px 6px;font-size:10px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--text2);cursor:pointer" onclick="App.closeModal(); App.openTruckAssignmentDrawer(${idx})">🔁 Reassign</button>
-                        ${d.hire_date ? `<span>·</span><span>Hired: ${esc(d.hire_date)}</span>` : ''}
+                        ${d.hire_date ? `<span>·</span><span>Hired: ${esc(fmtD(d.hire_date))}</span>` : ''}
                     </div>
                 </div>
                 <div class="modal-close" onclick="App.closeModal()">✕</div>
@@ -4074,7 +4106,7 @@ function _afterLoad() {
                         ${getAttachmentThumbnailHtml(f)}
                         <div style="flex:1;min-width:0;overflow:hidden;cursor:pointer">
                             <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(String(f.name || 'Attachment'))}</div>
-                            <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(f.uploadedAt || '')}</div>
+                            <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(fmtD(f.uploadedAt) || '')}</div>
                         </div>
                         <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation(); App.previewAttachment('driver', ${idx}, '${escAttr(f.id)}')">&#128065;</button>
                         <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation(); App.downloadAttachment('driver', ${idx}, '${escAttr(f.id)}')">&#8595;</button>
@@ -4326,7 +4358,7 @@ function _afterLoad() {
                         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
                             <div style="min-width:0;">
                                 <div style="font-weight:600">${esc(v.type || 'Violation')} <span style="font-size:11px;color:var(--text3);font-weight:400">(Vehicle: ${esc(truckLabel)})</span></div>
-                                <div style="font-size:12px;font-weight:600;color:var(--amber);margin-top:2px">📅 ${esc(v.date || '—')}</div>
+                                <div style="font-size:12px;font-weight:600;color:var(--amber);margin-top:2px">📅 ${esc(fmtD(v.date) || '—')}</div>
                             </div>
                             <span class="vtag vtag-${esc(v.severity || 'low')}" style="white-space:nowrap">${esc(v.severity || 'low')}</span>
                         </div>
@@ -4401,7 +4433,7 @@ function _afterLoad() {
                         <div style="background:var(--bg3);border-left:4px solid var(--accent);border-radius:8px;padding:10px 14px;margin:${hIdx === 0 ? '0' : '16px'} 0 10px 0;font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between">
                             <div style="display:flex;align-items:center;gap:8px">
                                 <span style="font-size:14px">🚛</span>
-                                <span>Vehicle: <strong>${esc(truckPlate)}</strong> ${assignDate !== '—' && assignDate !== 'Initial' ? `<span style="font-size:11px;color:var(--text3);font-weight:400">(Reassigned on ${esc(assignDate)})</span>` : ''}</span>
+                                <span>Vehicle: <strong>${esc(truckPlate)}</strong> ${assignDate !== '—' && assignDate !== 'Initial' ? `<span style="font-size:11px;color:var(--text3);font-weight:400">(Reassigned on ${esc(fmtD(assignDate))})</span>` : ''}</span>
                             </div>
                             <span style="font-size:11px;color:var(--text3);font-weight:500">${matching.length} violation${matching.length === 1 ? '' : 's'}</span>
                         </div>`;
@@ -4493,7 +4525,7 @@ function _afterLoad() {
                 if (!d.tripsList) d.tripsList = [];
                 pushModal(`${driverSubHeader(idx, `Trips (${d.tripsList.length})`, { crumbs: ['Trips'] })}
             <div class="modal-body">
-                ${d.tripsList.length ? d.tripsList.map((t, i) => simpleListRowHtml(idx, 'tripsList', i, `<b>${esc(t.date || '—')}</b> <span style="color:var(--text3)">→ completed: ${esc(t.completed || '—')}</span>${t.route ? `<div style="font-size:12px;color:var(--text2)">${esc(t.route)}</div>` : ''}`)).join('') : '<p style="color:var(--text3)">No trips recorded</p>'}
+                ${d.tripsList.length ? d.tripsList.map((t, i) => simpleListRowHtml(idx, 'tripsList', i, `<b>${esc(fmtD(t.date) || '—')}</b> <span style="color:var(--text3)">→ completed: ${esc(t.completed || '—')}</span>${t.route ? `<div style="font-size:12px;color:var(--text2)">${esc(t.route)}</div>` : ''}`)).join('') : '<p style="color:var(--text3)">No trips recorded</p>'}
             </div>
             ${driverSubFooter(idx, `<button class="btn btn-primary btn-sm" onclick="App.addTripItem(${idx})">+ Add Trip</button>`)}`);
             }
@@ -4503,7 +4535,7 @@ function _afterLoad() {
                 if (!d.warningsList) d.warningsList = [];
                 pushModal(`${driverSubHeader(idx, `Warnings (${d.warningsList.length})`, { crumbs: ['Warnings'] })}
             <div class="modal-body">
-                ${d.warningsList.length ? d.warningsList.map((w, i) => simpleListRowHtml(idx, 'warningsList', i, `<b>${esc(w.date || '—')}</b>: ${esc(w.reason || 'No reason')}`)).join('') : '<p style="color:var(--text3)">No warnings</p>'}
+                ${d.warningsList.length ? d.warningsList.map((w, i) => simpleListRowHtml(idx, 'warningsList', i, `<b>${esc(fmtD(w.date) || '—')}</b>: ${esc(w.reason || 'No reason')}`)).join('') : '<p style="color:var(--text3)">No warnings</p>'}
             </div>
             ${driverSubFooter(idx, `<button class="btn btn-primary btn-sm" onclick="App.addWarningItem(${idx})">+ Add Warning</button>`)}`);
             }
@@ -4513,7 +4545,7 @@ function _afterLoad() {
                 if (!d.suspensionsList) d.suspensionsList = [];
                 pushModal(`${driverSubHeader(idx, `Suspensions (${d.suspensionsList.length})`, { crumbs: ['Suspensions'] })}
             <div class="modal-body">
-                ${d.suspensionsList.length ? d.suspensionsList.map((s, i) => simpleListRowHtml(idx, 'suspensionsList', i, `<b>${esc(s.date || '—')}</b>${s.endDate ? ` → ${esc(s.endDate)}` : ''}: ${esc(s.reason || 'No reason')}`)).join('') : '<p style="color:var(--text3)">No suspensions</p>'}
+                ${d.suspensionsList.length ? d.suspensionsList.map((s, i) => simpleListRowHtml(idx, 'suspensionsList', i, `<b>${esc(fmtD(s.date) || '—')}</b>${s.endDate ? ` → ${esc(fmtD(s.endDate))}` : ''}: ${esc(s.reason || 'No reason')}`)).join('') : '<p style="color:var(--text3)">No suspensions</p>'}
             </div>
             ${driverSubFooter(idx, `<button class="btn btn-primary btn-sm" onclick="App.addSuspensionItem(${idx})">+ Add Suspension</button>`)}`);
             }
@@ -4525,7 +4557,7 @@ function _afterLoad() {
             <div class="modal-body">
                 ${d.accidentsList.length ? d.accidentsList.map((a, i) => `<div style="display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--border)">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                        <span style="flex:1"><span class="vtag vtag-${(a.recordType || a.type || 'accident').toLowerCase() === 'incident' ? 'medium' : 'high'}">${(a.recordType || a.type || 'accident').toLowerCase() === 'incident' ? 'Incident' : 'Accident'}</span> <b>${esc(a.date || '—')}</b>${a.truckPlate ? ` <span style="color:var(--text3)">· ${esc(a.truckPlate)}</span>` : ''}: ${esc(String(a.description || 'No details'))}</span>
+                        <span style="flex:1"><span class="vtag vtag-${(a.recordType || a.type || 'accident').toLowerCase() === 'incident' ? 'medium' : 'high'}">${(a.recordType || a.type || 'accident').toLowerCase() === 'incident' ? 'Incident' : 'Accident'}</span> <b>${esc(fmtD(a.date) || '—')}</b>${a.truckPlate ? ` <span style="color:var(--text3)">· ${esc(a.truckPlate)}</span>` : ''}: ${esc(String(a.description || 'No details'))}</span>
                         <div style="display:flex;gap:4px;flex-shrink:0">
                             <button class="btn btn-xs btn-ghost btn-icon" onclick="App.openEditAccidentModal(${idx}, ${i})" title="Edit record">✎</button>
                             <button class="btn btn-xs btn-ghost btn-icon" style="color:var(--red)" onclick="App.removeFromList(${idx},'accidentsList',${i})" title="Delete record">✕</button>
@@ -4556,7 +4588,7 @@ function _afterLoad() {
                         <span>Date</span><span>Loss Type</span><span>Amount (L)</span><span>Description</span><span></span>
                     </div>
                     ${sortedLosses.map(({ loss: l, index }) => `<div style="display:grid;grid-template-columns:1.2fr 1.2fr 0.8fr 1.4fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-                        <span>${esc(l.date || '—')}</span>
+                        <span>${esc(fmtD(l.date) || '—')}</span>
                         <span>${esc(l.type || 'Loss')}</span>
                         <span>${Number(l.amount) || 0} L</span>
                         <span style="color:var(--text3);font-size:13px">${esc(l.description || '—')}</span>
@@ -4586,8 +4618,8 @@ function _afterLoad() {
                     const st = trainingStatus(t);
                     return `<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 0.8fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
                         <span style="font-weight:600">${esc(t.name || 'Training')}</span>
-                        <span>${esc(t.date || '—')}</span>
-                        <span>${esc(st.nextDue)}</span>
+                        <span>${esc(fmtD(t.date) || '—')}</span>
+                        <span>${esc(fmtD(st.nextDue))}</span>
                         <span><span class="badge badge-${st.valid ? 'good' : 'critical'}" style="min-width:70px;justify-content:center">${st.valid ? 'Valid' : 'Expired'}</span></span>
                         <div style="display:flex;gap:4px">
                             <button class="btn btn-xs btn-ghost" title="Edit" onclick="App.editTrainingItem(${idx},'${escAttr(t.id)}')">✎</button>
@@ -4646,7 +4678,7 @@ function _afterLoad() {
                 const pos = d.trainings.findIndex(t => t && t.id === trainingId);
                 if (pos < 0) { showToast('Training record not found'); return; }
                 const t = d.trainings[pos];
-                const ok = await confirmDialog(`Remove training "${t.name || 'Training'}" (${t.date || 'no date'})?`, { danger: true, okLabel: 'Remove' });
+                const ok = await confirmDialog(`Remove training "${t.name || 'Training'}" (${fmtD(t.date) || 'no date'})?`, { danger: true, okLabel: 'Remove' });
                 if (!ok) return;
                 d.trainings.splice(pos, 1);
                 logAudit('delete', 'driver-training', d.id, `${t.name || ''} (${t.date || ''})`);
@@ -4660,12 +4692,12 @@ function _afterLoad() {
                 const labels = { tripsList: 'trip', warningsList: 'warning', suspensionsList: 'suspension', accidentsList: 'accident record', lossesList: 'loss record', violations: 'violation' };
                 const noun = labels[listName] || 'item';
                 const toBin = listName === 'accidentsList' || listName === 'violations';
-                const ok = await confirmDialog(`Remove this ${noun} (${item.date || 'no date'})?${toBin ? '\n\nIt will be moved to the Recycle Bin.' : ''}`, { danger: true, okLabel: toBin ? 'Move to bin' : 'Remove' });
+                const ok = await confirmDialog(`Remove this ${noun} (${fmtD(item.date) || 'no date'})?${toBin ? '\n\nIt will be moved to the Recycle Bin.' : ''}`, { danger: true, okLabel: toBin ? 'Move to bin' : 'Remove' });
                 if (!ok) return;
                 if (listName === 'accidentsList') {
                     const recType = (item.recordType || item.type || 'accident').toLowerCase();
                     const typeLabel = recType === 'incident' ? 'Incident' : 'Accident';
-                    const label = `${typeLabel}: ${d.name} (${item.date || 'No Date'})`;
+                    const label = `${typeLabel}: ${d.name} (${fmtD(item.date) || 'No Date'})`;
                     sendToRecycleBin('accident', label, item, { driverIdx: d._idx, driverName: d.name });
                 } else if (listName === 'violations') {
                     // DR14: the violation field is `type` (not violationType).
@@ -4868,7 +4900,7 @@ function _afterLoad() {
                     return `<div class="doc-row">
                         <div class="doc-main">
                             <div class="doc-title">${esc(doc.type || 'Document')}</div>
-                            <div class="doc-meta">${doc.number ? `No. ${esc(doc.number)} · ` : ''}${doc.expiryDate ? `Expires ${esc(doc.expiryDate)}` : '<span style="color:var(--amber)">no expiry date recorded</span>'}${file ? ` · <a href="#" style="color:var(--accent)" onclick="event.preventDefault(); App.previewAttachment('driver', ${idx}, '${escAttr(file.id)}')">📎 ${esc(file.name || 'file')}</a>` : (doc.fileId ? ' · <span style="color:var(--text3)">📎 file missing</span>' : '')}</div>
+                            <div class="doc-meta">${doc.number ? `No. ${esc(doc.number)} · ` : ''}${doc.expiryDate ? `Expires ${esc(fmtD(doc.expiryDate))}` : '<span style="color:var(--amber)">no expiry date recorded</span>'}${file ? ` · <a href="#" style="color:var(--accent)" onclick="event.preventDefault(); App.previewAttachment('driver', ${idx}, '${escAttr(file.id)}')">📎 ${esc(file.name || 'file')}</a>` : (doc.fileId ? ' · <span style="color:var(--text3)">📎 file missing</span>' : '')}</div>
                         </div>
                         ${docChipHtml(doc)}
                         <button class="btn btn-ghost btn-xs" title="Edit" onclick="App.openDriverDocForm(${idx}, '${escAttr(key)}', '${esc(back || 'documents')}')">✎</button>
@@ -4904,7 +4936,7 @@ function _afterLoad() {
                 ['Medical Certificate', 'Defensive Driving Certificate', 'ID Card'].forEach(n => { if (!typeNames.includes(n)) typeNames.push(n); });
                 const currentType = doc ? (doc.type || '') : '';
                 const typeIsKnown = !currentType || typeNames.includes(currentType);
-                const fileOptions = [{ value: '', label: '— none —' }, ...(d.files || []).map(f => ({ value: f.id, label: `${f.name || 'Attachment'} (${f.uploadedAt || ''})` }))];
+                const fileOptions = [{ value: '', label: '— none —' }, ...(d.files || []).map(f => ({ value: f.id, label: `${f.name || 'Attachment'} (${fmtD(f.uploadedAt) || ''})` }))];
                 const fields = [];
                 if (builtin) {
                     fields.push({ id: 'type', label: 'Document type', type: 'text', value: builtin === 'license' ? 'Driving License' : 'Passport / Laissez Pass', readonly: true, full: true });
@@ -4947,7 +4979,7 @@ function _afterLoad() {
                 const pos = d.documents.findIndex(x => x && x.id === docId);
                 if (pos < 0) return;
                 const doc = d.documents[pos];
-                const ok = await confirmDialog(`Remove document "${doc.type || 'Document'}"${doc.expiryDate ? ` (expires ${doc.expiryDate})` : ''}?`, { danger: true, okLabel: 'Remove' });
+                const ok = await confirmDialog(`Remove document "${doc.type || 'Document'}"${doc.expiryDate ? ` (expires ${fmtD(doc.expiryDate)})` : ''}?`, { danger: true, okLabel: 'Remove' });
                 if (!ok) return;
                 d.documents.splice(pos, 1);
                 logAudit('delete', 'driver-document', d.id, doc.type || '');
@@ -5031,7 +5063,7 @@ function _afterLoad() {
                 const d = drivers.find(x => x._idx === driverIdx);
                 if (!d || !d.violations || !d.violations[violIdx]) return;
                 const v = d.violations[violIdx];
-                const ok = await confirmDialog(`Move violation "${v.type || 'Violation'}" (${v.date || 'no date'}) to the Recycle Bin?`, { danger: true, okLabel: 'Move to bin' });
+                const ok = await confirmDialog(`Move violation "${v.type || 'Violation'}" (${fmtD(v.date) || 'no date'}) to the Recycle Bin?`, { danger: true, okLabel: 'Move to bin' });
                 if (!ok) return;
                 sendToRecycleBin('violation', `${v.type || 'Violation'} (${d.name || 'Driver'})`, v, { driverIdx });
                 d.violations.splice(violIdx, 1);
@@ -5750,7 +5782,7 @@ function _afterLoad() {
                         ${getAttachmentThumbnailHtml(f)}
                         <div style="flex:1;min-width:0;overflow:hidden;cursor:pointer">
                             <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(String(f.name || 'Attachment'))}</div>
-                            <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(f.uploadedAt || '')}</div>
+                            <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(fmtD(f.uploadedAt) || '')}</div>
                         </div>
                         <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation();App.previewTrailerAttachment(${idx},'${escAttr(f.id)}')">&#128065;</button>
                         <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation();App.downloadAttachment('trailer',${idx},'${escAttr(f.id)}')">&#8595;</button>
@@ -5764,7 +5796,7 @@ function _afterLoad() {
                         <span style="color:${severityColor(iss.severity)}">●</span>
                         <span style="flex:1">${esc(iss.description)}</span>
                         <span class="vtag vtag-${normSeverity(iss.severity)}" style="font-size:9px">${normSeverity(iss.severity)}</span>
-                        <small style="color:var(--text3)">${esc(iss.date || '')}</small>
+                        <small style="color:var(--text3)">${esc(fmtD(iss.date) || '')}</small>
                         <span style="cursor:pointer;color:var(--text3)" title="Mark resolved / remove" onclick="App.removeTrailerIssue(${idx},${i});event.stopPropagation()">✕</span>
                     </div>`).join('') || '<p style="color:var(--text3)">No issues logged</p>'}
                 </div>
@@ -5821,6 +5853,71 @@ function _afterLoad() {
                 if (missing.length) logAudit('update', 'trailer', 'all', `Capacity filled on ${missing.length} trailer(s): PMS ${TRAILER_CAP_DEFAULT.PMS.toLocaleString('en-US')} L, AGO ${TRAILER_CAP_DEFAULT.AGO.toLocaleString('en-US')} L (starting figures)`);
                 saveAll(missing.length ? ['trailers', 'auditTrail', 'settings'] : ['settings']);
                 console.log(`[Trailers] capacity filled on ${missing.length} trailer(s)`);
+            }
+            // ── ONE-TIME update (Oct 2026) from "trucks brand, trailer capacity.ods": the truck's BRAND and the trailer's
+            // capacity (AGO / PMS litres). Only those three fields change — the truck↔trailer pairs in the list are ignored, and
+            // nothing is created for a plate FleetGuard does not have. The list wins over what is there (mostly the 45,000 /
+            // 44,000 placeholders); every old value goes to the audit log. Runs once on live data (settings.brandCapImportAt).
+            function fleetPlateKey(p) { return String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+            let _brandCapChecked = false;
+            function applyBrandCapacityList() {
+                if (_brandCapChecked || typeof database === 'undefined' || !remoteReady || offlineMode) return;
+                _brandCapChecked = true;
+                if (settings && settings.brandCapImportAt) return;
+                const FLEET_BRANDS_2026 = {
+                    'HOWO Old': 'RAF535A RAF540A RAF548A RAF552A RAF554A RAF565A RAF419U RAF420U RAF549A RAF551A RAF557A RAF558A RAF559A RAF560A RAF562A RAF563A RAF564A RAF586Z RAF589Z RAF545A RAF561A RAF546A',
+                    'Actros Yellow Old': 'RAH668W RAH691W RAH692W RAH693W RAH694W RAH695W RAH696W RAH697W RAH698W RAH699W',
+                    'Actros White Old': 'RAH823A RAH824A RAH825A RAH827A RAH828A RAH829A RAH830A RAH831A RAH832A RAH833A',
+                    'Actros Yellow New': 'RAD920W RAD797E RAD059R RAD921W RAD801E',
+                    'HOWO New': 'RAJ959B RAJ961B RAJ962B RAJ963B RAJ964B RAJ965B RAJ966B RAJ967B RAJ968B RAJ969B RAJ845E RAJ844E RAJ843E RAJ981E RAJ848E RAJ847E RAJ849E RAJ846E RAJ982E RAJ850E',
+                    'MAN New': 'RAJ184Z RAJ191Z RAJ190Z RAJ189Z RAJ188Z RAJ187Z RAJ186Z RAJ185Z RAJ721Z RAF556A'
+                };
+                // AGO / PMS litres → trailers
+                const TRAILER_CAPS_2026 = {
+                    '40500/45000': 'RL3528 RL3515 RL3523 RL3530 RL3529 RL3518 RL3514 RL3527 RL3519 RL3526 RL3521 RL3533 RL3522 RL3517 RL6716 RL6715 RL6712 RL6713 RL3525 RL3520 RL6714 RL3516 RL3524 RL3531 RL3532',
+                    '39500/44500': 'RL1722 RL1719 RL1718 RL1721',
+                    '36000/39000': 'RL1296',
+                    '38000/42000': 'RL1463 RL1459',
+                    '37000/39000': 'RL1265',
+                    '34000/38000': 'RL1652 RL1340 RL1997',
+                    '40500/46000': 'RL7611 RL7606 RL7609 RL7608 RL7605 RL7607',
+                    '36000/38000': 'RL1263 RL1339',
+                    '39000/43500': 'RL7884',
+                    '39500/42000': 'RL1462',
+                    '40000/45500': 'RL8068 RL8064 RL8065 RL8067 RL8093 RL8091 RL8092 RL8069 RL8066 RL8070 RL8821 RL8828 RL8827 RL8826 RL8825 RL8824 RL8823 RL8822 RL8829 RL8830',
+                    '40000/45000': 'RL7877 RL7882 RL7875 RL7885 RL7878 RL7876 RL7874 RL7879 RL7883'
+                };
+                const brandOf = {}, capOf = {};
+                Object.entries(FLEET_BRANDS_2026).forEach(([b, ps]) => ps.split(' ').forEach(p => { brandOf[p] = b; }));
+                Object.entries(TRAILER_CAPS_2026).forEach(([k, ts]) => { const [ago, pms] = k.split('/').map(Number); ts.split(' ').forEach(t => { capOf[t] = { ago, pms }; }); });
+                const truckChanges = [], trailerChanges = [], seenT = new Set(), seenR = new Set();
+                (trucks || []).forEach(t => {
+                    const k = fleetPlateKey(t && t.plate); if (!k || !brandOf[k]) return;
+                    seenT.add(k);
+                    if (String(t.brand || '') === brandOf[k]) return;
+                    truckChanges.push(`${t.plate}: "${t.brand || ''}" → "${brandOf[k]}"`);
+                    t.brand = brandOf[k];
+                });
+                (trailers || []).forEach(t => {
+                    const k = fleetPlateKey(t && t.id); if (!k || !capOf[k]) return;
+                    seenR.add(k);
+                    const c = capOf[k];
+                    if (Number(t.capacityAGO) === c.ago && Number(t.capacityPMS) === c.pms) return;
+                    trailerChanges.push(`${t.id}: AGO ${t.capacityAGO || '—'} → ${c.ago}, PMS ${t.capacityPMS || '—'} → ${c.pms}`);
+                    t.capacityAGO = c.ago; t.capacityPMS = c.pms;
+                });
+                const missT = Object.keys(brandOf).filter(k => !seenT.has(k)), missR = Object.keys(capOf).filter(k => !seenR.has(k));
+                settings.brandCapImportAt = new Date().toISOString();
+                if (truckChanges.length) logAudit('update', 'truck', 'all', `Brand set on ${truckChanges.length} truck(s) from the Oct 2026 list — ${truckChanges.join('; ')}`);
+                if (trailerChanges.length) logAudit('update', 'trailer', 'all', `Capacity set on ${trailerChanges.length} trailer(s) from the Oct 2026 list — ${trailerChanges.join('; ')}`);
+                if (missT.length || missR.length) logAudit('update', 'fleet', 'all', `Oct 2026 brand/capacity list — not in FleetGuard, skipped: ${[...missT, ...missR].join(', ')}`);
+                const cols = ['settings'];
+                if (truckChanges.length) cols.push('trucks');
+                if (trailerChanges.length) cols.push('trailers');
+                if (cols.length > 1 || missT.length || missR.length) cols.push('auditTrail');
+                saveAll(cols);
+                console.log(`[Fleet] brand on ${truckChanges.length} truck(s), capacity on ${trailerChanges.length} trailer(s); not found: ${[...missT, ...missR].join(', ') || 'none'}`);
+                if (truckChanges.length || trailerChanges.length) showToast(`Fleet list applied — brand on ${truckChanges.length} truck(s), capacity on ${trailerChanges.length} trailer(s)`, 5000);
             }
             function addTrailerForm() {
                 openModal(`
@@ -6218,7 +6315,7 @@ function _afterLoad() {
                         ${getAttachmentThumbnailHtml(f)}
                         <div style="flex:1;min-width:0;overflow:hidden;cursor:pointer">
                             <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(String(f.name || 'Attachment'))}</div>
-                            <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(f.uploadedAt || '')}</div>
+                            <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(fmtD(f.uploadedAt) || '')}</div>
                         </div>
                         <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation(); App.previewAttachment('truck', ${idx}, '${escAttr(f.id)}')">&#128065;</button>
                         <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation(); App.downloadAttachment('truck', ${idx}, '${escAttr(f.id)}')">&#8595;</button>
@@ -6232,7 +6329,7 @@ function _afterLoad() {
                         <span style="color:${severityColor(iss.severity)}">●</span>
                         <span style="flex:1">${esc(iss.description)}</span>
                         <span class="vtag vtag-${normSeverity(iss.severity)}" style="font-size:9px">${normSeverity(iss.severity)}</span>
-                        <small style="color:var(--text3)">${esc(iss.date || '')}</small>
+                        <small style="color:var(--text3)">${esc(fmtD(iss.date) || '')}</small>
                         <span style="cursor:pointer;color:var(--text3)" title="Mark resolved / remove" onclick="App.removeIssue(${idx},${i});event.stopPropagation()">✕</span>
                     </div>`).join('') || '<p style="color:var(--text3)">No issues</p>'}
                 </div>
@@ -7001,7 +7098,7 @@ function _afterLoad() {
                             const sevColor = sev === 'high' ? 'var(--red)' : sev === 'medium' ? 'var(--amber)' : 'var(--green)';
                             const retired = v.type && !(settings.violationTypes || []).some(t => t.name === v.type);
                             return `<tr style="border-bottom:1px solid var(--border)">
-                            <td style="padding:10px 14px;font-family:var(--font-mono)">${esc(v.date || '—')}</td>
+                            <td style="padding:10px 14px;font-family:var(--font-mono)">${esc(fmtD(v.date) || '—')}</td>
                             <td style="padding:10px 14px;cursor:pointer;color:var(--accent2)" onclick="App.openDriverModalFromAnyPage(${v.driverIdx})">${esc(v.driverName || 'Unknown')}</td>
                             <td style="padding:10px 14px">${riskBadgeHtml(v.driverRisk)}</td>
                             <td style="padding:10px 14px;font-weight:600;color:var(--accent)">${esc(v.truckPlate || '—')}</td>
@@ -7430,7 +7527,7 @@ function _afterLoad() {
                             </div>
                             <div style="text-align:right">
                                 <div class="accident-badge" style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em">Date</div>
-                                <div style="font-size:13px;font-weight:600;color:var(--text2)">${esc(r.date || '—')}</div>
+                                <div style="font-size:13px;font-weight:600;color:var(--text2)">${esc(fmtD(r.date) || '—')}</div>
                             </div>
                             <div>
                                 <div class="accident-badge" style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em">Status</div>
@@ -7453,7 +7550,7 @@ function _afterLoad() {
                                                 ${f.uploadFailed || !f.data ? '<div style="width:60px;height:42px;border-radius:10px;border:1px solid rgba(240,76,90,0.3);background:rgba(240,76,90,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Upload failed">⚠</div>' : getAttachmentThumbnailHtml(f)}
                                                 <div style="min-width:0">
                                                     <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.name || 'Attachment')}</div>
-                                                    <div style="font-size:10px;color:${f.uploadFailed ? 'var(--red)' : 'var(--text3)'}">${f.uploadFailed ? esc(f.error || 'Upload failed — file not stored') : `${getFileTypeLabel(f)} • ${esc(f.uploadedAt || '—')}${f.localOnly ? ' • stored offline' : ''}`}</div>
+                                                    <div style="font-size:10px;color:${f.uploadFailed ? 'var(--red)' : 'var(--text3)'}">${f.uploadFailed ? esc(f.error || 'Upload failed — file not stored') : `${getFileTypeLabel(f)} • ${esc(fmtD(f.uploadedAt) || '—')}${f.localOnly ? ' • stored offline' : ''}`}</div>
                                                 </div>
                                             </div>
                                             ${f.uploadFailed || !f.data ? '' : `<div style="display:flex;gap:6px;flex-shrink:0">
@@ -7464,7 +7561,7 @@ function _afterLoad() {
                                 </div>
                             </div>` : '<div style="font-size:12px;color:var(--text3)">No attachments uploaded.</div>'}
                         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
-                            <div style="font-size:10px;color:var(--text3)">${r.createdBy ? `Recorded by ${esc(r.createdBy)}` : ''}${r.updatedAt ? ` · updated ${esc(String(r.updatedAt).slice(0, 10))}` : ''}${r.closedAt ? ` · closed ${esc(r.closedAt)}` : ''}</div>
+                            <div style="font-size:10px;color:var(--text3)">${r.createdBy ? `Recorded by ${esc(r.createdBy)}` : ''}${r.updatedAt ? ` · updated ${esc(fmtD(r.updatedAt))}` : ''}${r.closedAt ? ` · closed ${esc(fmtD(r.closedAt))}` : ''}</div>
                             <div style="display:flex;gap:8px">
                                 <button class="btn btn-ghost btn-xs" onclick="App.openEditAccidentModal(${args})" title="Edit record">✎ Edit</button>
                                 <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="App.deleteAccidentEntry(${args})" title="Delete record">🗑 Delete</button>
@@ -7791,7 +7888,7 @@ function _afterLoad() {
                     previewContent = `<p style="color:var(--text3);font-size:13px">Preview unavailable for this attachment.</p>`;
                 }
                 pushModal(`
-                    <div class="modal-header"><div><div class="modal-name">${esc(file.name || 'Attachment')}</div><div class="modal-sub">${getFileTypeLabel(file)} • ${esc(file.uploadedAt || '—')}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
+                    <div class="modal-header"><div><div class="modal-name">${esc(file.name || 'Attachment')}</div><div class="modal-sub">${getFileTypeLabel(file)} • ${esc(fmtD(file.uploadedAt) || '—')}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
                     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
                         ${previewContent}
                         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
@@ -7832,7 +7929,7 @@ function _afterLoad() {
                 const removedRecord = found.rec;
                 const typeLabel = incidentTypeLabel(removedRecord);
                 const who = found.owner ? found.owner.name : (removedRecord.truckPlate || 'no driver');
-                const ok = await confirmDialog(`Move this ${typeLabel.toLowerCase()} record (${removedRecord.id || removedRecord.date || 'no ID'} · ${who}) to the Recycle Bin?`, { danger: true, okLabel: 'Move to bin', title: `Delete ${typeLabel.toLowerCase()}` });
+                const ok = await confirmDialog(`Move this ${typeLabel.toLowerCase()} record (${removedRecord.id || fmtD(removedRecord.date) || 'no ID'} · ${who}) to the Recycle Bin?`, { danger: true, okLabel: 'Move to bin', title: `Delete ${typeLabel.toLowerCase()}` });
                 if (!ok) return;
                 const label = `${typeLabel}: ${who} (${removedRecord.id || removedRecord.date || 'No Date'})`;
                 sendToRecycleBin(source === 'incident' ? 'incident' : 'accident', label, removedRecord, { source, driverIdx: found.owner ? found.owner._idx : null, driverName: found.owner ? found.owner.name : '' });
@@ -8006,7 +8103,7 @@ function _afterLoad() {
                 // Company profile & locale (audit S-S2)
                 const c = settings.company || {};
                 setVal('companyName', c.name); setVal('companyShortName', c.shortName); setVal('companyAddress', c.address);
-                setVal('companyPhone', c.phone); setVal('companyEmail', c.email); setVal('companyCurrency', c.currency || 'RWF');
+                setVal('companyPhone', c.phone); setVal('companyEmail', c.email); setVal('companyWeb', c.web); setVal('companyCurrency', c.currency || 'RWF');
                 setVal('localeWeekStart', (settings.locale || {}).weekStart || 'monday');
                 setVal('localeDateFormat', (settings.locale || {}).dateFormat || 'DD/MM/YYYY');
                 const logoPrev = document.getElementById('companyLogoPreview');
@@ -8073,6 +8170,7 @@ function _afterLoad() {
                     address: val('companyAddress').slice(0, 300),
                     phone: val('companyPhone').slice(0, 60),
                     email: email.slice(0, 120),
+                    web: val('companyWeb').slice(0, 120),
                     currency: (val('companyCurrency') || 'RWF').toUpperCase().slice(0, 6)
                 });
                 settings.locale = Object.assign({}, settings.locale || {}, {
@@ -8331,7 +8429,7 @@ function _afterLoad() {
                 if (sumEl) sumEl.textContent = `· ${all.length} entr${all.length === 1 ? 'y' : 'ies'}`;
                 const shown = rows.slice(0, 300);
                 body.innerHTML = shown.length ? shown.map(a => `<tr>
-                        <td style="white-space:nowrap">${esc(a.at ? new Date(a.at).toLocaleString('en-GB') : '—')}</td>
+                        <td style="white-space:nowrap">${esc(a.at ? fmtDT(a.at) : '—')}</td>
                         <td>${esc(a.user || '—')}</td><td>${esc(a.role || '—')}</td>
                         <td><span class="badge">${esc(a.action || '—')}</span></td>
                         <td>${esc(a.entity || '—')}</td><td style="font-family:var(--font-mono);font-size:11px">${esc(a.id || '')}</td>
@@ -8485,7 +8583,7 @@ function _afterLoad() {
             const ORDER_STATUS_META = {
                 'Pending': { badge: 'badge-warn', color: 'var(--amber)', bg: 'rgba(245,158,11,0.1)', icon: '⏳' },
                 'Loading': { badge: 'badge-idle', color: 'var(--purple)', bg: 'rgba(167,139,250,0.1)', icon: '📦' },
-                'In Transit': { badge: 'badge-trip', color: 'var(--accent)', bg: 'rgba(61,127,255,0.1)', icon: '🚚' },
+                'In Transit': { badge: 'badge-trip', color: 'var(--accent)', bg: 'var(--accent-soft)', icon: '🚚' },
                 'Offloaded': { badge: 'badge-good', color: 'var(--teal)', bg: 'rgba(45,212,191,0.1)', icon: '📥' },
                 'Completed': { badge: 'badge-good', color: 'var(--green)', bg: 'rgba(16,185,129,0.1)', icon: '✅' }
             };
@@ -8642,7 +8740,7 @@ function _afterLoad() {
                     chip.innerHTML = '📅 Select both a start and an end date';
                 } else {
                     chip.className = 'vtag order-range-chip';
-                    chip.innerHTML = `📅 ${esc(toYMD(range.start))} → ${esc(toYMD(range.end))} <button type="button" class="order-range-chip-x" title="Clear range" onclick="App.clearOrderDateRange()">✕</button>`;
+                    chip.innerHTML = `📅 ${esc(fmtD(range.start))} → ${esc(fmtD(range.end))} <button type="button" class="order-range-chip-x" title="Clear range" onclick="App.clearOrderDateRange()">✕</button>`;
                 }
             }
 
@@ -8678,7 +8776,7 @@ function _afterLoad() {
                 const counts = { '': orders.length };
                 ORDER_STATUSES.forEach(s => { counts[s] = 0; });
                 orders.forEach(o => { counts[normalizeOrderStatus(o.status)]++; });
-                const filters = [{ key: '', label: 'All Orders', count: counts[''], color: 'var(--accent)', bg: 'rgba(61,127,255,0.1)' }]
+                const filters = [{ key: '', label: 'All Orders', count: counts[''], color: 'var(--accent)', bg: 'var(--accent-soft)' }]
                     .concat(ORDER_STATUSES.map(s => ({ key: s, label: s, count: counts[s], color: ORDER_STATUS_META[s].color, bg: ORDER_STATUS_META[s].bg })));
 
                 const quickFilterEl = document.getElementById('orderQuickViewFilters');
@@ -8744,7 +8842,7 @@ function _afterLoad() {
                     return `<div class="card ${animationClass}" onclick="App.openOrderDetailsModal(${Number(o._idx)})" style="cursor:pointer">
                         <div class="accent-bar" style="background:${meta.color}"></div>
                         <div class="card-top" style="margin-bottom:8px">
-                            <div class="avatar" style="background:rgba(61,127,255,0.1);font-size:18px">📦</div>
+                            <div class="avatar" style="background:var(--accent-soft);font-size:18px">📦</div>
                             <div class="card-info" style="flex:1; min-width:0">
                                 <div class="card-title" style="display:flex;flex-direction:column;gap:3px;font-family:var(--font-display);font-size:14px;overflow:hidden;white-space:normal;word-break:break-word">
                                     <span style="color:var(--accent);font-weight:700">${esc(o.name || o.orderId || 'Order')}</span>
@@ -8764,7 +8862,7 @@ function _afterLoad() {
                             ${docCount ? `<span class="vtag" style="background:rgba(167,139,250,0.12);color:var(--purple)">📎 ${docCount} doc${docCount !== 1 ? 's' : ''}</span>` : ''}
                         </div>
                         <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6">
-                            <div style="margin-top:2px">📅 Created: ${esc(o.date || '—')}</div>
+                            <div style="margin-top:2px">📅 Created: ${esc(fmtD(o.date) || '—')}</div>
                             ${o.destination ? `<div style="margin-top:2px">📍 To: ${esc(o.destination)}${o.origin ? ` <span style="color:var(--text3)">(from ${esc(o.origin)})</span>` : ''}</div>` : ''}
                             ${o.eta ? `<div style="margin-top:2px">🕒 ETA: ${esc(formatDisplayDate(o.eta))}</div>` : ''}
                             <div style="margin-top:2px">📌 Status: <span style="color:${meta.color};font-weight:600">${esc(getOrderStatusText(o))}</span></div>
@@ -8896,7 +8994,7 @@ function _afterLoad() {
                                     <span style="color:var(--accent);font-weight:600;font-size:10.5px;white-space:nowrap">Open Order ➔</span>
                                 </div>
                                 <div style="font-size:10px;color:var(--text3);margin-top:2px">
-                                    Allocated: ${esc(allocDate)}${loadDate ? ` · Loaded: ${esc(loadDate)}` : ''}${offloadDate ? ` · Offloaded: ${esc(offloadDate)}` : ''}
+                                    Allocated: ${esc(fmtD(allocDate))}${loadDate ? ` · Loaded: ${esc(fmtD(loadDate))}` : ''}${offloadDate ? ` · Offloaded: ${esc(fmtD(offloadDate))}` : ''}
                                 </div>
                             </div>`;
                         } else {
@@ -9086,7 +9184,7 @@ function _afterLoad() {
                 const chips = document.getElementById(`tpSelected_${pickerId}`);
                 if (chips) {
                     chips.style.display = plates.length ? 'flex' : 'none';
-                    chips.innerHTML = plates.map(p => `<span class="vtag" style="background:rgba(61,127,255,0.12);color:var(--accent);cursor:pointer" title="Remove" onclick="App.toggleTruckPickerRow('${escAttr(pickerId)}', '${escAttr(p)}')">🚛 ${esc(p)} ✕</span>`).join('');
+                    chips.innerHTML = plates.map(p => `<span class="vtag" style="background:var(--accent-soft);color:var(--accent);cursor:pointer" title="Remove" onclick="App.toggleTruckPickerRow('${escAttr(pickerId)}', '${escAttr(p)}')">🚛 ${esc(p)} ✕</span>`).join('');
                 }
             }
 
@@ -9173,7 +9271,7 @@ function _afterLoad() {
                 const pickerHtml = buildTruckPickerHtml('newOrder', []);
                 openModal(`
                     <div class="modal-header">
-                        <div class="avatar avatar-lg" style="background:rgba(61,127,255,0.12);font-size:20px">📦</div>
+                        <div class="avatar avatar-lg" style="background:var(--accent-soft);font-size:20px">📦</div>
                         <div style="flex:1"><div class="modal-name">New Cargo Order</div><div class="modal-sub">Create a new logistics contract</div></div>
                         <div class="modal-close" onclick="App.closeModal()">✕</div>
                     </div>
@@ -9247,7 +9345,7 @@ function _afterLoad() {
                 if (!o) return;
                 pushModal(`
                     <div class="modal-header">
-                        <div class="avatar avatar-lg" style="background:rgba(61,127,255,0.12);font-size:20px">✎</div>
+                        <div class="avatar avatar-lg" style="background:var(--accent-soft);font-size:20px">✎</div>
                         <div style="flex:1"><div class="modal-name">Edit Order</div><div class="modal-sub">${esc(orderLabel(o))} · ${esc(o.client || '')}</div></div>
                         <div class="modal-close" onclick="App.closeModal()">✕</div>
                     </div>
@@ -9398,7 +9496,7 @@ function _afterLoad() {
                     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--bg4);border:1px solid var(--border);border-radius:8px">
                         <div style="min-width:0;flex:1">
                             <div style="font-size:12.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${esc(d.name || 'Document')}</div>
-                            <div style="font-size:10.5px;color:var(--text3)"><span style="color:${kindColor};font-weight:600">${esc(d.kind || 'Document')}</span> · ${esc(d.uploadedAt || '')}${d.by ? ` · by ${esc(d.by)}` : ''}${d.uploadError ? ' · <span style="color:var(--amber)">stored locally (Drive upload failed)</span>' : ''}</div>
+                            <div style="font-size:10.5px;color:var(--text3)"><span style="color:${kindColor};font-weight:600">${esc(d.kind || 'Document')}</span> · ${esc(fmtD(d.uploadedAt) || '')}${d.by ? ` · by ${esc(d.by)}` : ''}${d.uploadError ? ' · <span style="color:var(--amber)">stored locally (Drive upload failed)</span>' : ''}</div>
                         </div>
                         <div style="display:flex;gap:4px;flex-shrink:0">
                             <button class="btn btn-ghost btn-xs" onclick="App.previewOrderDocument(${idx}, '${escAttr(d.id)}')">👁 View</button>
@@ -9500,8 +9598,8 @@ function _afterLoad() {
                 const openUrl = driveId ? `https://drive.google.com/file/d/${encodeURIComponent(driveId)}/view` : '';
                 pushModal(`
                     <div class="modal-header">
-                        <div class="avatar avatar-lg" style="background:rgba(61,127,255,0.12);font-size:20px">📄</div>
-                        <div style="flex:1"><div class="modal-name">${esc(d.name || 'Document')}</div><div class="modal-sub">${esc(d.kind || 'Document')} · ${esc(d.uploadedAt || '')}${d.by ? ` · by ${esc(d.by)}` : ''}</div></div>
+                        <div class="avatar avatar-lg" style="background:var(--accent-soft);font-size:20px">📄</div>
+                        <div style="flex:1"><div class="modal-name">${esc(d.name || 'Document')}</div><div class="modal-sub">${esc(d.kind || 'Document')} · ${esc(fmtD(d.uploadedAt) || '')}${d.by ? ` · by ${esc(d.by)}` : ''}</div></div>
                         <div class="modal-close" onclick="App.closeModal()">✕</div>
                     </div>
                     <div class="modal-body">
@@ -9580,10 +9678,10 @@ function _afterLoad() {
                                 ${allTrips.map(trip => {
                                     const tDays = trip.transitDays && trip.transitDays !== '—' ? trip.transitDays : transitDaysText(trip.loadedDate, trip.offloadDate);
                                     const cell = (label, val, color) => `<div style="background:rgba(255,255,255,0.05);padding:4px 6px;border-radius:4px"><div style="color:var(--text3);margin-bottom:1px">${label}</div><div style="color:${color || 'var(--text2)'};font-weight:600">${esc(val || '—')}</div></div>`;
-                                    return `<div style="display:flex;gap:6px;align-items:center;padding:6px 8px;background:${trip.isCurrent ? 'rgba(61,127,255,0.08)' : 'rgba(255,255,255,0.03)'};border-radius:6px;margin-bottom:4px;border-left:2px solid ${trip.isCurrent ? 'var(--accent)' : 'var(--border)'}">
+                                    return `<div style="display:flex;gap:6px;align-items:center;padding:6px 8px;background:${trip.isCurrent ? 'var(--accent-soft)' : 'rgba(255,255,255,0.03)'};border-radius:6px;margin-bottom:4px;border-left:2px solid ${trip.isCurrent ? 'var(--accent)' : 'var(--border)'}">
                                         <div style="font-size:10px;font-weight:700;color:${trip.isCurrent ? 'var(--accent)' : 'var(--text3)'};min-width:42px;flex-shrink:0">Trip ${Number(trip.tripNumber) || ''}${trip.isCurrent ? ' 🟢' : ''}</div>
                                         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;flex:1;font-size:9px">
-                                            ${cell('Allocated', trip.allocatedDate)}${cell('Loaded', trip.loadedDate)}${cell('Offloaded', trip.offloadDate)}${cell('In Transit', tDays, 'var(--accent)')}
+                                            ${cell('Allocated', fmtD(trip.allocatedDate))}${cell('Loaded', fmtD(trip.loadedDate))}${cell('Offloaded', fmtD(trip.offloadDate))}${cell('In Transit', tDays, 'var(--accent)')}
                                         </div>
                                     </div>`;
                                 }).join('')}
@@ -9596,7 +9694,7 @@ function _afterLoad() {
                               </button>`
                             : '';
                         const rowBgStyle = isTargetMatch
-                            ? 'border: 2px solid var(--accent); background: rgba(61,127,255,0.12); box-shadow: 0 0 18px rgba(61,127,255,0.35);'
+                            ? 'border: 2px solid var(--accent); background: var(--accent-soft); box-shadow: 0 0 18px var(--accent-border);'
                             : `background: var(--bg4); border-left: 3px solid ${m.color};`;
                         const drv = getDriverForTruckPlate(t.plate);
                         const cell = (label, val, color) => `<div style="background:rgba(255,255,255,0.05);padding:6px;border-radius:5px"><div style="color:var(--text3);text-transform:uppercase;letter-spacing:0.02em;margin-bottom:2px">${label}</div><div style="color:${color || 'var(--text2)'};font-weight:600">${esc(val || '—')}</div></div>`;
@@ -9611,9 +9709,9 @@ function _afterLoad() {
                                     ${inMaint ? `<span class="badge badge-warn" style="font-size:9.5px;padding:2px 7px">🔧 In Maintenance</span>` : ''}
                                     ${isTargetMatch ? `<span class="badge badge-online" style="font-size:9.5px;padding:2px 7px">🎯 Target Match</span>` : ''}
                                 </div>
-                                <div style="font-size:10px;color:${m.color};margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em">● ${esc(m.label)}${t.statusBy ? ` <span style="color:var(--text3);font-weight:400;text-transform:none">· set by ${esc(t.statusBy)}${t.statusAt ? ' on ' + esc(t.statusAt) : ''}</span>` : ''}</div>
+                                <div style="font-size:10px;color:${m.color};margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em">● ${esc(m.label)}${t.statusBy ? ` <span style="color:var(--text3);font-weight:400;text-transform:none">· set by ${esc(t.statusBy)}${t.statusAt ? ' on ' + esc(fmtD(t.statusAt)) : ''}</span>` : ''}</div>
                                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;font-size:10px">
-                                    ${cell('Allocated', allocDate)}${cell('Loaded', loadDate)}${cell('In Transit from', t.transitDate)}${cell('Offloaded', offloadDate)}${cell('Transit time', transitDays, 'var(--accent)')}
+                                    ${cell('Allocated', fmtD(allocDate))}${cell('Loaded', fmtD(loadDate))}${cell('In Transit from', fmtD(t.transitDate))}${cell('Offloaded', fmtD(offloadDate))}${cell('Transit time', transitDays, 'var(--accent)')}
                                 </div>
                                 ${tripHistoryHtml}
                             </div>
@@ -9630,8 +9728,8 @@ function _afterLoad() {
                         html += `<div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:4px">`;
                         html += historyTrucks.map(t => {
                             const textLabel = t.switchedTo ? `${formatTruckLabelFromPlate(t.plate)} ⇄ ${formatTruckLabelFromPlate(t.switchedTo)}` : formatTruckLabelFromPlate(t.plate);
-                            return `<div class="ord-history-chip" title="${escAttr(`Was ${truckMeta(t.status).label}${t.switchedDate ? ', switched on ' + t.switchedDate : ''}${t.switchedBy ? ' by ' + t.switchedBy : ''}`)}">
-                                <span>${textLabel}</span>${t.switchedDate ? `<span style="color:var(--text3);margin-left:6px">${esc(t.switchedDate)}</span>` : ''}
+                            return `<div class="ord-history-chip" title="${escAttr(`Was ${truckMeta(t.status).label}${t.switchedDate ? ', switched on ' + fmtD(t.switchedDate) : ''}${t.switchedBy ? ' by ' + t.switchedBy : ''}`)}">
+                                <span>${textLabel}</span>${t.switchedDate ? `<span style="color:var(--text3);margin-left:6px">${esc(fmtD(t.switchedDate))}</span>` : ''}
                             </div>`;
                         }).join('');
                         html += `</div>`;
@@ -9643,7 +9741,7 @@ function _afterLoad() {
                 const availableForSwitch = trucks.filter(t => t.plate && t.status !== 'In Maintenance' && !activeAssignments(o).some(a => up(a.plate) === up(t.plate)));
                 const html = `
                     <div class="modal-header">
-                        <div class="avatar avatar-lg" style="background:rgba(61,127,255,0.1);font-size:20px">📦</div>
+                        <div class="avatar avatar-lg" style="background:var(--accent-soft);font-size:20px">📦</div>
                         <div style="flex:1;min-width:0">
                             <div class="modal-name" style="display:flex;flex-direction:column;gap:4px">
                                 <span style="color:var(--accent);font-weight:700">${esc(o.name || o.orderId || 'Order')}</span>
@@ -9672,7 +9770,7 @@ function _afterLoad() {
                                 </div>
                                 <div style="flex:1;min-width:110px;background:var(--bg3);padding:10px;border-radius:8px;border:1px solid var(--border)">
                                     <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Order Date</div>
-                                    <div style="font-size:13px;font-weight:700;margin-top:4px">${esc(o.date || '—')}</div>
+                                    <div style="font-size:13px;font-weight:700;margin-top:4px">${esc(fmtD(o.date) || '—')}</div>
                                 </div>
                                 <div style="flex:1;min-width:110px;background:var(--bg3);padding:10px;border-radius:8px;border:1px solid var(--border)">
                                     <div style="font-size:10px;color:var(--text3);text-transform:uppercase">ETA</div>
@@ -9785,7 +9883,7 @@ function _afterLoad() {
                                                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--bg4);border-radius:6px;margin-bottom:6px">
                                                     <div>
                                                         <div style="font-weight:700;font-size:12px">${formatTruckLabelFromPlate(t.plate)}</div>
-                                                        <div style="font-size:10px;color:var(--text3)">Offloaded on ${esc(t.offloadDate || '—')}</div>
+                                                        <div style="font-size:10px;color:var(--text3)">Offloaded on ${esc(fmtD(t.offloadDate) || '—')}</div>
                                                     </div>
                                                     <button class="btn btn-primary btn-xs" onclick="App.confirmReassignTruck(${idx}, ${t._tIdx})">🔄 Reassign</button>
                                                 </div>`).join('');
@@ -10299,7 +10397,7 @@ function _afterLoad() {
             }
             function hscDateLabel(ymd) {
                 const d = parseYMD(ymd);
-                return d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Date pending';
+                return d ? fmtD(d) : 'Date pending';
             }
 
             function filterMeetingsByDateRange(meetings, filterType) {
@@ -10401,7 +10499,7 @@ function _afterLoad() {
                     </div>
                     <button class="btn btn-primary btn-sm" onclick="App.savePolicyAcknowledgements(${i})">Save acknowledgements</button>` : '<p style="color:var(--text3);font-size:13px">Every driver has already acknowledged this policy.</p>'}
                     ${stats.entries.length ? `<details><summary style="font-size:11px;color:var(--text3);cursor:pointer">Signed so far (${stats.entries.length})</summary>
-                        <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:30vh;overflow:auto">${stats.entries.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).map((a, ai) => `<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-bottom:1px solid var(--border)"><span style="flex:1">${esc(a.driverName || a.driverId || 'Driver')}</span><span style="color:var(--text3)">${esc(a.date || '—')}</span><span style="color:var(--text3);font-size:11px">by ${esc(a.by || '—')}</span><button class="btn btn-ghost btn-xs" style="color:var(--red)" title="Remove this acknowledgement" onclick="App.removePolicyAcknowledgement(${i},${ai})">✕</button></div>`).join('')}</div></details>` : ''}
+                        <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:30vh;overflow:auto">${stats.entries.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).map((a, ai) => `<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 8px;border-bottom:1px solid var(--border)"><span style="flex:1">${esc(a.driverName || a.driverId || 'Driver')}</span><span style="color:var(--text3)">${esc(fmtD(a.date) || '—')}</span><span style="color:var(--text3);font-size:11px">by ${esc(a.by || '—')}</span><button class="btn btn-ghost btn-xs" style="color:var(--red)" title="Remove this acknowledgement" onclick="App.removePolicyAcknowledgement(${i},${ai})">✕</button></div>`).join('')}</div></details>` : ''}
                 </div>`);
                 const all = document.getElementById('ackSelectAll');
                 if (all) all.addEventListener('change', () => document.querySelectorAll('.ack-driver').forEach(cb => { cb.checked = all.checked; }));
@@ -10531,9 +10629,9 @@ function _afterLoad() {
                                 </div>
                                 <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
                                     <span class="vtag vtag-${esc(p.severity || 'low')}" style="font-size:9px">${esc((p.severity || 'low').toUpperCase())}</span>
-                                    <span style="font-size:10px;color:var(--text3)">📅 Effective: ${esc(p.effectiveDate || '—')}</span>
+                                    <span style="font-size:10px;color:var(--text3)">📅 Effective: ${esc(fmtD(p.effectiveDate) || '—')}</span>
                                     <span style="font-size:10px;color:var(--text3)">🏷 Category: ${esc(p.category || 'General')}</span>
-                                    ${history.length ? `<span style="font-size:10px;color:var(--text3)" title="${esc(history.map(h => `${h.date} · ${h.by}: ${h.changes}`).join('\n'))}">🕘 v${history.length + 1} · last edited ${esc(history[history.length - 1].date || '')}</span>` : ''}
+                                    ${history.length ? `<span style="font-size:10px;color:var(--text3)" title="${esc(history.map(h => `${h.date} · ${h.by}: ${h.changes}`).join('\n'))}">🕘 v${history.length + 1} · last edited ${esc(fmtD(history[history.length - 1].date) || '')}</span>` : ''}
                                 </div>
                                 <p style="font-size:12.5px;color:var(--text2);line-height:1.6;margin:0 0 12px 0">${esc(p.description || '')}</p>
                                 <div style="background:rgba(240,76,90,0.06);border-left:3px solid var(--red);padding:10px 12px;border-radius:0 var(--radius) var(--radius) 0;margin-top:10px">
@@ -10641,7 +10739,7 @@ function _afterLoad() {
                             ${!types.length && !retiredLinked.length ? '<span style="font-size:11px;color:var(--text3)">No violation types configured in Settings.</span>' : ''}
                         </div>
                     </div>
-                    ${isEdit && Array.isArray(p.versionHistory) && p.versionHistory.length ? `<details><summary style="font-size:11px;color:var(--text3);cursor:pointer">Version history (${p.versionHistory.length})</summary><div style="font-size:11px;color:var(--text2);margin-top:6px;display:flex;flex-direction:column;gap:3px">${p.versionHistory.slice().reverse().map(h => `<div>${esc(h.date)} · ${esc(h.by)} — ${esc(h.changes)}</div>`).join('')}</div></details>` : ''}
+                    ${isEdit && Array.isArray(p.versionHistory) && p.versionHistory.length ? `<details><summary style="font-size:11px;color:var(--text3);cursor:pointer">Version history (${p.versionHistory.length})</summary><div style="font-size:11px;color:var(--text2);margin-top:6px;display:flex;flex-direction:column;gap:3px">${p.versionHistory.slice().reverse().map(h => `<div>${esc(fmtD(h.date))} · ${esc(h.by)} — ${esc(h.changes)}</div>`).join('')}</div></details>` : ''}
                     <button class="btn btn-primary btn-sm" style="width:100%" onclick="App.saveHscPolicyFromForm()">${isEdit ? 'Save changes' : 'Save Policy'}</button>
                 </div>`;
             }
@@ -10873,7 +10971,7 @@ function _afterLoad() {
                         ${previewHtml ? previewHtml : `<span style="font-size:22px;flex-shrink:0">${icon}</span>`}
                         <div style="flex:1;min-width:0">
                             <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name)}">${esc(f.name || 'Attachment')}</div>
-                            <div style="font-size:10px;color:${f.uploadFailed ? 'var(--red)' : 'var(--text3)'}">${f.uploadFailed ? esc(f.error || 'Upload failed') : `${isPdf ? 'PDF Document' : isImage ? 'Image' : 'File'} · ${esc(f.uploadedAt || 'Attached')}${f.localOnly ? ' · stored offline' : ''}`}</div>
+                            <div style="font-size:10px;color:${f.uploadFailed ? 'var(--red)' : 'var(--text3)'}">${f.uploadFailed ? esc(f.error || 'Upload failed') : `${isPdf ? 'PDF Document' : isImage ? 'Image' : 'File'} · ${esc(fmtD(f.uploadedAt) || 'Attached')}${f.localOnly ? ' · stored offline' : ''}`}</div>
                         </div>
                         <div style="display:flex;gap:6px;flex-shrink:0">
                             ${hasData ? `<button class="btn btn-ghost btn-xs" onclick="App.previewMeetingAttachment(${idx},${fi})">👁 View</button>
@@ -10910,7 +11008,7 @@ function _afterLoad() {
                                     <input type="checkbox" ${a.done ? 'checked' : ''} onchange="App.toggleMeetingActionItem(${idx},${ai},this.checked)" style="margin-top:3px">
                                     <div style="flex:1;min-width:0">
                                         <div style="font-size:13px;color:var(--text);${a.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(a.text || '')}</div>
-                                        <div style="font-size:11px;color:${overdue ? 'var(--red)' : 'var(--text3)'}">${a.owner ? `Owner: ${esc(a.owner)}` : 'No owner'}${a.dueDate ? ` · due ${esc(a.dueDate)}${overdue ? ' (overdue)' : ''}` : ''}${a.done && a.doneAt ? ` · done ${esc(a.doneAt)}` : ''}</div>
+                                        <div style="font-size:11px;color:${overdue ? 'var(--red)' : 'var(--text3)'}">${a.owner ? `Owner: ${esc(a.owner)}` : 'No owner'}${a.dueDate ? ` · due ${esc(fmtD(a.dueDate))}${overdue ? ' (overdue)' : ''}` : ''}${a.done && a.doneAt ? ` · done ${esc(fmtD(a.doneAt))}` : ''}</div>
                                     </div>
                                 </label>`;
                             }).join('')}
@@ -10979,7 +11077,7 @@ function _afterLoad() {
                     previewContent = `<div style="color:var(--text3);font-size:13px;padding:20px">Preview unavailable.</div>`;
                 }
                 pushModal(`
-                <div class="modal-header"><div><div class="modal-name">${esc(f.name || 'Attachment')}</div><div class="modal-sub">${isPdf ? 'PDF Document' : isImage ? 'Image' : 'File'} · ${esc(f.uploadedAt || '')}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
+                <div class="modal-header"><div><div class="modal-name">${esc(f.name || 'Attachment')}</div><div class="modal-sub">${isPdf ? 'PDF Document' : isImage ? 'Image' : 'File'} · ${esc(fmtD(f.uploadedAt) || '')}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
                 <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
                     ${previewContent}
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -12126,7 +12224,7 @@ function _afterLoad() {
                 }
 
                 pushModal(`
-            <div class="modal-header"><div><div class="modal-name">${xmlEscape(String(file.name))}</div><div class="modal-sub">${getFileTypeLabel(file)} &bull; Uploaded: ${file.uploadedAt}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
+            <div class="modal-header"><div><div class="modal-name">${xmlEscape(String(file.name))}</div><div class="modal-sub">${getFileTypeLabel(file)} &bull; Uploaded: ${esc(fmtD(file.uploadedAt))}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
             <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
                 ${previewContent}
             </div>`);
@@ -12412,7 +12510,14 @@ function _afterLoad() {
                     </div>
                     <input type="file" id="bulkAttachmentInput" accept=".pdf,image/*" multiple style="display:none" onchange="App.handleBulkAttachmentImportFiles(this.files);this.value=''">
                     <input type="file" id="bulkAttachmentFolderInput" webkitdirectory directory multiple style="display:none" onchange="App.handleBulkAttachmentImportFiles(this.files);this.value=''">
-                    <div id="bulkAttachmentSummary" style="font-size:12px;color:var(--text3)"></div>
+                    <div class="bi-summary-row">
+                        <div id="bulkAttachmentSummary" style="font-size:12px;color:var(--text3)"></div>
+                        <label class="bi-same-exp" title="Give every file in the list this expiry date">
+                            <input type="checkbox" id="bulkSameExpiryOn" onchange="App.setBulkSameExpiry(this.checked, document.getElementById('bulkSameExpiryDate').value)">
+                            Same expiry date for all
+                            <input type="date" id="bulkSameExpiryDate" onchange="App.setBulkSameExpiry(true, this.value)" aria-label="Expiry date for all files">
+                        </label>
+                    </div>
                     <div id="bulkAttachmentTable"></div>
                     <div id="bulkAttachmentProgress" style="font-size:13px;color:var(--text);min-height:20px"></div>
                 </div>
@@ -12474,7 +12579,7 @@ function _afterLoad() {
                         file, path,
                         target: route.target,
                         category: route.category || 'Other',
-                        expiry: extractDateFromFileName(base) || '',
+                        expiry: (st.sameExpiry && st.sameExpiryDate) || extractDateFromFileName(base) || '',
                         note: route.note,
                         status: file.size > DRIVE_UPLOAD_MAX_BYTES ? 'toolarge' : 'ready',
                         message: file.size > DRIVE_UPLOAD_MAX_BYTES ? `Too large (${fmtBytes(file.size)}) — Google Drive upload takes up to 35 MB` : ''
@@ -12484,9 +12589,28 @@ function _afterLoad() {
             }
             function clearBulkAttachmentImport() {
                 if (bulkAttachmentImportState && bulkAttachmentImportState.running) return;
-                bulkAttachmentImportState = { rows: [], skipped: [], running: false };
+                const prev = bulkAttachmentImportState || {};
+                bulkAttachmentImportState = { rows: [], skipped: [], running: false, sameExpiry: !!prev.sameExpiry, sameExpiryDate: prev.sameExpiryDate || '' };
                 const p = document.getElementById('bulkAttachmentProgress');
                 if (p) p.textContent = '';
+                renderBulkAttachmentTable();
+            }
+            // Oct 2026: one expiry date for every file in the list (rows already uploaded are left alone).
+            function setBulkSameExpiry(on, date) {
+                const st = bulkAttachmentImportState;
+                if (!st || st.running) return;
+                st.sameExpiry = !!on;
+                st.sameExpiryDate = date || '';
+                const cb = document.getElementById('bulkSameExpiryOn');
+                if (cb) cb.checked = st.sameExpiry;
+                if (st.sameExpiry && st.sameExpiryDate) st.rows.forEach(r => { if (r.status !== 'done' && r.status !== 'uploading') r.expiry = st.sameExpiryDate; });
+                renderBulkAttachmentTable();
+            }
+            // The red ✕: take a file off the list before it is uploaded.
+            function removeBulkAttachmentRow(i) {
+                const st = bulkAttachmentImportState;
+                if (!st || st.running || !st.rows[i] || st.rows[i].status === 'uploading') return;
+                st.rows.splice(i, 1);
                 renderBulkAttachmentTable();
             }
             function setBulkAttachmentRow(i, field, value) {
@@ -12525,6 +12649,9 @@ function _afterLoad() {
                     goBtn.disabled = st.running || !ready.length;
                     goBtn.textContent = st.running ? 'Uploading…' : `Upload ${ready.length || ''} file${ready.length === 1 ? '' : 's'}`.replace('  ', ' ');
                 }
+                const sameCb = document.getElementById('bulkSameExpiryOn'), sameDt = document.getElementById('bulkSameExpiryDate');
+                if (sameCb) { sameCb.checked = !!st.sameExpiry; sameCb.disabled = !!st.running; }
+                if (sameDt) { if (document.activeElement !== sameDt) sameDt.value = st.sameExpiryDate || ''; sameDt.disabled = !!st.running; }
                 if (!st.rows.length) { host.innerHTML = ''; return; }
                 const targetOpts = importTargetOptionsHtml();
                 const statusCell = r => {
@@ -12537,7 +12664,7 @@ function _afterLoad() {
                 };
                 const locked = r => st.running || r.status === 'done' || r.status === 'uploading' || r.status === 'toolarge';
                 host.innerHTML = `<div class="bulk-import-table-wrap"><table class="bulk-import-table">
-                    <thead><tr><th>File</th><th>Goes to</th><th>Document</th><th>Expiry</th><th>Status</th></tr></thead>
+                    <thead><tr><th>File</th><th>Goes to</th><th>Document</th><th>Expiry</th><th>Status</th><th class="bi-x-col" aria-label="Remove"></th></tr></thead>
                     <tbody>${st.rows.map((r, i) => {
                         const t = importFindTarget(r.target);
                         const cats = docCategoryOptions(t ? t.type : 'truck');
@@ -12547,8 +12674,9 @@ function _afterLoad() {
                             <td class="bi-file"><div class="bi-name" title="${escAttr(r.path)}">${esc(r.file.name)}</div>${dirs ? `<div class="bi-path">${esc(dirs)}</div>` : ''}</td>
                             <td><select data-bi="${i}" data-field="target" ${locked(r) ? 'disabled' : ''}>${targetOpts}</select></td>
                             <td><select data-bi="${i}" data-field="category" ${locked(r) ? 'disabled' : ''}>${cats.map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
-                            <td><input type="date" data-bi="${i}" data-field="expiry" value="${escAttr(r.expiry || '')}" ${locked(r) ? 'disabled' : ''}></td>
+                            <td><input type="date" data-bi="${i}" data-field="expiry" value="${escAttr(r.expiry || '')}" ${locked(r) || (st.sameExpiry && st.sameExpiryDate && r.status !== 'done') ? 'disabled' : ''} ${st.sameExpiry && st.sameExpiryDate && r.status !== 'done' ? 'title="Same expiry date for all is on"' : ''}></td>
                             <td class="bi-status">${statusCell(r)}</td>
+                            <td class="bi-x-col">${st.running || r.status === 'uploading' ? '' : `<button type="button" class="bi-remove" onclick="App.removeBulkAttachmentRow(${i})" title="Remove ${escAttr(r.file.name)} from the list" aria-label="Remove ${escAttr(r.file.name)} from the list">✕</button>`}</td>
                         </tr>`;
                     }).join('')}</tbody></table></div>`;
                 host.querySelectorAll('select[data-field="target"]').forEach(sel => { sel.value = st.rows[+sel.dataset.bi].target || ''; });
@@ -12559,14 +12687,14 @@ function _afterLoad() {
 
             // Puts one uploaded file on its record: the old file of the same type is replaced only now
             // that the new one is safely on Drive, and an expiry is written only when one was given.
-            function applyImportedAttachment(t, row, upload) {
+            function applyImportedAttachment(t, row, upload, batchIds) {
                 const { type, item } = t;
                 if (type === 'driver') ensureDriverCollections(item);
                 else if (type === 'trailer') ensureTrailerCollections(item);
                 else ensureTruckCollections(item);
                 const category = row.category || 'Other';
                 const record = {
-                    id: createFileId(),
+                    id: row.recordId || (row.recordId = createFileId()),
                     name: `${importTargetLabel(type, item)} ${category}`,
                     originalName: row.file.name,
                     category,
@@ -12578,10 +12706,12 @@ function _afterLoad() {
                 };
                 let replaced = 0;
                 if (!Array.isArray(item.files)) item.files = [];
-                const before = item.files.length;
-                item.files = item.files.filter(f => !isSameCategoryAttachment(f, category));
-                replaced = before - item.files.length;
+                const before = item.files.length, hadSelf = item.files.some(f => f && f.id === record.id);
+                // a file attached earlier in this same import never replaces another one from it
+                item.files = item.files.filter(f => f && f.id !== record.id && ((batchIds && batchIds.has(f.id)) || !isSameCategoryAttachment(f, category)));
+                replaced = before - item.files.length - (hadSelf ? 1 : 0);
                 item.files.push(record);
+                if (batchIds) batchIds.add(record.id);
                 if (row.expiry && category !== 'Other') {
                     if (type === 'driver') {
                         if (/licen/i.test(category)) item.licenseExpiry = row.expiry;
@@ -12596,6 +12726,53 @@ function _afterLoad() {
                 return replaced;
             }
 
+            // After an import: every file that reached Drive must be on its record. Any that a live refresh dropped is put back.
+            function verifyImportedAttachments(rows, batchIds, changed) {
+                let n = 0;
+                (rows || []).forEach(row => {
+                    if (row.status !== 'done' || !row.upload || !row.recordId) return;
+                    const t = importFindTarget(row.target);
+                    if (!t) return;
+                    if (Array.isArray(t.item.files) && t.item.files.some(f => f && f.id === row.recordId)) return;
+                    applyImportedAttachment(t, row, row.upload, batchIds);
+                    changed && changed.add(t.type === 'driver' ? 'drivers' : t.type === 'trailer' ? 'trailers' : 'trucks');
+                    n++;
+                });
+                return n;
+            }
+            // Could not save (connection lost): remember the attached files on this computer and attach them again once live data is back.
+            const PENDING_ATTACH_KEY = 'fg3_pending_attachments';
+            function keepPendingAttachments(rows) {
+                try {
+                    const list = JSON.parse(localStorage.getItem(PENDING_ATTACH_KEY) || '[]');
+                    (rows || []).forEach(r => {
+                        if (r.status !== 'done' || !r.upload || !r.recordId || list.some(x => x.recordId === r.recordId)) return;
+                        const t = importFindTarget(r.target);
+                        list.push({ recordId: r.recordId, target: r.target, key: t ? (t.type === 'truck' ? t.item.plate : t.type === 'trailer' ? t.item.id : t.item.name) : '',
+                            category: r.category, expiry: r.expiry || '', upload: { url: r.upload.url, id: r.upload.id || null }, fileName: r.file.name, fileType: r.file.type || '' });
+                    });
+                    localStorage.setItem(PENDING_ATTACH_KEY, JSON.stringify(list));
+                    if (list.length) showToast(`${list.length} uploaded file(s) are waiting for the connection — they are attached automatically when it returns`, 6000);
+                } catch (e) { console.warn('[Import] could not keep pending files', e); }
+            }
+            function applyPendingAttachments() {
+                let list = [];
+                try { list = JSON.parse(localStorage.getItem(PENDING_ATTACH_KEY) || '[]'); } catch (e) { return; }
+                if (!list.length || !remoteReady || offlineMode) return;
+                const changed = new Set(), left = [];
+                list.forEach(p => {
+                    const t = importFindTarget(p.target);
+                    const keyNow = t ? (t.type === 'truck' ? t.item.plate : t.type === 'trailer' ? t.item.id : t.item.name) : '';
+                    if (!t || normalizePlate(keyNow) !== normalizePlate(p.key)) { left.push(p); return; }
+                    if (!(Array.isArray(t.item.files) && t.item.files.some(f => f && f.id === p.recordId))) {
+                        applyImportedAttachment(t, { recordId: p.recordId, category: p.category, expiry: p.expiry, file: { name: p.fileName, type: p.fileType } }, p.upload, null);
+                        changed.add(t.type === 'driver' ? 'drivers' : t.type === 'trailer' ? 'trailers' : 'trucks');
+                    }
+                });
+                if (changed.size && saveAll([...changed]) === false) return;
+                try { if (left.length) localStorage.setItem(PENDING_ATTACH_KEY, JSON.stringify(left)); else localStorage.removeItem(PENDING_ATTACH_KEY); } catch (e) { /* ignore */ }
+                if (changed.size) showToast('Files uploaded earlier were attached now that the connection is back', 5000);
+            }
             async function processBulkAttachmentImport() {
                 const st = bulkAttachmentImportState;
                 if (!st || st.running) return;
@@ -12604,12 +12781,15 @@ function _afterLoad() {
                 const progressEl = document.getElementById('bulkAttachmentProgress');
                 st.running = true;
                 renderBulkAttachmentTable();
-                const changed = new Set();
+                const changed = new Set(), batchIds = new Set(st.rows.filter(r => r.status === 'done' && r.recordId).map(r => r.recordId));
                 let ok = 0, failed = 0, replaced = 0, sinceSave = 0;
+                let saveFailed = false;
                 const save = () => {
-                    if (!changed.size) return;
-                    saveAll([...changed, 'auditTrail']);
+                    if (!changed.size) return true;
+                    const res = saveAll([...changed, 'auditTrail']);
                     sinceSave = 0;
+                    if (res === false) saveFailed = true;
+                    return res !== false;
                 };
                 try {
                     for (let i = 0; i < todo.length; i++) {
@@ -12621,6 +12801,9 @@ function _afterLoad() {
                         row.status = 'uploading';
                         renderBulkAttachmentTable();
                         try {
+                            // Oct 2026 fix: the upload takes seconds and live data may refresh meanwhile (our own save
+                            // echo, or someone else's change), replacing the record objects. Attaching to the object found
+                            // before the upload then put the file on a copy nobody sees — it sat on Drive, not on the trailer.
                             const dataUrl = isImageFile(row.file) ? await compressImageFile(row.file) : await readFileAsDataUrl(row.file);
                             if (!dataUrl) throw new Error('Could not read the file');
                             const ext = isPdfFile(row.file) ? 'pdf' : ((/\.([a-z0-9]+)$/i.exec(row.file.name) || [])[1] || 'jpg').toLowerCase();
@@ -12630,12 +12813,15 @@ function _afterLoad() {
                                 mimeType: row.file.type || (isPdfFile(row.file) ? 'application/pdf' : 'image/jpeg'),
                                 folder: `fleetguard/attachments/${t.type}/${t.item._idx}`
                             });
-                            replaced += applyImportedAttachment(t, row, upload);
-                            changed.add(t.type === 'driver' ? 'drivers' : t.type === 'trailer' ? 'trailers' : 'trucks');
+                            row.upload = upload;
+                            const tNow = importFindTarget(row.target);
+                            if (!tNow) throw new Error('That record no longer exists');
+                            replaced += applyImportedAttachment(tNow, row, upload, batchIds);
+                            changed.add(tNow.type === 'driver' ? 'drivers' : tNow.type === 'trailer' ? 'trailers' : 'trucks');
                             row.status = 'done';
                             row.message = '';
                             ok++;
-                            if (++sinceSave >= 10) save(); // a long import keeps what it has done so far
+                            save(); // every file is saved as soon as it is attached
                         } catch (err) {
                             row.status = 'failed';
                             row.message = (err && err.message) || 'Upload failed';
@@ -12645,7 +12831,9 @@ function _afterLoad() {
                     }
                 } finally {
                     if (ok) logAudit('import', 'attachments', '', `${ok} attachment(s) imported${failed ? `, ${failed} failed` : ''}`);
-                    save();
+                    const repaired = verifyImportedAttachments(st.rows, batchIds, changed);
+                    if (repaired) console.warn(`[Import] ${repaired} uploaded file(s) were missing from their record — attached again`);
+                    if (!save() || saveFailed) keepPendingAttachments(st.rows);
                     st.running = false;
                     renderBulkAttachmentTable();
                     try { refreshAllViews(); } catch (e) { /* ignore */ }
@@ -13790,7 +13978,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             function openReportScheduleModal(id) {
                 const presets = getReportPresets();
                 if (!presets.length) { showToast('Save a report preset first — schedules send a saved preset'); return; }
-                const s = getReportSchedules().find(x => x.id === id) || { frequency: 'weekly', day: 1, time: '08:00', recipients: getCompany().email || '', enabled: true };
+                const s = getReportSchedules().find(x => x.id === id) || { frequency: 'weekly', day: 1, time: '08:00', recipients: (settings.company && settings.company.email) || '', enabled: true };
                 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
                 pushModal(`
                     <div class="modal-header"><h3>${id ? 'Edit' : 'New'} scheduled report e-mail</h3><div class="modal-close" onclick="App.closeModal()">✕</div></div>
@@ -13998,7 +14186,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 const period = getReportPeriod();
                 if (period.from && period.to && period.from > period.to) { showToast('"From" date is after "To" date'); return; }
                 const dateFrom = period.from, dateTo = period.to;
-                const genDate = new Date().toLocaleString('en-GB');
+                const genDate = fmtDT(new Date());
                 let contentHtml = '';
                 let subjectLabel = '';
                 if (cat === 'driver') {
@@ -14050,7 +14238,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             function reportLetterheadHtml(compact) {
                 const c = getCompany();
                 const logo = resolveCompanyLogoUrl(c.logo);
-                const meta = _lastReportMeta || { title: 'Fleet Report', period: 'All time', generated: new Date().toLocaleString('en-GB'), subject: '' };
+                const meta = _lastReportMeta || { title: 'Fleet Report', period: 'All time', generated: fmtDT(new Date()), subject: '' };
                 const contact = [c.address, c.phone, c.email].filter(Boolean).join(' · ');
                 return `<div style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #3d7fff;padding-bottom:${compact ? 8 : 12}px;margin-bottom:${compact ? 12 : 18}px">
                     ${logo ? `<img src="${escAttr(logo)}" alt="" style="height:${compact ? 54 : 70}px;max-width:${compact ? 160 : 220}px;object-fit:contain">` : ''}
@@ -14091,7 +14279,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 <style>${REPORT_PRINT_CSS}</style></head><body>
                 ${reportLetterheadHtml(false)}
                 ${area.innerHTML}
-                <div class="rpt-footer">${esc(getCompanyName())} · Generated on ${esc(new Date().toLocaleString('en-GB'))} — Confidential</div>
+                <div class="rpt-footer">${esc(getCompanyName())} · Generated on ${esc(fmtDT(new Date()))} — Confidential</div>
                 </body></html>`;
             }
 
@@ -14264,7 +14452,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 if (!area) { showToast('Generate a report first'); return; }
                 const safeName = (getCompany().shortName || 'Fleet').replace(/[^A-Za-z0-9_-]+/g, '-');
                 const doc = `${reportLetterheadHtml(true)}${area.innerHTML}
-                    <div class="rpt-footer">${esc(getCompanyName())} · Generated on ${esc(new Date().toLocaleString('en-GB'))} — Confidential</div>`;
+                    <div class="rpt-footer">${esc(getCompanyName())} · Generated on ${esc(fmtDT(new Date()))} — Confidential</div>`;
                 try {
                     const res = await buildPdfDocument([doc], `${safeName}-${(_lastReportMeta?.cat || 'fleet')}-report-${todayYMD()}.pdf`, PDF_REPORT_CSS(), 'Building report PDF');
                     logAudit('export', 'report', _lastReportMeta?.cat || '', `PDF: ${_lastReportMeta?.title || ''} (${_lastReportMeta?.period || ''})`);
@@ -14351,10 +14539,10 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                             <div class="rpt-info-cell"><div class="rpt-il">Status</div><div class="rpt-iv">${esc(drv.status||'—')}</div></div>
                             <div class="rpt-info-cell"><div class="rpt-il">Phone</div><div class="rpt-iv">${esc(drv.phone||'—')}</div></div>
                             <div class="rpt-info-cell"><div class="rpt-il">License No.</div><div class="rpt-iv">${esc(drv.license||'—')}</div></div>
-                            <div class="rpt-info-cell"><div class="rpt-il">License Expiry</div><div class="rpt-iv">${esc(drv.licenseExpiry||'—')}</div></div>
+                            <div class="rpt-info-cell"><div class="rpt-il">License Expiry</div><div class="rpt-iv">${esc(fmtD(drv.licenseExpiry)||'—')}</div></div>
                             <div class="rpt-info-cell"><div class="rpt-il">Passport No.</div><div class="rpt-iv">${esc(drv.passport||'—')}</div></div>
-                            <div class="rpt-info-cell"><div class="rpt-il">Passport Expiry</div><div class="rpt-iv">${esc(drv.passportExpiry||'—')}</div></div>
-                            <div class="rpt-info-cell"><div class="rpt-il">Hire Date</div><div class="rpt-iv">${esc(drv.hire_date||'—')}</div></div>
+                            <div class="rpt-info-cell"><div class="rpt-il">Passport Expiry</div><div class="rpt-iv">${esc(fmtD(drv.passportExpiry)||'—')}</div></div>
+                            <div class="rpt-info-cell"><div class="rpt-il">Hire Date</div><div class="rpt-iv">${esc(fmtD(drv.hire_date)||'—')}</div></div>
                             <div class="rpt-info-cell"><div class="rpt-il">Blood Group</div><div class="rpt-iv">${esc(drv.bloodGroup||'—')}</div></div>
                             <div class="rpt-info-cell"><div class="rpt-il">License Plate</div><div class="rpt-iv">${esc(drv.license_plate||'—')}</div></div>
                             <div class="rpt-info-cell"><div class="rpt-il">Health Status</div><div class="rpt-iv">${esc(drv.healthStatus||'—')}</div></div>
@@ -14367,15 +14555,15 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         const rlColor = rl==='high'?'var(--red)':rl==='medium'?'var(--amber)':'var(--green)';
                         html += `<div class="rpt-block"><div class="rpt-block-title">Violations Summary <span style="color:${rlColor};margin-left:6px">Risk: ${rl.toUpperCase()}</span></div>
                         ${vlist.length ? `<table class="rpt-table"><thead><tr><th>Date</th><th>Type</th><th>Severity</th><th>Description &amp; Action</th></tr></thead><tbody>
-                        ${vlist.map(v=>`<tr><td>${esc(v.date||'-')}</td><td>${esc(v.type||'-')}</td><td><span class="rpt-chip rpt-chip-${v.severity||'low'}">${(v.severity||'').toUpperCase()}</span></td><td>${esc(v.description||'-')}${v.actionTaken ? `<br><small style="color:var(--text3)"><b>Action:</b> ${esc(v.actionTaken)}</small>` : ''}</td></tr>`).join('')}
+                        ${vlist.map(v=>`<tr><td>${esc(fmtD(v.date)||'-')}</td><td>${esc(v.type||'-')}</td><td><span class="rpt-chip rpt-chip-${v.severity||'low'}">${(v.severity||'').toUpperCase()}</span></td><td>${esc(v.description||'-')}${v.actionTaken ? `<br><small style="color:var(--text3)"><b>Action:</b> ${esc(v.actionTaken)}</small>` : ''}</td></tr>`).join('')}
                         </tbody></table>` : '<div class="rpt-empty">No violations in selected period</div>'}</div>`;
                     }
 
                     if (types.includes('documents')) {
                         html += `<div class="rpt-block"><div class="rpt-block-title">Document Status</div>
                         <table class="rpt-table"><thead><tr><th>Document</th><th>Number</th><th>Expiry Date</th><th>Status</th></tr></thead><tbody>
-                        <tr><td>Driving License</td><td>${esc(drv.license||'-')}</td><td>${esc(drv.licenseExpiry||'-')}</td><td>${drv.licenseExpiry?`<span class="rpt-chip rpt-chip-${docStatus({expiryDate:drv.licenseExpiry})}">${docStatus({expiryDate:drv.licenseExpiry}).toUpperCase()}</span>`:'-'}</td></tr>
-                        <tr><td>Passport</td><td>${esc(drv.passport||'-')}</td><td>${esc(drv.passportExpiry||'-')}</td><td>${drv.passportExpiry?`<span class="rpt-chip rpt-chip-${docStatus({expiryDate:drv.passportExpiry})}">${docStatus({expiryDate:drv.passportExpiry}).toUpperCase()}</span>`:'-'}</td></tr>
+                        <tr><td>Driving License</td><td>${esc(drv.license||'-')}</td><td>${esc(fmtD(drv.licenseExpiry)||'-')}</td><td>${drv.licenseExpiry?`<span class="rpt-chip rpt-chip-${docStatus({expiryDate:drv.licenseExpiry})}">${docStatus({expiryDate:drv.licenseExpiry}).toUpperCase()}</span>`:'-'}</td></tr>
+                        <tr><td>Passport</td><td>${esc(drv.passport||'-')}</td><td>${esc(fmtD(drv.passportExpiry)||'-')}</td><td>${drv.passportExpiry?`<span class="rpt-chip rpt-chip-${docStatus({expiryDate:drv.passportExpiry})}">${docStatus({expiryDate:drv.passportExpiry}).toUpperCase()}</span>`:'-'}</td></tr>
                         </tbody></table></div>`;
                     }
 
@@ -14401,7 +14589,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         const tl = _filterByDate(drv.tripsList||[], dateFrom, dateTo);
                         html += `<div class="rpt-block"><div class="rpt-block-title">Trip History</div>
                         ${tl.length ? `<table class="rpt-table"><thead><tr><th>Trip Date</th><th>Completed Date</th></tr></thead><tbody>
-                        ${tl.map(t=>`<tr><td>${esc(t.date||'—')}</td><td>${esc(t.completed||'—')}</td></tr>`).join('')}
+                        ${tl.map(t=>`<tr><td>${esc(fmtD(t.date)||'—')}</td><td>${esc(t.completed||'—')}</td></tr>`).join('')}
                         </tbody></table>` : '<div class="rpt-empty">No trips in selected period</div>'}</div>`;
                     }
 
@@ -14409,7 +14597,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         const wl = _filterByDate(drv.warningsList||[], dateFrom, dateTo);
                         html += `<div class="rpt-block"><div class="rpt-block-title">Warnings Issued</div>
                         ${wl.length ? `<table class="rpt-table"><thead><tr><th>Date</th><th>Reason</th></tr></thead><tbody>
-                        ${wl.map(w=>`<tr><td>${esc(w.date||'—')}</td><td>${esc(w.reason||'—')}</td></tr>`).join('')}
+                        ${wl.map(w=>`<tr><td>${esc(fmtD(w.date)||'—')}</td><td>${esc(w.reason||'—')}</td></tr>`).join('')}
                         </tbody></table>` : '<div class="rpt-empty">No warnings in selected period</div>'}</div>`;
                     }
 
@@ -14417,7 +14605,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         const sl = _filterByDate(drv.suspensionsList||[], dateFrom, dateTo);
                         html += `<div class="rpt-block"><div class="rpt-block-title">Suspension History</div>
                         ${sl.length ? `<table class="rpt-table"><thead><tr><th>Date</th><th>Reason</th></tr></thead><tbody>
-                        ${sl.map(s=>`<tr><td>${esc(s.date||'—')}</td><td>${esc(s.reason||'—')}</td></tr>`).join('')}
+                        ${sl.map(s=>`<tr><td>${esc(fmtD(s.date)||'—')}</td><td>${esc(s.reason||'—')}</td></tr>`).join('')}
                         </tbody></table>` : '<div class="rpt-empty">No suspensions in selected period</div>'}</div>`;
                     }
 
@@ -14427,11 +14615,11 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         html += `<div class="rpt-block"><div class="rpt-block-title">Accidents &amp; Losses</div>
                         ${al.length ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600">ACCIDENTS</div>
                         <table class="rpt-table"><thead><tr><th>Date</th><th>Accident Description</th></tr></thead><tbody>
-                        ${al.map(a=>`<tr><td>${esc(a.date||'—')}</td><td>${esc(a.description||'—')}</td></tr>`).join('')}
+                        ${al.map(a=>`<tr><td>${esc(fmtD(a.date)||'—')}</td><td>${esc(a.description||'—')}</td></tr>`).join('')}
                         </tbody></table>` : '<div class="rpt-empty">No accidents in selected period</div>'}
                         ${ll.length ? `<div style="font-size:11px;color:var(--text3);margin:10px 0 6px;font-weight:600">LOSSES</div>
                         <table class="rpt-table"><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead><tbody>
-                        ${ll.map(l=>`<tr><td>${esc(l.date||'—')}</td><td>${esc(l.type||'—')}</td><td>${esc(l.amount||0)} L</td><td>${esc(l.description||'—')}</td></tr>`).join('')}
+                        ${ll.map(l=>`<tr><td>${esc(fmtD(l.date)||'—')}</td><td>${esc(l.type||'—')}</td><td>${esc(l.amount||0)} L</td><td>${esc(l.description||'—')}</td></tr>`).join('')}
                         </tbody></table>` : ''}</div>`;
                     }
 
@@ -14439,7 +14627,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         const trs = _filterByDate(drv.trainingsList||drv.trainings||[], dateFrom, dateTo);
                         html += `<div class="rpt-block"><div class="rpt-block-title">Training &amp; Certifications</div>
                         ${trs.length ? `<table class="rpt-table"><thead><tr><th>Date</th><th>Course</th><th>Validity (mo)</th><th>Next Due</th><th>Status</th></tr></thead><tbody>
-                        ${trs.map(tr=>{ const ts=trainingStatus(tr); return `<tr><td>${esc(tr.date||'—')}</td><td>${esc(tr.course||tr.name||'—')}</td><td>${esc(tr.validityMonths||'—')}</td><td>${ts.nextDue||'—'}</td><td><span class="rpt-chip rpt-chip-${ts.valid?'valid':'expired'}">${ts.valid?'VALID':'EXPIRED'}</span></td></tr>`; }).join('')}
+                        ${trs.map(tr=>{ const ts=trainingStatus(tr); return `<tr><td>${esc(fmtD(tr.date)||'—')}</td><td>${esc(tr.course||tr.name||'—')}</td><td>${esc(tr.validityMonths||'—')}</td><td>${esc(fmtD(ts.nextDue)||'—')}</td><td><span class="rpt-chip rpt-chip-${ts.valid?'valid':'expired'}">${ts.valid?'VALID':'EXPIRED'}</span></td></tr>`; }).join('')}
                         </tbody></table>` : '<div class="rpt-empty">No training records found</div>'}</div>`;
                     }
 
@@ -14508,7 +14696,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         const docs = trk.documents||[];
                         html += `<div class="rpt-block"><div class="rpt-block-title">Document Status</div>
                         ${docs.length ? `<table class="rpt-table"><thead><tr><th>Document Type</th><th>Issued Date</th><th>Expiry Date</th><th>Status</th></tr></thead><tbody>
-                        ${docs.map(d=>{ const st=docStatus(d); return `<tr><td>${esc(d.type||'—')}</td><td>${esc(d.issuedDate||'—')}</td><td>${esc(d.expiryDate||'—')}</td><td><span class="rpt-chip rpt-chip-${st}">${st.toUpperCase()}</span></td></tr>`; }).join('')}
+                        ${docs.map(d=>{ const st=docStatus(d); return `<tr><td>${esc(d.type||'—')}</td><td>${esc(fmtD(d.issuedDate)||'—')}</td><td>${esc(fmtD(d.expiryDate)||'—')}</td><td><span class="rpt-chip rpt-chip-${st}">${st.toUpperCase()}</span></td></tr>`; }).join('')}
                         </tbody></table>` : '<div class="rpt-empty">No documents on file for this truck</div>'}</div>`;
                     }
 
@@ -14632,8 +14820,8 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
 
                 if (types.includes('fleet-expired')) {
                     let rows = '';
-                    trucks.forEach(t=>{ (t.documents||[]).filter(d=>['expired','expiring'].includes(docStatus(d))).forEach(d=>{ const st=docStatus(d); rows+=`<tr><td>Truck</td><td>${esc(formatTruckLabel(t))}</td><td>${esc(d.type)}</td><td>${esc(d.expiryDate)}</td><td><span class="rpt-chip rpt-chip-${st}">${st.toUpperCase()}</span></td></tr>`; }); });
-                    drivers.forEach(drv=>{ [{type:'Driving License',expiry:drv.licenseExpiry},{type:'Passport',expiry:drv.passportExpiry}].forEach(doc=>{ if(!doc.expiry)return; const st=docStatus({expiryDate:doc.expiry}); if(['expired','expiring'].includes(st)) rows+=`<tr><td>Driver</td><td>${esc(drv.name)}</td><td>${esc(doc.type)}</td><td>${esc(doc.expiry)}</td><td><span class="rpt-chip rpt-chip-${st}">${st.toUpperCase()}</span></td></tr>`; }); });
+                    trucks.forEach(t=>{ (t.documents||[]).filter(d=>['expired','expiring'].includes(docStatus(d))).forEach(d=>{ const st=docStatus(d); rows+=`<tr><td>Truck</td><td>${esc(formatTruckLabel(t))}</td><td>${esc(d.type)}</td><td>${esc(fmtD(d.expiryDate))}</td><td><span class="rpt-chip rpt-chip-${st}">${st.toUpperCase()}</span></td></tr>`; }); });
+                    drivers.forEach(drv=>{ [{type:'Driving License',expiry:drv.licenseExpiry},{type:'Passport',expiry:drv.passportExpiry}].forEach(doc=>{ if(!doc.expiry)return; const st=docStatus({expiryDate:doc.expiry}); if(['expired','expiring'].includes(st)) rows+=`<tr><td>Driver</td><td>${esc(drv.name)}</td><td>${esc(doc.type)}</td><td>${esc(fmtD(doc.expiry))}</td><td><span class="rpt-chip rpt-chip-${st}">${st.toUpperCase()}</span></td></tr>`; }); });
                     html += `<div class="rpt-section"><div class="rpt-section-title">🔴 Expired / Expiring Documents</div>
                     <div class="rpt-block">${rows ? `<table class="rpt-table"><thead><tr><th>Category</th><th>Subject</th><th>Document</th><th>Expiry</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="rpt-empty">✅ All documents are valid — nothing expired or expiring</div>'}</div></div>`;
                 }
@@ -14672,7 +14860,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     allV.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
                     html += `<div class="rpt-section"><div class="rpt-section-title">📈 Fleet Violation Report</div>
                     <div class="rpt-block">${allV.length ? `<table class="rpt-table"><thead><tr><th>Date</th><th>Driver</th><th>ID</th><th>Type</th><th>Severity</th><th>Notes</th></tr></thead><tbody>
-                    ${allV.map(v=>`<tr><td>${esc(v.date||'—')}</td><td>${esc(v.driver)}</td><td>${esc(v.id)}</td><td>${esc(v.type||'—')}</td><td><span class="rpt-chip rpt-chip-${v.severity||'low'}">${(v.severity||'').toUpperCase()}</span></td><td>${esc(v.notes||'—')}</td></tr>`).join('')}
+                    ${allV.map(v=>`<tr><td>${esc(fmtD(v.date)||'—')}</td><td>${esc(v.driver)}</td><td>${esc(v.id)}</td><td>${esc(v.type||'—')}</td><td><span class="rpt-chip rpt-chip-${v.severity||'low'}">${(v.severity||'').toUpperCase()}</span></td><td>${esc(v.notes||'—')}</td></tr>`).join('')}
                     </tbody></table>` : '<div class="rpt-empty">No violations in selected period</div>'}</div></div>`;
                 }
 
@@ -14756,7 +14944,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     </div>
                     <p class="rpt-jc-hint" style="margin-bottom:10px">A record counts as open until its status is set to Closed or Resolved.</p>
                     ${open.length ? `<table class="rpt-table"><thead><tr><th>Date</th><th>Age</th><th>Type</th><th>Driver</th><th>Truck</th><th>Description</th><th>Measures taken</th><th>Files</th></tr></thead><tbody>
-                    ${open.map(r => { const age = ageDays(r); return `<tr><td>${esc(r.date || '—')}</td><td>${age === null ? '—' : age + 'd'}</td><td><span class="rpt-chip ${(r.recordType || r.type || 'accident').toLowerCase() === 'incident' ? 'rpt-chip-warning' : 'rpt-chip-high'}">${esc((r.recordType || r.type || 'accident').toUpperCase())}</span></td><td>${esc(r.driverName || '—')}${r.driverId ? ` <small>#${esc(r.driverId)}</small>` : ''}</td><td>${esc(r.truckPlate || '—')}</td><td style="max-width:260px">${esc(r.description || '—')}</td><td style="max-width:200px;color:${String(r.measuresTaken || '').trim() ? 'inherit' : 'var(--amber)'}">${esc(r.measuresTaken || 'None recorded')}</td><td>${(r.files || []).length}</td></tr>`; }).join('')}
+                    ${open.map(r => { const age = ageDays(r); return `<tr><td>${esc(fmtD(r.date) || '—')}</td><td>${age === null ? '—' : age + 'd'}</td><td><span class="rpt-chip ${(r.recordType || r.type || 'accident').toLowerCase() === 'incident' ? 'rpt-chip-warning' : 'rpt-chip-high'}">${esc((r.recordType || r.type || 'accident').toUpperCase())}</span></td><td>${esc(r.driverName || '—')}${r.driverId ? ` <small>#${esc(r.driverId)}</small>` : ''}</td><td>${esc(r.truckPlate || '—')}</td><td style="max-width:260px">${esc(r.description || '—')}</td><td style="max-width:200px;color:${String(r.measuresTaken || '').trim() ? 'inherit' : 'var(--amber)'}">${esc(r.measuresTaken || 'None recorded')}</td><td>${(r.files || []).length}</td></tr>`; }).join('')}
                     </tbody></table>` : '<div class="rpt-empty">✅ No open incidents or accidents in the selected period</div>'}</div></div>`;
                 }
 
@@ -14785,7 +14973,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 if (needsJcData && !filtered.length && !types.includes('jobcard-recent-upcoming') && !types.includes('jobcard-downtime')) {
                     return '<div class="rpt-empty">No approved/released job cards in the selected period for the chosen trucks. Try widening the date range or selecting more trucks.</div>';
                 }
-                let html = `<div class="rpt-block" style="background:rgba(61,127,255,0.06);border-bottom:1px solid var(--border)"><div class="rpt-info-grid"><div class="rpt-info-cell"><div class="rpt-il">Period</div><div class="rpt-iv">${periodLabel}</div></div><div class="rpt-info-cell"><div class="rpt-il">Trucks</div><div class="rpt-iv">${plates.length}</div></div><div class="rpt-info-cell"><div class="rpt-il">Job Cards</div><div class="rpt-iv">${filtered.length}</div></div></div></div>`;
+                let html = `<div class="rpt-block" style="background:var(--accent-soft);border-bottom:1px solid var(--border)"><div class="rpt-info-grid"><div class="rpt-info-cell"><div class="rpt-il">Period</div><div class="rpt-iv">${periodLabel}</div></div><div class="rpt-info-cell"><div class="rpt-il">Trucks</div><div class="rpt-iv">${plates.length}</div></div><div class="rpt-info-cell"><div class="rpt-il">Job Cards</div><div class="rpt-iv">${filtered.length}</div></div></div></div>`;
 
                 if (types.includes('jobcard-summary')) {
                     const rows = filtered.map(jc => {
@@ -14882,7 +15070,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                             html += `<div class="rpt-block"><div class="rpt-block-title">🚛 ${formatTruckLabelFromPlate(plate)}</div>`;
                             byPlate[plate].forEach(({ jc, services, cost }) => {
                                 const svcRows = services.map(s =>
-                                    `<tr><td>${xmlEscape(s.name)}</td><td>${s.date}</td><td>${formatRwf(s.cost)}</td><td>${s.unplanned ? 'Unplanned' : 'Planned'}</td></tr>`
+                                    `<tr><td>${xmlEscape(s.name)}</td><td>${esc(fmtD(s.date))}</td><td>${formatRwf(s.cost)}</td><td>${s.unplanned ? 'Unplanned' : 'Planned'}</td></tr>`
                                 ).join('');
                                 html += `<div style="margin-bottom:14px;padding:10px;background:var(--bg4);border-radius:8px">
                                     <div style="font-weight:600;margin-bottom:6px">${jc.id} · ${jcApprovalTimestamp(jc).slice(0, 10)} · ${formatRwf(cost)} · ${services.length} service(s)</div>
@@ -14901,10 +15089,10 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         const recent = getTruckRecentMaintenance(plate, dateFrom, dateTo, 8);
                         const upcoming = getPredictedServicesForTruck(plate).filter(p => p.level === 'over' || p.level === 'warn').slice(0, 6);
                         const recentRows = recent.length ? recent.map(e =>
-                            `<tr><td>${e.date || '—'}</td><td>${xmlEscape(e.service || '—')}</td><td>${e.jobCardId || '—'}</td><td>${e.cost != null ? formatRwf(e.cost) : '—'}</td></tr>`
+                            `<tr><td>${esc(fmtD(e.date) || '—')}</td><td>${xmlEscape(e.service || '—')}</td><td>${e.jobCardId || '—'}</td><td>${e.cost != null ? formatRwf(e.cost) : '—'}</td></tr>`
                         ).join('') : '<tr><td colspan="4" class="rpt-empty">No recent services in period</td></tr>';
                         const upRows = upcoming.length ? upcoming.map(p =>
-                            `<tr><td>${xmlEscape(p.service)}</td><td>${p.lastDate || '—'}</td><td>${p.nextDue || '—'}</td><td>${rptLevelChip(p.level)}</td></tr>`
+                            `<tr><td>${xmlEscape(p.service)}</td><td>${esc(fmtD(p.lastDate) || '—')}</td><td>${esc(fmtD(p.nextDue) || '—')}</td><td>${rptLevelChip(p.level)}</td></tr>`
                         ).join('') : '<tr><td colspan="4" class="rpt-empty">No services due soon (all intervals OK)</td></tr>';
                         html += `<div class="rpt-block"><div class="rpt-block-title">🚛 ${formatTruckLabelFromPlate(plate)}</div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -14968,7 +15156,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     rows.sort((a, b) => (a.nextDue || '9999').localeCompare(b.nextDue || '9999'));
                     const tableRows = rows.map(r => `<tr>
                         <td>${xmlEscape(r.plate)}</td><td>${r.jobCardId}</td><td>${xmlEscape(r.service)}</td>
-                        <td>${r.completed}</td><td>${r.interval}</td><td><strong>${r.nextDue}</strong></td><td>${rptLevelChip(r.level)}</td>
+                        <td>${esc(fmtD(r.completed))}</td><td>${r.interval}</td><td><strong>${esc(fmtD(r.nextDue))}</strong></td><td>${rptLevelChip(r.level)}</td>
                     </tr>`).join('');
                     html += `<div class="rpt-section"><div class="rpt-section-title">⏭ Next Scheduled Service (after completion)</div><div class="rpt-block">
                     <p class="rpt-jc-hint" style="margin-bottom:10px">Based on maintenance catalog intervals and last service date on each truck.</p>
@@ -15123,7 +15311,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 if (card) {
                     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     card.style.transition = 'box-shadow 0.3s, border-color 0.3s';
-                    card.style.boxShadow = '0 0 0 2px var(--accent), 0 4px 20px rgba(61,127,255,0.3)';
+                    card.style.boxShadow = '0 0 0 2px var(--accent), 0 4px 20px var(--accent-border)';
                     card.style.borderColor = 'var(--accent)';
                     setTimeout(() => {
                         card.style.boxShadow = '';
@@ -15519,9 +15707,9 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 const finish = (nextDue, intervalDays) => {
                     const daysUntil = Math.floor((startOfDay(nextDue) - today) / 86400000);
                     let level = 'ok';
-                    let text = `Last done ${toYMD(lastD)}${ref} — ${daysSince} days ago. Next due ${toYMD(nextDue)}.`;
-                    if (daysUntil < 0) { level = 'over'; text = `OVERDUE by ${Math.abs(daysUntil)} days (was due ${toYMD(nextDue)}). Last: ${toYMD(lastD)}${ref}, ${daysSince} days ago.`; }
-                    else if (daysUntil <= 14) { level = 'warn'; text = `Due in ${daysUntil} days (${toYMD(nextDue)}). Last: ${toYMD(lastD)}${ref}.`; }
+                    let text = `Last done ${fmtD(lastD)}${ref} — ${daysSince} days ago. Next due ${fmtD(nextDue)}.`;
+                    if (daysUntil < 0) { level = 'over'; text = `OVERDUE by ${Math.abs(daysUntil)} days (was due ${fmtD(nextDue)}). Last: ${fmtD(lastD)}${ref}, ${daysSince} days ago.`; }
+                    else if (daysUntil <= 14) { level = 'warn'; text = `Due in ${daysUntil} days (${fmtD(nextDue)}). Last: ${fmtD(lastD)}${ref}.`; }
                     return { ...base, level, text, daysSince, nextDue: toYMD(nextDue), daysUntil, daysOverdue: daysUntil < 0 ? -daysUntil : 0, intervalDays };
                 };
                 // A truck-specific due rule set from Settings ("Apply service") wins over the catalogue interval.
@@ -15530,11 +15718,11 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     if (meta.dueType === 'days' && v > 0) return finish(addDays(lastD, v), v);
                     if (meta.dueType === 'months' && v > 0) return finish(addMonths(lastD, v), Math.round(v * 30.4375));
                     if (meta.dueType === 'km') {
-                        return { ...base, level: 'ok', text: `Last done ${toYMD(lastD)}${ref}. Next due after ${meta.dueValue || 'N/A'} km.`, daysSince, kmInterval: v || null };
+                        return { ...base, level: 'ok', text: `Last done ${fmtD(lastD)}${ref}. Next due after ${meta.dueValue || 'N/A'} km.`, daysSince, kmInterval: v || null };
                     }
                 }
                 if (cat && cat.intervalUnit === 'km') {
-                    return { ...base, level: 'ok', text: `Last done ${toYMD(lastD)}${ref} — ${daysSince} days ago. Interval: every ${cat.intervalValue} km (odometer-based).`, daysSince, kmInterval: cat.intervalValue };
+                    return { ...base, level: 'ok', text: `Last done ${fmtD(lastD)}${ref} — ${daysSince} days ago. Interval: every ${cat.intervalValue} km (odometer-based).`, daysSince, kmInterval: cat.intervalValue };
                 }
                 const intervalDays = serviceIntervalDays(cat) || 90;
                 return finish(cat && cat.intervalUnit === 'months' ? addMonths(lastD, cat.intervalValue) : addDays(lastD, intervalDays), intervalDays);
@@ -15578,7 +15766,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     const action = i.openJobCardId
                         ? `<button class="btn btn-ghost btn-xs" data-open-jc="${esc(i.openJobCardId)}">Open ${esc(i.openJobCardId)}</button>`
                         : (canCreate ? `<button class="btn btn-primary btn-xs" data-create-plate="${esc(i.plate)}" data-create-service="${esc(i.serviceName)}">+ Create job card</button>` : '');
-                    return `<div class="jc-due-row"><span class="jc-due-plate">${formatTruckLabelFromPlate(i.plate)}</span><span class="jc-due-service">${esc(i.serviceName)}</span><span class="jc-due-date">${esc(i.nextDue)}</span>${status}<span class="jc-due-action">${action}</span></div>`;
+                    return `<div class="jc-due-row"><span class="jc-due-plate">${formatTruckLabelFromPlate(i.plate)}</span><span class="jc-due-service">${esc(i.serviceName)}</span><span class="jc-due-date">${esc(fmtD(i.nextDue))}</span>${status}<span class="jc-due-action">${action}</span></div>`;
                 }).join('');
                 el.innerHTML = `<div class="jc-due-head" data-toggle-due="1">
                         <span>🗓 Preventive maintenance — ${summary}</span>
@@ -15747,7 +15935,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     <div class="jobcard-info">
                         <div>🚛 <strong>${formatTruckLabelFromPlate(jc.plate || '')}</strong></div>
                         <div>👤 ${esc(jc.driver || '')}</div>
-                        <div>📅 ${esc(jc.date || '')}${jc.odometer ? ' · ⏱ ' + esc(formatOdometer(jc.odometer)) : ''} · ${serviceCount} service${serviceCount !== 1 ? 's' : ''}</div>
+                        <div>📅 ${esc(fmtD(jc.date) || '')}${jc.odometer ? ' · ⏱ ' + esc(formatOdometer(jc.odometer)) : ''} · ${serviceCount} service${serviceCount !== 1 ? 's' : ''}</div>
                     </div>
                     <div class="jobcard-services">${serviceList || '<div class="jobcard-service-item" style="color:var(--text3)">No services listed</div>'}</div>
                     <div class="jobcard-actions">${actions}</div>
@@ -15909,9 +16097,9 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 const last = lastOdometerForPlate(plate, editingId);
                 const typed = input ? odometerNumber(input.value) : null;
                 if (last && typed !== null && typed < last.km) {
-                    hint.innerHTML = `<span style="color:var(--amber)">⚠ Lower than the last reading — ${esc(formatOdometer(last.km))} on ${esc(last.date || '?')} (${esc(last.id)})</span>`;
+                    hint.innerHTML = `<span style="color:var(--amber)">⚠ Lower than the last reading — ${esc(formatOdometer(last.km))} on ${esc(fmtD(last.date) || '?')} (${esc(last.id)})</span>`;
                 } else if (last) {
-                    hint.textContent = `Last reading: ${formatOdometer(last.km)} on ${last.date || '?'} (${last.id})`;
+                    hint.textContent = `Last reading: ${formatOdometer(last.km)} on ${fmtD(last.date) || '?'} (${last.id})`;
                 } else {
                     hint.textContent = 'Vehicle mileage at service date';
                 }
@@ -16029,7 +16217,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                                     <div class="il">Odometer reading (km)</div>
                                     <input type="text" id="jcOdometer" data-jc="${jcId}" value="${esc(odoVal)}" placeholder="e.g. 145,200" inputmode="numeric" autocomplete="off" oninput="App.paintOdometerHint(document.getElementById('jcTruckPlate')?.value)"
                                         style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text)">
-                                    <div class="jc-combo-hint" id="jcOdometerHint">${lastOdo ? esc(`Last reading: ${formatOdometer(lastOdo.km)} on ${lastOdo.date || '?'} (${lastOdo.id})`) : 'Vehicle mileage at service date'}</div>
+                                    <div class="jc-combo-hint" id="jcOdometerHint">${lastOdo ? esc(`Last reading: ${formatOdometer(lastOdo.km)} on ${fmtD(lastOdo.date) || '?'} (${lastOdo.id})`) : 'Vehicle mileage at service date'}</div>
                                 </div>
                                 <div class="info-cell">
                                     <div class="il">Truck / trailer</div>
@@ -16686,7 +16874,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 if (jc.status !== 'Draft') {
                     const mechRow = (m, label, lineId, isExtra) => {
                         const hist = !isExtra ? findLastServiceFromHistory(jc.plate, label, jc.id, jcPriorCutoff(jc, label)) : null;
-                        const histNote = hist ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">Prior: ${esc(hist.date)}${hist.jobCardId ? ' · ' + esc(hist.jobCardId) : ''}</div>` : '';
+                        const histNote = hist ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">Prior: ${esc(fmtD(hist.date))}${hist.jobCardId ? ' · ' + esc(hist.jobCardId) : ''}</div>` : '';
                         if (canMechanic) {
                             const rowCls = isExtra ? 'jc-extra-row' : 'jc-line-row';
                             const dataAttr = isExtra ? `data-extra-id="${esc(lineId)}"` : `data-line="${esc(lineId)}"`;
@@ -16801,7 +16989,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
 
                 return `
                     <div class="modal-header">
-                        <div><div class="modal-name">${esc(jc.id)}</div><div class="modal-sub">${formatTruckLabelFromPlate(jc.plate)} · ${esc(jc.driver)} · ${esc(jc.status)}${jc.date ? ' · 📅 ' + esc(jc.date) : ''}${jc.odometer ? ' · ⏱ ' + esc(formatOdometer(jc.odometer)) : ''}${jc.priority ? ' · ' + esc(jc.priority) + ' priority' : ''}</div></div>
+                        <div><div class="modal-name">${esc(jc.id)}</div><div class="modal-sub">${formatTruckLabelFromPlate(jc.plate)} · ${esc(jc.driver)} · ${esc(jc.status)}${jc.date ? ' · 📅 ' + esc(fmtD(jc.date)) : ''}${jc.odometer ? ' · ⏱ ' + esc(formatOdometer(jc.odometer)) : ''}${jc.priority ? ' · ' + esc(jc.priority) + ' priority' : ''}</div></div>
                         <div class="modal-close" onclick="App.closeModal()">✕</div>
                     </div>
                     <div class="modal-body">
@@ -17149,7 +17337,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
 
                 openModal(`
                     <div class="modal-header">
-                        <div><div class="modal-name">Review ${jc.id}</div><div class="modal-sub">${formatTruckLabelFromPlate(jc.plate || '')} · ${esc(jc.driver || '')} · Date: ${esc(jc.date || (jc.createdAt ? String(jc.createdAt).slice(0, 10) : '—'))}${jc.odometer ? ' · Odo: ' + esc(formatOdometer(jc.odometer)) : ''}</div></div>
+                        <div><div class="modal-name">Review ${jc.id}</div><div class="modal-sub">${formatTruckLabelFromPlate(jc.plate || '')} · ${esc(jc.driver || '')} · Date: ${esc(fmtD(jc.date || (jc.createdAt ? String(jc.createdAt).slice(0, 10) : '')) || '—')}${jc.odometer ? ' · Odo: ' + esc(formatOdometer(jc.odometer)) : ''}</div></div>
                         <div class="modal-close" onclick="App.closeModal()">✕</div>
                     </div>
                     <div class="modal-body">
@@ -17159,7 +17347,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                                 ${driverCol}
                                 <div class="preview-summary">
                                     <div class="preview-summary-row"><span class="preview-summary-label">Services</span><span class="preview-summary-value">${(jc.driverLines || []).length}</span></div>
-                                    <div class="preview-summary-row"><span class="preview-summary-label">Date created</span><span class="preview-summary-value">${esc(jc.date || (jc.createdAt ? String(jc.createdAt).slice(0, 10) : '—'))}</span></div>
+                                    <div class="preview-summary-row"><span class="preview-summary-label">Date created</span><span class="preview-summary-value">${esc(fmtD(jc.date || (jc.createdAt ? String(jc.createdAt).slice(0, 10) : '')) || '—')}</span></div>
                                     ${jc.odometer ? `<div class="preview-summary-row"><span class="preview-summary-label">Odometer</span><span class="preview-summary-value">${esc(formatOdometer(jc.odometer))}</span></div>` : ''}
                                 </div>
                             </div>
@@ -17579,7 +17767,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     const approvedOn = jcApprovalTimestamp(jc).slice(0, 10);
                     const hasProof = !!jc.handwrittenProof;
                     return `<div class="rpt-panel-box" style="margin-bottom:14px">
-                        <div class="rpt-panel-header"><span>${esc(jc.id)} · ${formatTruckLabelFromPlate(jc.plate || '')} · ${esc(jc.driver || '')} · Date: ${esc(jc.date || (jc.createdAt ? String(jc.createdAt).slice(0, 10) : '—'))}${jc.odometer ? ' · Odo: ' + esc(formatOdometer(jc.odometer)) : ''} · Approved</span>
+                        <div class="rpt-panel-header"><span>${esc(jc.id)} · ${formatTruckLabelFromPlate(jc.plate || '')} · ${esc(jc.driver || '')} · Date: ${esc(fmtD(jc.date || (jc.createdAt ? String(jc.createdAt).slice(0, 10) : '')) || '—')}${jc.odometer ? ' · Odo: ' + esc(formatOdometer(jc.odometer)) : ''} · Approved</span>
                             <span style="color:var(--green)">${formatRwf(t.actC)}</span></div>
                         <div style="padding:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
                             <button class="btn btn-sm btn-ghost" onclick="App.openJobCardPreview('${id}')">View</button>
@@ -17601,7 +17789,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     const hist = findLastServiceFromHistory(jc.plate, dl.name, jc.id, jcPriorCutoff(jc, dl.name));
                     return `<tr>
                         <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px">${esc(dl.name)}</td>
-                        <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:11px;color:#475569">${hist ? esc(hist.date) + (hist.jobCardId ? ' (' + esc(hist.jobCardId) + ')' : '') : 'Never'}</td>
+                        <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:11px;color:#475569">${hist ? esc(fmtD(hist.date)) + (hist.jobCardId ? ' (' + esc(hist.jobCardId) + ')' : '') : 'Never'}</td>
                     </tr>`;
                 }).join('');
                 const mechRows = (jc.mechanicLines || []).filter(m => m.done).map(m => {
@@ -17619,7 +17807,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 const co = getCompany();
                 const _jcLogoUri = co.logo || '';
                 const _wmUri = _jcLogoUri;
-                const contactLines = [co.address, co.phone ? 'Tel: ' + co.phone : '', co.email ? 'Email: ' + co.email : ''].filter(Boolean).map(esc).join('<br>');
+                const contactLines = [co.address, co.phone ? 'Tel: ' + co.phone : '', co.email ? 'Email: ' + co.email : '', co.web ? 'Web: ' + co.web : ''].filter(Boolean).map(esc).join('<br>');
                 // Oct 2026: the card shows no account e-mail and no date but the SERVICE date (jc.date).
                 const serviceDate = jc.date || (jc.createdAt ? String(jc.createdAt).slice(0, 10) : '');
                 const mechanicNames = [...new Set((jc.mechanicLines || []).filter(m => m.done).map(m => jcPersonName(m.mechanic)).filter(Boolean))].join(', ');
@@ -17820,7 +18008,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport,
                 exportDriverData, exportTruckData,
                 exportAllData, importAllData, resetAllData,
-                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, toggleSettingsLock, restoreFromBackup,
+                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleSettingsLock, restoreFromBackup,
                 handleDriverFileUpload, handleTruckFileUpload, deleteAttachment, previewAttachment, downloadAttachment,
                 renderReports, refreshReportsOnDataChange, switchReportCategory, toggleReportCard, onReportCheckChange, toggleAllReports, generateReport, printReport, downloadReport, quickReport,
                 setReportPeriodPreset, populateJcReportServiceFilter,
