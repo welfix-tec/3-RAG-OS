@@ -574,7 +574,20 @@ function legs(t){
     toLoad:span(alloc,wd),waitDocs:span(wd,tr),inTransit:span(tr,off),total:span(alloc,off),open:!off};
 }
 function dur(ms){if(ms==null)return '—';const d=Math.floor(ms/86400000),h=Math.floor(ms%86400000/3600000);return d?`${d}d ${h}h`:`${h}h`}
-const dt=iso=>iso?iso.slice(0,10)+' '+iso.slice(11,16):'—';
+/* Oct 2026: dates follow FleetGuard → Settings → Date format, shown in LOCAL time (the stored values are UTC). */
+let DATE_FMT=(()=>{try{const f=(JSON.parse(localStorage.getItem('fg3_settings')||'{}').locale||{}).dateFormat;return f==='YYYY-MM-DD'||f==='MM/DD/YYYY'?f:'DD/MM/YYYY'}catch(e){return 'DD/MM/YYYY'}})();
+function setDateFmt(f){const v=f==='YYYY-MM-DD'||f==='MM/DD/YYYY'?f:'DD/MM/YYYY';if(v===DATE_FMT)return;DATE_FMT=v;try{render()}catch(e){}}
+function fmtD(v){
+  if(v===null||v===undefined||v==='')return '';
+  let y,mo,d;const s=String(v).trim();const m=/^(\d{4})-(\d{2})-(\d{2})(?=$|[T ])/.exec(s);
+  if(!m)return s;
+  if(s.length>10&&/T\d{2}:\d{2}/.test(s)){const x=new Date(s);if(!isNaN(x.getTime())){y=x.getFullYear();mo=x.getMonth()+1;d=x.getDate()}}
+  if(!y){y=+m[1];mo=+m[2];d=+m[3]}
+  const DD=String(d).padStart(2,'0'),MM=String(mo).padStart(2,'0');
+  return DATE_FMT==='YYYY-MM-DD'?y+'-'+MM+'-'+DD:DATE_FMT==='MM/DD/YYYY'?MM+'/'+DD+'/'+y:DD+'/'+MM+'/'+y;
+}
+const hhmm=x=>String(x.getHours()).padStart(2,'0')+':'+String(x.getMinutes()).padStart(2,'0');
+const dt=iso=>{if(!iso)return '—';const x=new Date(iso);return isNaN(x.getTime())?String(iso):fmtD(iso)+' '+hhmm(x)};
 const DOC_STEPS=['At depot','In hand','Received at office'];const DOC_RECV=2;   /* Oct 2026: FleetGuard says depot / in hand; the Orders page marks Received at office */
 /* the Drive upload FleetGuard uses (js/config.js — keep the two the same) */
 const DRIVE_UPLOAD_URL='https://script.google.com/macros/s/AKfycbwDl0DgjPLh_1-uPD3qvjPUbLpWai0pBNO2OW0rd8zYWob1ysBki2WxYL8s6OnQNd01/exec';
@@ -686,6 +699,7 @@ function fbConnect(){
     FB.got={};
     cloudConnect();
     /* notices sent to FleetGuard ("?" on the nomination list) — FleetGuard clears them once the truck is updated */
+    firebase.database().ref('fleetguard/settings/locale/dateFormat').on('value',s=>setDateFmt(s.val()),()=>{});   /* FleetGuard → Settings → Date format */
     firebase.database().ref('fleetguard/attentionRequests').on('value',snap=>{FB.attn=snap.val()||{};if(FB.state==='live')render()},err=>console.warn('[LiveFleet] attentionRequests',err&&err.message));
     ['drivers','trucks','trailers'].forEach(col=>{
       firebase.database().ref('fleetguard/'+col).on('value',snap=>{
@@ -713,7 +727,7 @@ function liveHint(){
 }
 function liveBadge(){
   const m={live:[FB.raw.trucks.length?'on':'off',FB.raw.trucks.length?`Live fleet · ${FB.raw.trucks.length} trucks · ${FB.raw.drivers.length} drivers`:'Connected — no trucks at fleetguard/trucks'],connecting:['off','Connecting to live fleet…'],signedout:['off','Sign in to load the fleet'],denied:['off','Fleet blocked: '+FB.err],offline:['off','Offline — no fleet']}[FB.state]||['off','Fleet not loaded'];
-  return `<span class="live ${m[0]}" title="${FB.state==='live'?'Drivers, trucks and trailers stream from FleetGuard in real time. Last update '+(FB.lastSync||'').slice(11,19):esc(FB.err||'Sign in to load drivers, trucks and trailers')}"><span class="dot"></span>${esc(m[1])}${cloudOn()?' · orders shared':''}</span>`;
+  return `<span class="live ${m[0]}" title="${FB.state==='live'?'Drivers, trucks and trailers stream from FleetGuard in real time. Last update '+(FB.lastSync?(x=>hhmm(x)+':'+String(x.getSeconds()).padStart(2,'0'))(new Date(FB.lastSync)):''):esc(FB.err||'Sign in to load drivers, trucks and trailers')}"><span class="dot"></span>${esc(m[1])}${cloudOn()?' · orders shared':''}</span>`;
 }
 
 /* ---------- sample data ---------- */
@@ -1051,7 +1065,7 @@ function inRange(isoOrYmd){const b=rangeBounds();if(!b)return true;if(!isoOrYmd)
 function orderInRange(o){if(!rangeBounds())return true;if(inRange(o.receivedAt))return true;if((o.history||[]).some(h=>inRange(h.at)))return true;return (o.trips||[]).some(t=>(t.history||[]).some(h=>inRange(h.at))||(t.report&&inRange(t.report.offloadDate))||(t.invoice&&inRange(t.invoice.at)))}
 function tripOffloadDate(t){return t.report?t.report.offloadDate:((t.history||[]).slice().reverse().find(h=>h.to==='Offloaded')||{}).at}
 function tripInRange(t){return inRange(tripOffloadDate(t))||(t.invoice&&t.invoice.status==='invoiced'&&inRange(t.invoice.at))}
-function rangeLabel(){const r=S.ui.range||{mode:'month'};const b=rangeBounds();if(!b)return 'All time';if(r.mode==='month')return new Date().toLocaleString('en-GB',{month:'long',year:'numeric'});if(r.mode==='week')return 'Week '+b[0].slice(5)+' → '+b[1].slice(5);return b[0]+' → '+b[1]}
+function rangeLabel(){const r=S.ui.range||{mode:'month'};const b=rangeBounds();if(!b)return 'All time';if(r.mode==='month')return new Date().toLocaleString('en-GB',{month:'long',year:'numeric'});if(r.mode==='week')return 'Week '+fmtD(b[0])+' → '+fmtD(b[1]);return fmtD(b[0])+' → '+fmtD(b[1])}
 function renderTimebar(){
   const el=document.getElementById('timebar');if(!el)return;const r=S.ui.range||{mode:'month'};
   el.innerHTML=`<span class="tiny">Period</span><select onchange="T.setRange(this.value)">${[['month','This month'],['week','This week'],['all','All time'],['custom','Custom dates…']].map(x=>`<option value="${x[0]}" ${r.mode===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select>
@@ -1137,7 +1151,7 @@ function renderOrders(){
         <div><span class="k">Destination</span><span class="v" style="font-size:12px">${esc(o.destination)}</span></div>
       </div>
       <hr class="div" style="margin:14px 0 10px">
-      <div class="row between"><span class="tiny">${ymd(o.receivedAt)}</span><span class="tiny">${o.trips.length?`${off}/${o.trips.length} offloaded · ${fmt(offloadedL(o))} L`:o.nominees.length?`${o.nominees.length} nominee${o.nominees.length>1?'s':''}`:'no trucks yet'}</span></div>
+      <div class="row between"><span class="tiny">${fmtD(o.receivedAt)}</span><span class="tiny">${o.trips.length?`${off}/${o.trips.length} offloaded · ${fmt(offloadedL(o))} L`:o.nominees.length?`${o.nominees.length} nominee${o.nominees.length>1?'s':''}`:'no trucks yet'}</span></div>
     </div>`}).join(''):`<div class="empty" style="grid-column:1/-1">${S.orders.length?"No orders match these filters.":"No orders yet — press ＋ New order."}</div>`;
 }
 function openOrder(id){
@@ -1146,7 +1160,7 @@ function openOrder(id){
   modal(`<div class="modal-h"><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><h3 class="mono">${esc(o.clientOrderNo)}</h3>${stageChip(o)}<button class="x" onclick="T.closeModal()">×</button></div>
   <div class="modal-b">
     <div class="kv" style="grid-template-columns:repeat(3,1fr);margin-top:0">
-      <div><span class="k">Product</span><span class="v">${esc(o.product)}</span></div><div><span class="k">Volume requested</span><span class="v">${fmt(o.volumeL)} L${loadVol(o)?`<span class="tiny" style="display:block">to load ${fmt(loadVol(o))} L</span>`:''}</span></div><div><span class="k">Received</span><span class="v">${ymd(o.receivedAt)}</span></div>
+      <div><span class="k">Product</span><span class="v">${esc(o.product)}</span></div><div><span class="k">Volume requested</span><span class="v">${fmt(o.volumeL)} L${loadVol(o)?`<span class="tiny" style="display:block">to load ${fmt(loadVol(o))} L</span>`:''}</span></div><div><span class="k">Received</span><span class="v">${fmtD(o.receivedAt)}</span></div>
       <div><span class="k">Loading depot</span><span class="v">${esc(o.depot)}</span></div><div><span class="k">Destination</span><span class="v">${esc(o.destination)}</span></div><div><span class="k">Offloaded so far</span><span class="v">${fmt(offloadedL(o))} L <span class="tiny">(${Math.round(offloadedL(o)/o.volumeL*100)}%)</span></span></div>
     </div>
     ${o.vessel?`<div class="tiny" style="margin-top:10px">Vessel: <b style="color:var(--text)">${esc(o.vessel)}</b></div>`:''}
@@ -1158,7 +1172,7 @@ function openOrder(id){
     :o.nominees.length?`<div class="tbl"><table><thead><tr><th>Nominee</th><th>Driver</th><th>Capacity</th><th>Client answer</th></tr></thead><tbody>${o.nominees.map(n=>`<tr><td class="mono"><b>${esc(n.plate)}</b></td><td>${esc(n.driver)}</td><td>${fmt(n.capacityL)} L</td><td>${nomChip(n)}</td></tr>`).join('')}</tbody></table></div>`
     :`<div class="empty">No trucks nominated yet.</div>`}
     </div>
-    <details class="tl section"><summary>Timeline · ${o.history.length} event${o.history.length===1?'':'s'}<button class="tl-dl" title="Download the order timeline as a PDF" onclick="event.preventDefault();event.stopPropagation();T.timelinePdf('${o.id}')">⬇</button></summary><div class="tl-body">${o.history.slice().reverse().map(h=>`<div class="row between"><span>${esc(h.ev)}</span><span class="tiny mono">${h.at.slice(0,16).replace('T',' ')} · ${esc(h.by||'')}</span></div>`).join('')}</div></details>
+    <details class="tl section"><summary>Timeline · ${o.history.length} event${o.history.length===1?'':'s'}<button class="tl-dl" title="Download the order timeline as a PDF" onclick="event.preventDefault();event.stopPropagation();T.timelinePdf('${o.id}')">⬇</button></summary><div class="tl-body">${o.history.slice().reverse().map(h=>`<div class="row between"><span>${esc(h.ev)}</span><span class="tiny mono">${dt(h.at)} · ${esc(h.by||'')}</span></div>`).join('')}</div></details>
   </div>
   <div class="modal-f">${S.role==='Operations'&&['received','nominated'].includes(o.stage)?`<button class="btn danger sm" onclick="T.deleteOrder('${o.id}')">Delete order</button>`:''}${S.role==='Operations'&&o.stage!=='invoiced'?`<button class="btn sm" onclick="T.openOrderEdit('${o.id}')" title="Edit the order details">✎ Edit</button>`:''}<div class="spacer"></div><button class="btn" onclick="T.closeModal()">Close</button><button class="btn primary" onclick="T.closeModal();T.focus('${o.id}','${next[1]}')">${next[0]} →</button></div>`);
 }
@@ -1402,10 +1416,10 @@ async function timelinePdf(oid,tid){
   const facts=t?[
       ['Truck',t.plate,'Trailer',t.trailer||'—'],['Driver',t.driver||'—','Capacity',fmt(t.capacityL||0)+' L '+o.product],
       ['Status',TRIP_LABEL[t.status]||t.status,'Litres loaded',t.loadedL?fmt(t.loadedL)+' L':'—'],
-      ['Offloaded',t.report?fmt(t.report.offloadedL)+' L ('+t.report.offloadDate+')':'—','Short',t.report?fmt(shortOf(t.report))+' L':'—'],
+      ['Offloaded',t.report?fmt(t.report.offloadedL)+' L ('+fmtD(t.report.offloadDate)+')':'—','Short',t.report?fmt(shortOf(t.report))+' L':'—'],
       ['AA number',t.report?t.report.aaNo:'—','Original document',t.status==='Offloaded'?DOC_STEPS[(t.doc&&t.doc.step)||0]+(t.doc&&t.doc.receivedBy?' — received by '+t.doc.receivedBy:''):'—'],
       ['Route',o.depot+' → '+o.destination,'Invoice',t.invoice&&t.invoice.status==='invoiced'?('Invoiced '+(t.invoice.month||'')+(t.invoice.ref?' · '+t.invoice.ref:'')):'Pending']]
-    :[['Client',o.client,'Order number',o.clientOrderNo],['Product',o.product,'Received',ymd(o.receivedAt)],
+    :[['Client',o.client,'Order number',o.clientOrderNo],['Product',o.product,'Received',fmtD(o.receivedAt)],
       ['Volume requested',fmt(o.volumeL)+' L','Volume to load',loadVol(o)?fmt(loadVol(o))+' L':'—'],
       ['Loading depot',o.depot,'Destination',o.destination],['Vessel',o.vessel||'—','Stage',(STAGES[o.stage]||{}).l||o.stage],
       ['Trucks',String(o.trips.length||o.nominees.length),'Offloaded so far',fmt(offloadedL(o))+' L']];
@@ -1606,7 +1620,7 @@ function openAssign(id){
           <span><b>Cancelled:</b> ${esc(t.plate)} · ${esc(t.trailer||'')} · ${esc(t.driver||'')} &nbsp;→&nbsp; <b>Retained:</b> ${esc(t.amendment.to.plate)} · ${esc(t.amendment.to.trailer||'')} · ${esc(t.amendment.to.driver||'')}${t.amendment.to.anchor?` <span class="chip purple" title="The replacement truck is still on ${esc(t.amendment.to.anchor.orderNo)} — it will wait as Queued once approved">⏳ after ${esc(t.amendment.to.anchor.orderNo)}</span>`:' <span class="chip green">free now</span>'}</span>
           ${ops?`<span class="row" style="gap:6px;margin-left:auto">${t.amendment.status==='sent'?`<button class="btn sm green" onclick="T.amendAnswer('${o.id}','${t.id}',true)">✓ Client approved</button><button class="btn sm danger" onclick="T.amendAnswer('${o.id}','${t.id}',false)">✕ Rejected</button>`:''}<button class="btn sm" onclick="T.amendCancel('${o.id}','${t.id}')">Withdraw</button></span>`:''}
         </div>`:''}
-        ${t.amendedFrom?`<div class="amend-line done"><span class="chip gray">Amended ${ymd(t.amendedFrom.at)}</span><span>was ${esc(t.amendedFrom.plate)} · ${esc(t.amendedFrom.trailer||'')} · ${esc(t.amendedFrom.driver||'')} — approved by ${esc(o.client)}</span></div>`:''}
+        ${t.amendedFrom?`<div class="amend-line done"><span class="chip gray">Amended ${fmtD(t.amendedFrom.at)}</span><span>was ${esc(t.amendedFrom.plate)} · ${esc(t.amendedFrom.trailer||'')} · ${esc(t.amendedFrom.driver||'')} — approved by ${esc(o.client)}</span></div>`:''}
         ${isOpen?`<div class="trdet">
           <div class="legs">
             ${L.queuedAt?`<div class="leg" style="border-color:rgba(167,139,250,.35)"><span class="k">Queued</span><span class="v">${dt(L.queuedAt)}</span><span class="s">${L.allocAt?'waited '+dur(L.queuedFor):'still waiting'} · ${esc((t.queuedBehind||{}).orderNo||'')}</span></div>`:''}
@@ -1867,8 +1881,8 @@ function truckView(page){
         <div class="row" style="gap:6px"><span class="chip gray">${n} order${n===1?'':'s'}</span>${run?`<span class="chip blue">${run} in progress</span>`:''}${done?`<span class="chip teal">${done} completed</span>`:''}${pend?`<span class="chip amber">${pend} pending invoice</span>`:''}${inv?`<span class="chip green">${inv} invoiced</span>`:''}${noms.length?`<span class="chip purple">${noms.length} nominated</span>`:''}</div></div>
       <hr class="div" style="margin:12px 0">
       ${n||noms.length?`<div class="tbl"><table><thead><tr><th>Order</th><th>Product</th><th>Trip</th><th>Offloaded</th><th>AA No</th><th>Original</th><th>Invoice</th><th>Next</th><th></th></tr></thead><tbody>
-      ${trips.map(x=>{const [c,l]=st(x);return `<tr><td><span class="client ${esc(x.o.client)}" ${clientStyle(x.o.client)}>${esc(x.o.client)}</span> <b class="mono">${esc(x.o.clientOrderNo)}</b><div class="tiny">${ymd(x.o.receivedAt)}</div></td><td>${esc(x.o.product)}</td><td>${tripChip(x.t)}${x.t.releasedFrom?`<div class="tiny">after ${esc(x.t.releasedFrom.orderNo)}</div>`:''}</td><td>${x.t.report?x.t.report.offloadDate+`<div class="tiny">${fmt(x.t.report.offloadedL)} L</div>`:x.t.status==='Offloaded'?ymd(tripOffloadDate(x.t)||''):'—'}</td><td class="mono">${x.t.report?esc(x.t.report.aaNo):'—'}</td><td>${docChip(x.t)}</td><td><span class="chip ${c}">${l}</span>${x.t.invoice.status==='invoiced'?`<div class="tiny">${esc(x.t.invoice.month||'')} ${esc(x.t.invoice.ref||'')}</div>`:''}</td><td>${nextChip(x.o,x.t)||'<span class="tiny">—</span>'}</td><td style="text-align:right"><button class="btn sm" onclick="T.openOrder('${x.o.id}')">Open</button></td></tr>`}).join('')}
-      ${noms.map(x=>`<tr><td><span class="client ${esc(x.o.client)}" ${clientStyle(x.o.client)}>${esc(x.o.client)}</span> <b class="mono">${esc(x.o.clientOrderNo)}</b><div class="tiny">${ymd(x.o.receivedAt)}</div></td><td>${esc(x.o.product)}</td><td>${nomChip(x.n)}${x.n.queuedBehind?`<div class="tiny">after ${esc(x.n.queuedBehind.orderNo)}</div>`:''}</td><td>—</td><td>—</td><td>—</td><td><span class="chip gray">Not assigned</span></td><td>—</td><td style="text-align:right"><button class="btn sm" onclick="T.openOrder('${x.o.id}')">Open</button></td></tr>`).join('')}
+      ${trips.map(x=>{const [c,l]=st(x);return `<tr><td><span class="client ${esc(x.o.client)}" ${clientStyle(x.o.client)}>${esc(x.o.client)}</span> <b class="mono">${esc(x.o.clientOrderNo)}</b><div class="tiny">${fmtD(x.o.receivedAt)}</div></td><td>${esc(x.o.product)}</td><td>${tripChip(x.t)}${x.t.releasedFrom?`<div class="tiny">after ${esc(x.t.releasedFrom.orderNo)}</div>`:''}</td><td>${x.t.report?fmtD(x.t.report.offloadDate)+`<div class="tiny">${fmt(x.t.report.offloadedL)} L</div>`:x.t.status==='Offloaded'?fmtD(tripOffloadDate(x.t)||''):'—'}</td><td class="mono">${x.t.report?esc(x.t.report.aaNo):'—'}</td><td>${docChip(x.t)}</td><td><span class="chip ${c}">${l}</span>${x.t.invoice.status==='invoiced'?`<div class="tiny">${esc(x.t.invoice.month||'')} ${esc(x.t.invoice.ref||'')}</div>`:''}</td><td>${nextChip(x.o,x.t)||'<span class="tiny">—</span>'}</td><td style="text-align:right"><button class="btn sm" onclick="T.openOrder('${x.o.id}')">Open</button></td></tr>`}).join('')}
+      ${noms.map(x=>`<tr><td><span class="client ${esc(x.o.client)}" ${clientStyle(x.o.client)}>${esc(x.o.client)}</span> <b class="mono">${esc(x.o.clientOrderNo)}</b><div class="tiny">${fmtD(x.o.receivedAt)}</div></td><td>${esc(x.o.product)}</td><td>${nomChip(x.n)}${x.n.queuedBehind?`<div class="tiny">after ${esc(x.n.queuedBehind.orderNo)}</div>`:''}</td><td>—</td><td>—</td><td>—</td><td><span class="chip gray">Not assigned</span></td><td>—</td><td style="text-align:right"><button class="btn sm" onclick="T.openOrder('${x.o.id}')">Open</button></td></tr>`).join('')}
       </tbody></table></div>`:`<div class="empty">No orders for this truck.</div>`}
     </div>`}).join('');
 }
@@ -1909,7 +1923,7 @@ function renderDocs(){
       <div class="row between"><div class="row"><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><h3 class="mono">${esc(o.clientOrderNo)}</h3></div><span class="chip ${B.color}">${trips.length} truck${trips.length>1?'s':''}</span></div>
       <div class="kv" style="grid-template-columns:1fr 1fr">
         <div><span class="k">Product</span><span class="v">${esc(o.product)}</span></div>
-        <div><span class="k">${tab==='missing'?'Offloaded':'Litres'}</span><span class="v">${tab==='missing'?ymd(trips[0].history[trips[0].history.length-1].at):fmt(litres)+' L'}</span></div>
+        <div><span class="k">${tab==='missing'?'Offloaded':'Litres'}</span><span class="v">${tab==='missing'?fmtD(trips[0].history[trips[0].history.length-1].at):fmt(litres)+' L'}</span></div>
       </div>
       <hr class="div" style="margin:14px 0 10px">
       <div class="row between">
@@ -1933,11 +1947,11 @@ function docRows(o,trips,pick){
   return trips.map(t=>`<tr>
       ${pick?`<td>${t.report&&t.doc.step<DOC_RECV?`<input type="checkbox" class="recv-cb" data-oid="${o.id}" data-tid="${t.id}" style="width:16px;height:16px" onchange="T.receivePick()" title="Tick to mark received at office together">`:''}</td>`:''}
       <td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver)}</div>${nextChip(o,t)}</td>
-      <td>${t.report?t.report.offloadDate:ymd(t.history[t.history.length-1].at)}</td>
+      <td>${fmtD(t.report?t.report.offloadDate:t.history[t.history.length-1].at)}</td>
       <td class="mono">${t.report?esc(t.report.aaNo):'<span class="chip red">missing</span>'}</td>
       <td>${t.report?`${fmt(t.report.offloadedL)} L<div class="tiny">short ${fmt(shortOf(t.report))} L · ${tempsOf(t.report)}</div>`:'—'}</td>
       <td>${t.report?`<span class="mono" style="font-size:11.5px">${esc(t.report.depotInvoiceRef)}</span><div class="tiny">${t.report.depotInvoiceUrl?`📎 <a href="${esc(t.report.depotInvoiceUrl)}" target="_blank" rel="noopener">photo</a>`:t.report.depotInvoiceFile?'📎 '+esc(t.report.depotInvoiceFile):'no file'}${t.report.filledBy&&t.report.source==='FleetGuard'?` · by ${esc(t.report.filledBy)}`:''}</div>`:'—'}</td>
-      <td class="doc-st">${t.report?(t.doc.step<DOC_RECV?`<div class="doc-now"><span class="chip amber" title="As set in FleetGuard">${holderTxt(t)}</span><span class="stuck">${stuckDays(t)} day${stuckDays(t)===1?'':'s'}</span></div><button class="btn sm primary doc-recv" onclick="T.setDoc('${o.id}','${t.id}',${DOC_RECV})">Received at office</button>`:`<div class="doc-now"><span class="chip green">Received at office</span></div><div class="tiny" style="margin-top:4px">${t.doc.receivedBy?'by '+esc(t.doc.receivedBy)+' · ':''}${ymd(t.doc.history[t.doc.history.length-1].at)}${t.invoice.status!=='invoiced'?` · <a href="#" onclick="event.preventDefault();T.undoReceived('${o.id}','${t.id}')">undo</a>`:''}</div>`):'<span class="tiny">fill the report first</span>'}</td>
+      <td class="doc-st">${t.report?(t.doc.step<DOC_RECV?`<div class="doc-now"><span class="chip amber" title="As set in FleetGuard">${holderTxt(t)}</span><span class="stuck">${stuckDays(t)} day${stuckDays(t)===1?'':'s'}</span></div><button class="btn sm primary doc-recv" onclick="T.setDoc('${o.id}','${t.id}',${DOC_RECV})">Received at office</button>`:`<div class="doc-now"><span class="chip green">Received at office</span></div><div class="tiny" style="margin-top:4px">${t.doc.receivedBy?'by '+esc(t.doc.receivedBy)+' · ':''}${fmtD(t.doc.history[t.doc.history.length-1].at)}${t.invoice.status!=='invoiced'?` · <a href="#" onclick="event.preventDefault();T.undoReceived('${o.id}','${t.id}')">undo</a>`:''}</div>`):'<span class="tiny">fill the report first</span>'}</td>
       <td class="doc-act">${t.report?`<button class="ic-btn" title="Correct the offload report or replace the photo" onclick="T.openReport('${o.id}','${t.id}')">✎</button>`:fgReports()?`<span class="chip amber" title="FleetGuard fills it — it appears here when sent">waiting for FleetGuard</span>`:`<button class="btn sm primary ops" onclick="T.openReport('${o.id}','${t.id}')">Fill report</button>`}</td></tr>`).join('');
 }
 function openDocs(bucket,oid){
@@ -1963,7 +1977,7 @@ function openDocs(bucket,oid){
     ${ni?`<details class="tl" style="margin-top:18px"><summary>Already invoiced · ${ni} truck${ni===1?'':'s'} (kept here for reference)</summary><div class="tl-body" style="gap:14px">
       ${gi.map(({o,trips})=>`<div><div class="row" style="gap:8px;margin-bottom:6px"><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><b class="mono">${esc(o.clientOrderNo)}</b><span class="tiny">${esc(o.product)}</span></div>
       <div class="tbl"><table><thead><tr><th>Truck</th><th>Offloaded</th><th>AA No</th><th>Litres / short</th><th>Depot invoice</th><th>Original</th><th>Invoiced</th></tr></thead><tbody>
-      ${trips.map(t=>`<tr><td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver)}</div></td><td>${t.report.offloadDate}</td><td class="mono">${esc(t.report.aaNo)}</td><td>${fmt(t.report.offloadedL)} L<div class="tiny">short ${fmt(shortOf(t.report))} L · ${tempsOf(t.report)}</div></td><td class="mono" style="font-size:11.5px">${esc(t.report.depotInvoiceRef)}</td><td><span class="chip green">received</span></td><td><span class="chip green">${esc(t.invoice.month||'')}</span><div class="tiny">${esc(t.invoice.ref||'')}</div></td></tr>`).join('')}
+      ${trips.map(t=>`<tr><td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver)}</div></td><td>${fmtD(t.report.offloadDate)}</td><td class="mono">${esc(t.report.aaNo)}</td><td>${fmt(t.report.offloadedL)} L<div class="tiny">short ${fmt(shortOf(t.report))} L · ${tempsOf(t.report)}</div></td><td class="mono" style="font-size:11.5px">${esc(t.report.depotInvoiceRef)}</td><td><span class="chip green">received</span></td><td><span class="chip green">${esc(t.invoice.month||'')}</span><div class="tiny">${esc(t.invoice.ref||'')}</div></td></tr>`).join('')}
       </tbody></table></div></div>`).join('')}
     </div></details>`:''}
   </div>
@@ -2088,7 +2102,7 @@ function invMonthOf(t){return t.invoice.status==='invoiced'?(t.invoice.month||''
 function invState(t){return t.invoice.status==='invoiced'?'invoiced':invoiceable(t)?'ready':'blocked'}
 function invRows(o,trips,m){
   const fin=S.role==='Finance';
-  return trips.map(t=>`<tr><td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver||'')}</div>${nextChip(o,t)}${t.releasedFrom?`<span class="chip gray" title="Started after ${esc(t.releasedFrom.orderNo)}">after ${esc(t.releasedFrom.orderNo)}</span>`:''}</td><td class="mono">${t.report?esc(t.report.aaNo):'—'}</td><td>${t.report?t.report.offloadDate:'—'}</td><td>${t.report?fmt(t.report.offloadedL)+' L':'—'}</td><td>${!t.report?'<span class="chip red">no report</span>':t.doc.step===DOC_RECV?'<span class="chip green">Received</span>':`<span class="chip amber">${DOC_STEPS[t.doc.step]}</span> <span class="stuck">${stuckDays(t)}d</span>`}</td><td>${t.invoice.status==='invoiced'?`<span class="chip green">Invoiced</span><div class="tiny">${esc(t.invoice.ref||'')} · ${ymd(t.invoice.at)}</div>`:invoiceable(t)?'<span class="chip blue">Ready</span>':'<span class="chip gray">Blocked</span>'}</td><td style="text-align:right;white-space:nowrap">${fin&&t.invoice.status==='pending'&&invoiceable(t)?`<button class="btn sm primary" onclick="T.invoiceOne('${o.id}','${t.id}','${m}')">Mark invoiced</button>`:''}${fin&&t.invoice.status==='invoiced'?`<button class="btn sm" onclick="T.uninvoice('${o.id}','${t.id}')">Undo</button>`:''}${!fin&&t.invoice.status==='pending'&&!invoiceable(t)?`<button class="btn sm" onclick="T.focusTrip('${o.id}','${t.id}')">Chase document →</button>`:''}</td></tr>`).join('');
+  return trips.map(t=>`<tr><td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver||'')}</div>${nextChip(o,t)}${t.releasedFrom?`<span class="chip gray" title="Started after ${esc(t.releasedFrom.orderNo)}">after ${esc(t.releasedFrom.orderNo)}</span>`:''}</td><td class="mono">${t.report?esc(t.report.aaNo):'—'}</td><td>${t.report?fmtD(t.report.offloadDate):'—'}</td><td>${t.report?fmt(t.report.offloadedL)+' L':'—'}</td><td>${!t.report?'<span class="chip red">no report</span>':t.doc.step===DOC_RECV?'<span class="chip green">Received</span>':`<span class="chip amber">${DOC_STEPS[t.doc.step]}</span> <span class="stuck">${stuckDays(t)}d</span>`}</td><td>${t.invoice.status==='invoiced'?`<span class="chip green">Invoiced</span><div class="tiny">${esc(t.invoice.ref||'')} · ${fmtD(t.invoice.at)}</div>`:invoiceable(t)?'<span class="chip blue">Ready</span>':'<span class="chip gray">Blocked</span>'}</td><td style="text-align:right;white-space:nowrap">${fin&&t.invoice.status==='pending'&&invoiceable(t)?`<button class="btn sm primary" onclick="T.invoiceOne('${o.id}','${t.id}','${m}')">Mark invoiced</button>`:''}${fin&&t.invoice.status==='invoiced'?`<button class="btn sm" onclick="T.uninvoice('${o.id}','${t.id}')">Undo</button>`:''}${!fin&&t.invoice.status==='pending'&&!invoiceable(t)?`<button class="btn sm" onclick="T.focusTrip('${o.id}','${t.id}')">Chase document →</button>`:''}</td></tr>`).join('');
 }
 function renderInvoice(){
   const all=S.orders.filter(o=>matchQ(o,'invoice')).flatMap(o=>o.trips.filter(t=>t.status==='Offloaded'&&tripInRange(t)).map(t=>({o,t})));
@@ -2283,7 +2297,7 @@ function exitDemo(){DEMO=false;try{sessionStorage.removeItem('fg_demo')}catch(e)
 
 window.T={
   go,focus,focusTrip,closeModal,
-  setRole,openFleetGuard,
+  setRole,openFleetGuard,fmtD,setDateFmt,
   setF:(k,v)=>{S.ui[k]=v;render()},clearF:()=>{S.ui.view='active';S.ui.fClient='all';S.ui.fStatus='all';render()},openOrder,openNewOrder,createOrder,deleteOrder,
   nomOrder:id=>{S.ui.nomOrder=id;render()},setCap,exportXlsx,downloadXlsx,signInBox,fbSignIn,openCompliance,setCompliant,saveCompliance,openDrawer,closeDrawer,addCompliant,newClient,setContract,openNom,closeNom,closeSub,setQ,setRange:m=>{S.ui.range.mode=m;render()},setRangeDates:(f,t)=>{if(f!==null)S.ui.range.from=f;if(t!==null)S.ui.range.to=t;render()},toggleAllFleet:()=>{S.ui.showAllFleet=!S.ui.showAllFleet;render()},toggleNominee,removeNominee,sendNomination,reopenNomination,answer,approveNomination,showTemplate,copyTpl,csvTpl,
   assignOrder:id=>{S.ui.assignOrder=id;render()},assign,openAssign,setTripStatus,confirmLoaded,fromAssign,toggleTrip,openAmend,amendPick,amendCancel,amendSend,amendAnswer,amendXlsx,setAView:v=>{S.ui.aView=v;render()},
