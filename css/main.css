@@ -3985,3 +3985,12 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
 .bi-remove { width: 24px; height: 24px; padding: 0; border-radius: 6px; border: 1px solid rgba(240, 76, 90, 0.35); background: rgba(240, 76, 90, 0.12);
     color: var(--red); font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer; }
 .bi-remove:hover, .bi-remove:focus-visible { background: rgba(240, 76, 90, 0.28); border-color: var(--red); outline: none; }
+
+/* Oct 2026: dropdown sections (Mechanical Issues, Maintenance History) — shut until clicked */
+.fg-dd .fg-dd-head { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fg-dd .fg-dd-head:hover, .fg-dd .fg-dd-head:focus-visible { color: var(--text); outline: none; }
+.fg-dd .fg-dd-caret { display: inline-block; font-size: 10px; transition: transform .15s; color: var(--text3); }
+.fg-dd.open .fg-dd-caret { transform: rotate(90deg); }
+.fg-dd .fg-dd-count { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--bg4); color: var(--text2); letter-spacing: 0; }
+.fg-dd:not(.open) .fg-dd-body { display: none; }
+.fg-dd.open .fg-dd-body { margin-top: 8px; }

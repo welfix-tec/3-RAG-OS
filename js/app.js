@@ -5790,15 +5790,15 @@ function _afterLoad() {
                         <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation();App.deleteTrailerAttachment(${idx},'${escAttr(f.id)}')">&#128465;</button>
                     </div>`).join('') || '<p style="color:var(--text3)">No attachments uploaded.</p>'}
                 </div>
-                <div class="section">
-                    <div class="section-title">Mechanical Issues <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="App.addTrailerIssue(${idx});event.stopPropagation()">+ Add</button></div>
-                    ${(t.issues || []).map((iss, i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+                <div class="section fg-dd" onmouseleave="App.closeFgDropdown(this)">
+                    <div class="section-title fg-dd-head" role="button" tabindex="0" aria-expanded="false" onclick="App.toggleFgDropdown(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.toggleFgDropdown(this)}"><span class="fg-dd-caret">▸</span> Mechanical Issues <span class="fg-dd-count">${(t.issues || []).length}</span> <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="App.addTrailerIssue(${idx});event.stopPropagation()">+ Add</button></div>
+                    <div class="fg-dd-body">${(t.issues || []).map((iss, i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
                         <span style="color:${severityColor(iss.severity)}">●</span>
                         <span style="flex:1">${esc(iss.description)}</span>
                         <span class="vtag vtag-${normSeverity(iss.severity)}" style="font-size:9px">${normSeverity(iss.severity)}</span>
                         <small style="color:var(--text3)">${esc(fmtD(iss.date) || '')}</small>
                         <span style="cursor:pointer;color:var(--text3)" title="Mark resolved / remove" onclick="App.removeTrailerIssue(${idx},${i});event.stopPropagation()">✕</span>
-                    </div>`).join('') || '<p style="color:var(--text3)">No issues logged</p>'}
+                    </div>`).join('') || '<p style="color:var(--text3)">No issues logged</p>'}</div>
                 </div>
                 <div class="section">
                     <div class="section-title">Fleet Status</div>
@@ -5918,6 +5918,17 @@ function _afterLoad() {
                 saveAll(cols);
                 console.log(`[Fleet] brand on ${truckChanges.length} truck(s), capacity on ${trailerChanges.length} trailer(s); not found: ${[...missT, ...missR].join(', ') || 'none'}`);
                 if (truckChanges.length || trailerChanges.length) showToast(`Fleet list applied — brand on ${truckChanges.length} truck(s), capacity on ${trailerChanges.length} trailer(s)`, 5000);
+            }
+            // Oct 2026: dropdown sections in the truck / trailer windows — shut until clicked, shut again when the pointer leaves.
+            function toggleFgDropdown(head) {
+                const sec = head && head.closest('.fg-dd'); if (!sec) return;
+                const open = !sec.classList.contains('open');
+                sec.classList.toggle('open', open); head.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+            function closeFgDropdown(sec) {
+                if (!sec || !sec.classList.contains('open')) return;
+                sec.classList.remove('open');
+                const h = sec.querySelector('.fg-dd-head'); if (h) h.setAttribute('aria-expanded', 'false');
             }
             function addTrailerForm() {
                 openModal(`
@@ -6323,15 +6334,15 @@ function _afterLoad() {
                         <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation(); App.deleteTruckAttachment(${idx}, '${escAttr(f.id)}')">&#128465;</button>
                     </div>`).join('') || '<p style="color:var(--text3)">No attachments uploaded.</p>'}
                 </div>
-                <div class="section">
-                    <div class="section-title">Mechanical Issues <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="App.addIssue(${idx});event.stopPropagation()">+ Add</button></div>
-                    ${(t.issues || []).map((iss, i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+                <div class="section fg-dd" onmouseleave="App.closeFgDropdown(this)">
+                    <div class="section-title fg-dd-head" role="button" tabindex="0" aria-expanded="false" onclick="App.toggleFgDropdown(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.toggleFgDropdown(this)}"><span class="fg-dd-caret">▸</span> Mechanical Issues <span class="fg-dd-count">${(t.issues || []).length}</span> <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="App.addIssue(${idx});event.stopPropagation()">+ Add</button></div>
+                    <div class="fg-dd-body">${(t.issues || []).map((iss, i) => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
                         <span style="color:${severityColor(iss.severity)}">●</span>
                         <span style="flex:1">${esc(iss.description)}</span>
                         <span class="vtag vtag-${normSeverity(iss.severity)}" style="font-size:9px">${normSeverity(iss.severity)}</span>
                         <small style="color:var(--text3)">${esc(fmtD(iss.date) || '')}</small>
                         <span style="cursor:pointer;color:var(--text3)" title="Mark resolved / remove" onclick="App.removeIssue(${idx},${i});event.stopPropagation()">✕</span>
-                    </div>`).join('') || '<p style="color:var(--text3)">No issues</p>'}
+                    </div>`).join('') || '<p style="color:var(--text3)">No issues</p>'}</div>
                 </div>
                 ${!services.length && !maint.length ? `<div class="section">
                     <div class="section-title">Service &amp; Maintenance</div>
@@ -6349,14 +6360,14 @@ function _afterLoad() {
                         </div>`).join('')}
                     </div>` : '<p style="color:var(--text3);font-size:12px">No service records yet. Released job cards and maintenance entries will appear here.</p>'}
                 </div>
-                <div class="section">
-                    <div class="section-title">Maintenance History <small style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(truck log + released job cards)</small></div>
-                    ${maint.length ? maint.map(e => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
+                <div class="section fg-dd" onmouseleave="App.closeFgDropdown(this)">
+                    <div class="section-title fg-dd-head" role="button" tabindex="0" aria-expanded="false" onclick="App.toggleFgDropdown(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();App.toggleFgDropdown(this)}"><span class="fg-dd-caret">▸</span> Maintenance History <span class="fg-dd-count">${maint.length}</span> <small style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(truck log + released job cards)</small></div>
+                    <div class="fg-dd-body">${maint.length ? maint.map(e => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
                         <span style="color:var(--text3);min-width:82px">${esc(formatDisplayDate(String(e.date || '').slice(0, 10)) || '—')}</span>
                         <span style="flex:1">🔧 ${esc(e.service || 'Service')}${e.mechanic ? ` <small style="color:var(--text3)">· ${esc(e.mechanic)}</small>` : ''}</span>
                         ${e.jobCardId ? `<a href="#" style="color:var(--amber);text-decoration:none;font-size:11px" onclick="event.preventDefault();App.closeModal();App.showPage('jobcards');setTimeout(()=>App.openJobCardModal('${escAttr(e.jobCardId)}'),80)">${esc(e.jobCardId)}</a>` : '<span class="vtag" style="font-size:9px;color:var(--text3)">log</span>'}
                         <span style="color:var(--text2);min-width:90px;text-align:right">${fmtCost(e.cost)}</span>
-                    </div>`).join('') : '<p style="color:var(--text3);font-size:12px">No maintenance recorded for this truck.</p>'}
+                    </div>`).join('') : '<p style="color:var(--text3);font-size:12px">No maintenance recorded for this truck.</p>'}</div>
                 </div>`}
                 <div class="section">
                     <div class="section-title">Fleet Status</div>
@@ -12654,6 +12665,9 @@ function _afterLoad() {
                 if (sameDt) { if (document.activeElement !== sameDt) sameDt.value = st.sameExpiryDate || ''; sameDt.disabled = !!st.running; }
                 if (!st.rows.length) { host.innerHTML = ''; return; }
                 const targetOpts = importTargetOptionsHtml();
+                // Oct 2026: redrawing the table must not jump back to the first file — keep where the user was.
+                const oldWrap = host.querySelector('.bulk-import-table-wrap'), mBody = host.closest('.modal-body');
+                const keepTop = oldWrap ? oldWrap.scrollTop : 0, keepBody = mBody ? mBody.scrollTop : 0;
                 const statusCell = r => {
                     if (r.status === 'done') return `<span style="color:var(--green)">✓ Uploaded</span>`;
                     if (r.status === 'uploading') return `<span style="color:var(--accent)">Uploading…</span>`;
@@ -12679,6 +12693,9 @@ function _afterLoad() {
                             <td class="bi-x-col">${st.running || r.status === 'uploading' ? '' : `<button type="button" class="bi-remove" onclick="App.removeBulkAttachmentRow(${i})" title="Remove ${escAttr(r.file.name)} from the list" aria-label="Remove ${escAttr(r.file.name)} from the list">✕</button>`}</td>
                         </tr>`;
                     }).join('')}</tbody></table></div>`;
+                const newWrap = host.querySelector('.bulk-import-table-wrap');
+                if (newWrap && keepTop) newWrap.scrollTop = keepTop;
+                if (mBody && keepBody) mBody.scrollTop = keepBody;
                 host.querySelectorAll('select[data-field="target"]').forEach(sel => { sel.value = st.rows[+sel.dataset.bi].target || ''; });
                 host.querySelectorAll('[data-bi]').forEach(el => {
                     el.addEventListener('change', () => setBulkAttachmentRow(+el.dataset.bi, el.dataset.field, el.value));
@@ -18008,7 +18025,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport,
                 exportDriverData, exportTruckData,
                 exportAllData, importAllData, resetAllData,
-                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleSettingsLock, restoreFromBackup,
+                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, toggleSettingsLock, restoreFromBackup,
                 handleDriverFileUpload, handleTruckFileUpload, deleteAttachment, previewAttachment, downloadAttachment,
                 renderReports, refreshReportsOnDataChange, switchReportCategory, toggleReportCard, onReportCheckChange, toggleAllReports, generateReport, printReport, downloadReport, quickReport,
                 setReportPeriodPreset, populateJcReportServiceFilter,
