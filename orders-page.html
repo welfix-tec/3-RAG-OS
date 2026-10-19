@@ -298,6 +298,7 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 .nom-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px}
 .nom-left,.nom-right{display:flex;flex-direction:column;min-height:0}
 .nom-fleet{flex:1;min-height:120px;overflow-y:auto;scrollbar-gutter:stable}
+.nom-left,.nom-right{min-width:0}.nom-fleet{overflow-x:auto}.nom-q input{min-width:0}   /* Oct 2026: a wide truck table scrolls inside its box on a phone, not the whole window */
 .nom-fleet thead th,.nom-list thead th{position:sticky;top:0;z-index:1;background:var(--bg2)}
 .nom-scroll{flex:1;min-height:0;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .nom-actions{flex:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px}
@@ -380,6 +381,14 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 .st-x:hover{background:rgba(220,38,38,.1);color:var(--red)}
 .ic-btn{width:28px;height:28px;margin-left:6px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);font-size:14px;line-height:1;padding:0;cursor:pointer;vertical-align:middle}
 .ic-btn:hover{border-color:var(--accent);color:var(--accent)}
+.nom-q-btn{display:inline-flex;align-items:center;justify-content:center;margin:0 6px 0 0;vertical-align:middle}
+.nom-q-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.nom-q-btn.on{border-color:var(--accent,#c8102e);color:var(--accent,#c8102e)}
+.nom-q{display:flex;gap:6px;align-items:center;margin-top:8px}
+.nom-q input{flex:1;padding:7px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px}
+.nom-q input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+.nom-q-x{width:28px;height:28px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer}
+.nom-q-info{margin-top:4px;min-height:14px}
 .muted .ic-btn{width:22px;height:22px;font-size:12px;margin:0 2px 0 4px}
 .to-load{color:var(--text)}
 .tr-sel{display:flex;align-items:center;justify-content:flex-end;flex-wrap:nowrap}
@@ -1282,10 +1291,32 @@ function renderNomination(){
   const grp=(t,l)=>l.length?`<div class="section"><h4>${t} · ${l.length}</h4><div class="grid g3">${l.map(card).join('')}</div></div>`:'';
   host.innerHTML=cands.length?grp('Waiting for nomination',cands.filter(o=>o.stage==='received'))+grp('Sent — awaiting client',cands.filter(o=>o.stage==='nominated'))+grp('Approved — ready to assign',cands.filter(o=>o.stage==='approved')):`<div class="empty">Nothing here for this period.</div>`;
 }
+/* Oct 2026: truck search in the nomination window — by driver name or plate (truck or trailer). Kept per order
+   while the window is open, so a live-data redraw keeps the text, the open box and the cursor. */
+let NOMQ={oid:null,q:'',open:false,focus:false};
+const nomKey=v=>String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function nomHit(f,q){q=String(q||'').trim();if(!q)return true;const k=nomKey(q),low=q.toLowerCase();
+  return (!!k&&(nomKey(f.plate).includes(k)||nomKey(f.trailer).includes(k)))||String(f.driver||'').toLowerCase().includes(low)}
+function nomSearchApply(){
+  const box=document.querySelector('.nom-fleet');if(!box)return;
+  const rows=[...box.querySelectorAll('tbody tr[data-plate]')];let n=0;
+  rows.forEach(r=>{const hit=nomHit({plate:r.dataset.plate,trailer:r.dataset.trailer,driver:r.dataset.driver},NOMQ.q);r.style.display=hit?'':'none';if(hit)n++});
+  const info=document.getElementById('nomQInfo');if(!info)return;
+  const q=NOMQ.q.trim();
+  if(!q){info.textContent='';return}
+  const o=byId(NOMQ.oid),others=o&&!S.ui.showAllFleet?fleet().filter(f=>!isCompliant(o.client,f.plate)&&nomHit(f,q)).length:0;
+  info.innerHTML=n?`${n} of ${rows.length} trucks match`:`No truck here matches “${esc(q)}”`+(others?` · <a href="#" onclick="event.preventDefault();T.toggleAllFleet()">${others} in other trucks — show them</a>`:'');
+}
+function nomSearch(){
+  NOMQ.open=!NOMQ.open;if(!NOMQ.open){NOMQ.q='';NOMQ.focus=false}else NOMQ.focus=true;
+  if(S.ui.nomModal)openNom(S.ui.nomModal);
+}
+function nomSearchInput(v){if(isAutofilledEmail(v)){v='';const i=document.getElementById('nomQ');if(i)i.value=''}NOMQ.q=v;NOMQ.focus=true;nomSearchApply()}
 function openNom(oid){
   const o=byId(oid);
   if(!o||!NOM_STAGES.includes(o.stage)){S.ui.nomModal=null;closeModal();return}
   S.ui.nomModal=oid;
+  if(NOMQ.oid!==oid)NOMQ={oid,q:'',open:false,focus:false};
   const FL=fleet();
   const busy=busyPlates();
   const inList=new Set(o.nominees.map(n=>n.plate));
@@ -1305,7 +1336,8 @@ function openNom(oid){
     <div class="card nom-left">
       <div class="row between"><h3>${esc(o.client)} compliant fleet</h3>${liveBadge()}</div>
       <div class="row between" style="margin-top:6px"><span class="muted">${free.length} available of ${FLc.length} approved by ${esc(o.client)}${C.contractRef?` · contract ${esc(C.contractRef)}`:''}</span>
-        <span class="row"><button class="btn sm" onclick="T.toggleAllFleet()">${showAll?'Only compliant':'＋ Other trucks'}</button></span></div>
+        <span class="row"><button class="ic-btn nom-q-btn ${NOMQ.open?'on':''}" onclick="T.nomSearch()" title="Search by driver name or plate" aria-label="Search trucks by driver name or plate" aria-expanded="${NOMQ.open?'true':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button class="btn sm" onclick="T.toggleAllFleet()">${showAll?'Only compliant':'＋ Other trucks'}</button></span></div>
+      ${NOMQ.open?`<form class="nom-q" onsubmit="return false" autocomplete="off"><input type="search" id="nomQ" name="nomq-${Date.now()}" value="${esc(NOMQ.q)}" placeholder="Search driver name or plate…" autocomplete="off" data-lpignore="true" data-1p-ignore="true" oninput="T.nomSearchInput(this.value)" onblur="T.nomSearchBlur()" onkeydown="if(event.key==='Escape'){event.preventDefault();event.stopPropagation();T.nomSearch()}"><button type="button" class="nom-q-x" title="Close search" aria-label="Close search" onclick="T.nomSearch()">✕</button></form><div class="tiny nom-q-info" id="nomQInfo"></div>`:''}
       ${FLc.length===0&&!showAll?`<div class="alert warn" style="margin-top:10px">${esc(o.client)} has no compliant trucks yet — add them under <b>Compliant fleet</b>, or press <b>＋ Other trucks</b>.</div>`:''}
       ${liveHint()}
       <hr class="div" style="margin:14px 0">
@@ -1317,7 +1349,7 @@ function openNom(oid){
         const rj=(o.rejected||[]).some(x=>samePlate(x,f.plate));
         const iss=fleetIssues(f,o.product);
         const blocked=rj||hardBlock(iss);
-        return `<tr class="${inList.has(f.plate)?'sel':''} ${anchor?'busyrow':''}">
+        return `<tr class="${inList.has(f.plate)?'sel':''} ${anchor?'busyrow':''}" data-plate="${esc(f.plate)}" data-trailer="${esc(f.trailer||'')}" data-driver="${esc(f.driver||'')}">
         <td><input type="checkbox" style="width:16px;height:16px" ${inList.has(f.plate)?'checked':''} ${locked||blocked?'disabled':''} onchange="T.toggleNominee('${o.id}','${esc(f.plate)}',this.checked)" title="${blocked?esc(iss.join(', ')):anchor?'Busy on '+esc(anchor.orderNo)+' — ticking it queues this truck for this order':''}"></td>
         <td class="mono">${attnIcon(f,o)}<b>${esc(f.plate)}</b>${expBadge(f)}<div class="tiny">${esc(f.trailer||'no trailer')}${f.status?' · '+esc(f.status):''}</div>${nc?`<span class="chip amber" style="margin-top:4px" title="Not on ${esc(o.client)}'s compliant list — can still be nominated">not on ${esc(o.client)} list</span>`:''}${rj?`<span class="chip red" style="margin-top:4px" title="Rejected by ${esc(o.client)} for this order — can still be nominated on another order">rejected · this order</span>`:''}</td>
         <td>${f.driver?esc(f.driver):'<span class="chip red">no driver</span>'}${f.driver?`<div class="tiny">${esc(f.licence||'no licence')} · ${esc(f.passport||'no passport')}</div>`:''}</td>
@@ -1355,8 +1387,9 @@ function openNom(oid){
     </div>
   </div></div>
   <div class="modal-f"><button class="btn" onclick="T.closeNom()">Close</button><button class="btn" onclick="T.closeNom();T.openOrder('${o.id}')">Order details</button></div>`,true,true);
+  if(NOMQ.open){nomSearchApply();const i=document.getElementById('nomQ');if(i&&NOMQ.focus){i.focus();const L=i.value.length;try{i.setSelectionRange(L,L)}catch(e){}}}
 }
-function closeNom(){S.ui.nomModal=null;closeModal();render()}
+function closeNom(){S.ui.nomModal=null;NOMQ={oid:null,q:'',open:false,focus:false};closeModal();render()}
 function closeSub(){closeModal();render()}
 /* a capacity typed on the nomination list: kept per truck AND product; an empty box goes back to the trailer's figure */
 function setCap(plate,product,v){if(!PRODUCTS.includes(product))return;const n=parseInt(v,10)||0;const k=plateKey(plate);S.capOverride=S.capOverride||{};S.capOverride[k]=S.capOverride[k]||{};if(n>0)S.capOverride[k][product]=n;else delete S.capOverride[k][product];const f=liveTruck(plate);const cap=f?capFor(f,product):n;S.orders.forEach(o=>{if(o.product===product&&['received','nominated'].includes(o.stage))o.nominees.forEach(x=>{if(samePlate(x.plate,plate))x.capacityL=cap})});render()}
@@ -2299,7 +2332,7 @@ window.T={
   go,focus,focusTrip,closeModal,
   setRole,openFleetGuard,fmtD,setDateFmt,
   setF:(k,v)=>{S.ui[k]=v;render()},clearF:()=>{S.ui.view='active';S.ui.fClient='all';S.ui.fStatus='all';render()},openOrder,openNewOrder,createOrder,deleteOrder,
-  nomOrder:id=>{S.ui.nomOrder=id;render()},setCap,exportXlsx,downloadXlsx,signInBox,fbSignIn,openCompliance,setCompliant,saveCompliance,openDrawer,closeDrawer,addCompliant,newClient,setContract,openNom,closeNom,closeSub,setQ,setRange:m=>{S.ui.range.mode=m;render()},setRangeDates:(f,t)=>{if(f!==null)S.ui.range.from=f;if(t!==null)S.ui.range.to=t;render()},toggleAllFleet:()=>{S.ui.showAllFleet=!S.ui.showAllFleet;render()},toggleNominee,removeNominee,sendNomination,reopenNomination,answer,approveNomination,showTemplate,copyTpl,csvTpl,
+  nomOrder:id=>{S.ui.nomOrder=id;render()},setCap,exportXlsx,downloadXlsx,signInBox,fbSignIn,openCompliance,setCompliant,saveCompliance,openDrawer,closeDrawer,addCompliant,newClient,setContract,openNom,closeNom,closeSub,setQ,setRange:m=>{S.ui.range.mode=m;render()},setRangeDates:(f,t)=>{if(f!==null)S.ui.range.from=f;if(t!==null)S.ui.range.to=t;render()},toggleAllFleet:()=>{S.ui.showAllFleet=!S.ui.showAllFleet;render()},nomSearch,nomSearchInput,nomSearchBlur:()=>{NOMQ.focus=false},toggleNominee,removeNominee,sendNomination,reopenNomination,answer,approveNomination,showTemplate,copyTpl,csvTpl,
   assignOrder:id=>{S.ui.assignOrder=id;render()},assign,openAssign,setTripStatus,confirmLoaded,fromAssign,toggleTrip,openAmend,amendPick,amendCancel,amendSend,amendAnswer,amendXlsx,setAView:v=>{S.ui.aView=v;render()},
   setDoc,undoReceived,openDocs,closeDocs,docTab:t=>{S.ui.docTab=t;render()},openReport,calcLoss,saveReport,
   shortAuto,removeClient,gateSignIn,gateEye,signOutOrders,enterDemo,exitDemo,shareLocalOrders,dropLocalOrders,dismiss,editLoadVol,timelinePdf,toggleNotif,notifGo,openOrderEdit,saveOrderEdit,approveAll,openAddTrip,addTrip,openPlace,savePlace,undoStatus,openAttn,sendAttn,receiveSel,receivePick,receiveOne:(o,t,v)=>v===undefined?receiveOne(o,t):receiveOneSave(o,t,v),
