@@ -702,8 +702,8 @@
                     <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center">
                         <button class="btn btn-ghost" onclick="App.closeModal()">Close</button>
                         <div style="display:flex;gap:8px">
-                            <button class="btn btn-ghost btn-danger-outline" onclick="App.closeModal();App.permanentDeleteFromBin('${escAttr(item.id)}')">🗑 Permanent Delete</button>
-                            <button class="btn btn-primary" onclick="App.closeModal();App.restoreFromRecycleBin('${escAttr(item.id)}')">↩ Restore Item</button>
+                            <button class="btn btn-ghost btn-danger-outline" onclick="App.closeModal();App.permanentDeleteFromBin('${escJs(item.id)}')">🗑 Permanent Delete</button>
+                            <button class="btn btn-primary" onclick="App.closeModal();App.restoreFromRecycleBin('${escJs(item.id)}')">↩ Restore Item</button>
                         </div>
                     </div>
                 `);
@@ -1142,11 +1142,11 @@
                     <thead><tr><th>User</th><th style="text-align:center">FleetGuard</th><th style="text-align:center">Orders</th><th>Job-card role</th><th style="text-align:center">Active</th><th></th></tr></thead>
                     <tbody>${rows.map(u => { const p = userPages(u), self = u.uid === me, on = u.active !== false; return `<tr style="${on ? '' : 'opacity:.55'}">
                         <td><b>${esc(u.email || '(no email)')}</b>${self ? ' <span style="font-size:10.5px;color:var(--text3)">(you)</span>' : ''}${u.name ? `<div style="font-size:11px;color:var(--text3)">${esc(u.name)}</div>` : ''}</td>
-                        <td style="text-align:center"><input type="checkbox" ${p.fleetguard ? 'checked' : ''} ${self ? 'disabled title="You cannot remove your own FleetGuard access"' : u.role === 'Admin' ? 'disabled title="Admins always have FleetGuard — change the role first"' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','fleetguard',this.checked)"></td>
-                        <td style="text-align:center"><input type="checkbox" ${p.orders ? 'checked' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','orders',this.checked)"></td>
-                        <td><select style="padding:4px 26px 4px 8px;font-size:12px;min-width:118px" onchange="App.setUserRole('${escAttr(u.uid)}',this.value)">${USER_ROLES.map(r => `<option ${(u.role || 'Driver') === r ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
-                        <td style="text-align:center"><input type="checkbox" ${on ? 'checked' : ''} ${self ? 'disabled title="You cannot turn off your own account"' : ''} onchange="App.setUserActive('${escAttr(u.uid)}',this.checked)"></td>
-                        <td style="text-align:right">${u.email ? `<button class="btn btn-ghost btn-xs" onclick="App.sendUserReset('${escAttr(u.uid)}')" title="Send ${escAttr(u.email)} a password-reset email" aria-label="Send a password-reset email">✉</button>` : ''}</td>
+                        <td style="text-align:center"><input type="checkbox" ${p.fleetguard ? 'checked' : ''} ${self ? 'disabled title="You cannot remove your own FleetGuard access"' : u.role === 'Admin' ? 'disabled title="Admins always have FleetGuard — change the role first"' : ''} onchange="App.setUserPage('${escJs(u.uid)}','fleetguard',this.checked)"></td>
+                        <td style="text-align:center"><input type="checkbox" ${p.orders ? 'checked' : ''} onchange="App.setUserPage('${escJs(u.uid)}','orders',this.checked)"></td>
+                        <td><select style="padding:4px 26px 4px 8px;font-size:12px;min-width:118px" onchange="App.setUserRole('${escJs(u.uid)}',this.value)">${USER_ROLES.map(r => `<option ${(u.role || 'Driver') === r ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
+                        <td style="text-align:center"><input type="checkbox" ${on ? 'checked' : ''} ${self ? 'disabled title="You cannot turn off your own account"' : ''} onchange="App.setUserActive('${escJs(u.uid)}',this.checked)"></td>
+                        <td style="text-align:right">${u.email ? `<button class="btn btn-ghost btn-xs" onclick="App.sendUserReset('${escJs(u.uid)}')" title="Send ${escAttr(u.email)} a password-reset email" aria-label="Send a password-reset email">✉</button>` : ''}</td>
                     </tr>`; }).join('') || '<tr><td colspan="6" style="color:var(--text3)">No users yet.</td></tr>'}</tbody>
                 </table></div>`;
             }
@@ -1587,7 +1587,7 @@
                 if (h === 'received') return `<span class="ops-chip" style="color:#15803d;border-color:#15803d55">✓ Received at office</span>`;
                 if (!t.report && !offloadReports[k]) return '<span style="color:var(--text3)">after the report</span>';
                 const since = opsHolderSince(o, t), tx = h === 'inhand' ? 'In hand' : 'At depot', other = h === 'inhand' ? 'At depot' : 'In hand';
-                return `<div class="ops-holds"><span class="ops-hold on">${tx}</span><button class="ops-swap" onclick="App.swapOpsHolder('${escAttr(o.id)}','${escAttr(t.id)}')" title="Change to: ${other}" aria-label="Change to ${other}">⇄</button>${since ? `<span class="ops-age ${opsAgeDays(since) >= 3 ? 'late' : ''}" title="Days since the report was filed">⏱ ${esc(opsAge(since))}</span>` : ''}</div>`;
+                return `<div class="ops-holds"><span class="ops-hold on">${tx}</span><button class="ops-swap" onclick="App.swapOpsHolder('${escJs(o.id)}','${escJs(t.id)}')" title="Change to: ${other}" aria-label="Change to ${other}">⇄</button>${since ? `<span class="ops-age ${opsAgeDays(since) >= 3 ? 'late' : ''}" title="Days since the report was filed">⏱ ${esc(opsAge(since))}</span>` : ''}</div>`;
             }
             const opsArr = v => !v ? [] : Array.isArray(v) ? v.filter(Boolean) : Object.values(v).filter(Boolean);
             const opsFmt = n => Number(n || 0).toLocaleString('en-US');
@@ -1627,7 +1627,7 @@
                         <div><b class="ops-plate">${esc(x.t.plate)}</b> <span style="color:var(--text3);font-size:12px">${esc(x.t.trailer || '')}</span><div style="font-size:12px;color:var(--text2)">${esc(x.t.driver || '—')}</div></div>
                         <div style="font-size:12px"><b>${esc(x.o.clientOrderNo)}</b> · ${esc(x.o.client)} · ${esc(x.o.product)}</div>
                         <div class="ops-age ${opsAgeDays(x.at) >= 2 ? 'late' : ''}" title="Offloaded ${escAttr(opsDt(x.at))}">⏱ ${esc(opsAge(x.at))}</div>
-                        <div style="text-align:right">${x.sent ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓ — waiting for the Orders page</span>' : `<button class="btn btn-primary btn-sm" onclick="App.openOffloadReportForm('${escAttr(x.o.id)}','${escAttr(x.t.id)}')">Fill report</button>`}</div>
+                        <div style="text-align:right">${x.sent ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓ — waiting for the Orders page</span>' : `<button class="btn btn-primary btn-sm" onclick="App.openOffloadReportForm('${escJs(x.o.id)}','${escJs(x.t.id)}')">Fill report</button>`}</div>
                     </div>`).join('')}</div>
                 </div>` : ''}
                 <div class="toolbar" style="margin-top:14px">
@@ -1666,7 +1666,7 @@
                     const trips = opsArr(o.trips), counts = {};
                     trips.forEach(t => { const k = String(t.status || '').replace(/^Allocated to /, 'Alloc. '); counts[k] = (counts[k] || 0) + 1; });
                     const off = trips.filter(t => t.status === 'Offloaded').length, wait = trips.filter(t => t.status === 'Offloaded' && !t.report).length, vol = opsLoadVol(o);
-                    return `<div class="ops-card ${o.stage === 'invoiced' ? 'done' : ''}" onclick="App.openOpsOrder('${escAttr(o.id)}')">
+                    return `<div class="ops-card ${o.stage === 'invoiced' ? 'done' : ''}" onclick="App.openOpsOrder('${escJs(o.id)}')">
                         <div class="ops-card-h"><span class="ops-client">${esc(o.client)}</span><b class="ops-no">${esc(o.clientOrderNo)}</b>${opsStageChip(o)}</div>
                         <div class="ops-kv"><div><span>Product</span><b>${esc(o.product)}</b></div><div><span>${vol ? 'To load' : 'Volume'}</span><b>${opsFmt(vol || o.volumeL)} L</b></div><div><span>Trucks</span><b>${trips.length || opsArr(o.nominees).length}</b></div></div>
                         <div class="ops-route">${esc(o.depot || '')} → ${esc(o.destination || '')}</div>
@@ -1685,7 +1685,7 @@
                 const row = t => {
                     const k = opsKey(o.id, t.id), sent = !!offloadReports[k], r = t.report;
                     const rep = r ? `<span class="ops-chip" style="color:#15803d;border-color:#15803d55" title="${escAttr((r.aaNo || '') + (r.filledBy ? ' · by ' + r.filledBy : ''))}">✓ ${esc(r.aaNo || 'filed')}</span>${r.depotInvoiceUrl ? ` <a href="${escAttr(r.depotInvoiceUrl)}" target="_blank" rel="noopener" title="Depot invoice photo">📎</a>` : ''}`
-                        : t.status === 'Offloaded' ? (sent ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓</span>' : `<button class="btn btn-primary btn-xs" onclick="App.openOffloadReportForm('${escAttr(o.id)}','${escAttr(t.id)}',true)">Fill report</button>`) : '<span style="color:var(--text3)">—</span>';
+                        : t.status === 'Offloaded' ? (sent ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓</span>' : `<button class="btn btn-primary btn-xs" onclick="App.openOffloadReportForm('${escJs(o.id)}','${escJs(t.id)}',true)">Fill report</button>`) : '<span style="color:var(--text3)">—</span>';
                     return `<tr><td><b class="ops-plate">${esc(t.plate)}</b><div style="font-size:11px;color:var(--text3)">${esc(t.trailer || '')}</div></td><td>${esc(t.driver || '—')}</td><td>${opsFmt(t.capacityL)} L</td><td>${opsTripChip(t)}</td><td>${t.loadedL ? opsFmt(t.loadedL) + ' L' : '—'}</td><td>${r ? opsFmt(r.offloadedL) + ' L<div style="font-size:11px;color:var(--text3)">short ' + opsFmt(opsShort(r)) + ' L</div>' : '—'}</td><td>${opsHolderCell(o, t)}</td><td>${rep}</td></tr>`;
                 };
                 openModal(`
@@ -1736,7 +1736,7 @@
                     <div id="ofr_err" style="display:none;margin-top:10px;font-size:12px;color:var(--red)"></div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
                         <button class="btn btn-ghost btn-sm" onclick="App.closeModal()">Cancel</button>
-                        <button class="btn btn-primary btn-sm" id="ofr_send" onclick="App.submitOffloadReport('${escAttr(oid)}','${escAttr(tid)}')">Send report to the Orders page</button>
+                        <button class="btn btn-primary btn-sm" id="ofr_send" onclick="App.submitOffloadReport('${escJs(oid)}','${escJs(tid)}')">Send report to the Orders page</button>
                     </div>
                 </div>`;
                 if (fromOrder) pushModal(html); else openModal(html);
@@ -1786,7 +1786,7 @@
                         const res = await uploadToGoogleDrive({ base64: dataUrlToBase64(dataUrl), fileName: `${sanitizeFileName(o.clientOrderNo)}_${sanitizeFileName(t.plate)}_${sanitizeFileName(aa)}.${ext}`, mimeType: file.type || 'image/jpeg', folder: 'fleetguard/offload-reports' });
                         fileRec = { name: file.name, url: res.url, id: res.id || null };
                     } catch (e) {
-                        return fail(`The photo could not be uploaded: ${esc(e.message || e)}<br><a href="#" onclick="event.preventDefault();App.submitOffloadReport('${escAttr(oid)}','${escAttr(tid)}',true)">Send the report without the photo</a> (it can be added later on the Orders page as a file name only).`);
+                        return fail(`The photo could not be uploaded: ${esc(e.message || e)}<br><a href="#" onclick="event.preventDefault();App.submitOffloadReport('${escJs(oid)}','${escJs(tid)}',true)">Send the report without the photo</a> (it can be added later on the Orders page as a file name only).`);
                     }
                 }
                 const loadedN = Math.round(loaded), offN = Math.round(off), tr = Math.round(+transit) || 0, shortL = Math.round(+shortV);
@@ -2559,7 +2559,7 @@ function _afterLoad() {
                         return `<div class="log-item">
                             <div class="log-item-top">
                                 <div><span style="color:${actionColor};font-weight:600">${esc(l.action || 'Assignment')}</span> · <strong>${esc(l.driverName)}</strong> <span style="color:var(--text3)">(${esc(l.driverId || '—')})</span> → <strong>${esc(l.truckPlate || 'No truck')}</strong>${l.trailer ? ` <span style="color:var(--text3)">· trailer ${esc(l.trailer)}</span>` : ''}${l.notes ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(l.notes)}</div>` : ''}</div>
-                                <button class="log-item-delete" onclick="App.deleteReassignmentLog(${l.driverIdx}, '${escAttr(l.key)}')" title="Delete log entry">🗑</button>
+                                <button class="log-item-delete" onclick="App.deleteReassignmentLog(${l.driverIdx}, '${escJs(l.key)}')" title="Delete log entry">🗑</button>
                             </div>
                             <div class="log-time">🕒 ${esc(dateStr)}</div>
                         </div>`;
@@ -2792,9 +2792,16 @@ function _afterLoad() {
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
             }
-            // escAttr(): safe for use inside onclick="...('${escAttr(x)}')" string literals.
+            // escAttr(): for ordinary attributes — value="", title="", data-*="", href="".
             function escAttr(text) {
                 return esc(String(text ?? '').replace(/\\/g, '\\\\'));
+            }
+            // escJs(): for a string literal inside an event handler — onclick="App.x('${escJs(v)}')".
+            // The browser decodes &#39; back to ' before it runs the handler, so esc() alone lets a
+            // quote in a plate or name end the string and run code (Phase 0, Oct 2026). Escape for
+            // JavaScript first, then for the attribute.
+            function escJs(text) {
+                return esc(String(text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r\n|[\r\n\u2028\u2029]/g, ' '));
             }
             // Local calendar dates (audit X8). toISOString() gives the UTC day, which is
             // yesterday between 00:00 and 02:00 in Kigali. Use these everywhere instead.
@@ -3276,7 +3283,7 @@ function _afterLoad() {
                         <div class="alert-item" onclick="${a.action}">
                             <span class="alert-icon" style="font-size:12px">${urgencyIcon(a.urgency)}</span>
                             <div class="alert-info"><div class="alert-title">${a.title}</div><div class="alert-desc">${a.desc}</div></div>
-                            <button class="btn btn-ghost btn-xs alert-snooze" title="Hide this alert for 7 days on this device" onclick="event.stopPropagation();App.snoozeDashAlert('${escAttr(a.id)}', 7)">💤 Snooze 7d</button>
+                            <button class="btn btn-ghost btn-xs alert-snooze" title="Hide this alert for 7 days on this device" onclick="event.stopPropagation();App.snoozeDashAlert('${escJs(a.id)}', 7)">💤 Snooze 7d</button>
                         </div>`).join('')}
                     </div>`).join('')}
                 </div>
@@ -3506,7 +3513,7 @@ function _afterLoad() {
                 svg.innerHTML = paths;
                 legend.innerHTML = typeList.map(type => {
                     const val = typeCounts[type];
-                    return `<div style="display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer" onclick="App.scrollToViolationCard('${escAttr(type)}')">
+                    return `<div style="display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer" onclick="App.scrollToViolationCard('${escJs(type)}')">
                     <span style="width:12px;height:12px;border-radius:3px;background:${colorMap[type]}"></span>
                     <span style="font-size:13px"><strong>${esc(type)}</strong>: ${val} (${((val / total) * 100).toFixed(0)}%)</span>
                 </div>`;
@@ -3931,12 +3938,12 @@ function _afterLoad() {
                 const back = opts.back || 'main';
                 const crumbs = ['Driver', ...(opts.crumbs || [title])];
                 return `<div class="modal-header" style="gap:12px">
-                <button type="button" class="modal-back-btn" onclick="App.showDriverView(${idx}, '${esc(back)}')" title="Back">‹ Back</button>
+                <button type="button" class="modal-back-btn" onclick="App.showDriverView(${idx}, '${escJs(back)}')" title="Back">‹ Back</button>
                 <div style="flex:1;min-width:0">
                     <div class="modal-name" style="font-size:16px">${esc(title)}</div>
                     <div class="modal-crumbs"><b>${esc(driverDisplayName(d))}</b> › ${crumbs.map(c => esc(c)).join(' › ')}</div>
                 </div>
-                <div class="modal-close" onclick="App.showDriverView(${idx}, '${esc(back)}')">✕</div>
+                <div class="modal-close" onclick="App.showDriverView(${idx}, '${escJs(back)}')">✕</div>
             </div>`;
             }
             function driverSubFooter(idx, extraButtonsHtml) {
@@ -3978,7 +3985,7 @@ function _afterLoad() {
                 <div class="mform" id="driverItemForm">${fieldsHtml}</div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-ghost btn-sm" onclick="App.showDriverView(${idx}, '${esc(cfg.back || 'main')}')">Cancel</button>
+                <button class="btn btn-ghost btn-sm" onclick="App.showDriverView(${idx}, '${escJs(cfg.back || 'main')}')">Cancel</button>
                 <button class="btn ${cfg.danger ? 'btn-danger' : 'btn-primary'} btn-sm" onclick="App.submitDriverItemForm()">${esc(cfg.saveLabel || 'Save')}</button>
             </div>`);
                 setTimeout(() => {
@@ -4041,7 +4048,7 @@ function _afterLoad() {
                 const validTrainingCount = (d.trainings || []).filter(t => trainingStatus(t).valid).length;
                 const invalidTrainingCount = trainingCount - validTrainingCount;
                 const customHtml = (settings.customFields || []).filter(f => f.target === 'driver').map(f =>
-                    `<div class="info-cell info-cell-clickable" onclick="App.editDriverCustomField(${idx}, '${escAttr(f.name)}')"><div class="il">${esc(f.name)}</div><div class="iv">${esc((d.custom || {})[f.name] || '—')}</div></div>`).join('');
+                    `<div class="info-cell info-cell-clickable" onclick="App.editDriverCustomField(${idx}, '${escJs(f.name)}')"><div class="il">${esc(f.name)}</div><div class="iv">${esc((d.custom || {})[f.name] || '—')}</div></div>`).join('');
                 const dateInputStyle = 'width:100%;background:transparent;border:none;color:var(--text)';
 
                 openModal(`
@@ -4102,16 +4109,16 @@ function _afterLoad() {
                         <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('driverAttachmentInput_${idx}')?.click(); event.stopPropagation()">+ Upload</button>
                     </div>
                     <input id="driverAttachmentInput_${idx}" type="file" accept="image/*,application/pdf,.pdf,video/*,.mp4,.mov,.webm,.m4v" multiple style="display:none" onchange="App.handleDriverFileUpload(${idx}, this.files)">
-                    ${(d.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewAttachment('driver', ${idx}, '${escAttr(f.id)}')">
+                    ${(d.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewAttachment('driver', ${idx}, '${escJs(f.id)}')">
                         ${getAttachmentThumbnailHtml(f)}
                         <div style="flex:1;min-width:0;overflow:hidden;cursor:pointer">
                             <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(String(f.name || 'Attachment'))}</div>
                             <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(fmtD(f.uploadedAt) || '')}</div>
                         </div>
-                        <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation(); App.previewAttachment('driver', ${idx}, '${escAttr(f.id)}')">&#128065;</button>
-                        <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation(); App.downloadAttachment('driver', ${idx}, '${escAttr(f.id)}')">&#8595;</button>
-                        <button class="btn btn-ghost btn-xs" title="Rename" onclick="event.stopPropagation(); App.renameAttachment('driver', ${idx}, '${escAttr(f.id)}')">&#9998;</button>
-                        <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation(); App.deleteAttachment('driver', ${idx}, '${escAttr(f.id)}')">&#128465;</button>
+                        <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation(); App.previewAttachment('driver', ${idx}, '${escJs(f.id)}')">&#128065;</button>
+                        <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation(); App.downloadAttachment('driver', ${idx}, '${escJs(f.id)}')">&#8595;</button>
+                        <button class="btn btn-ghost btn-xs" title="Rename" onclick="event.stopPropagation(); App.renameAttachment('driver', ${idx}, '${escJs(f.id)}')">&#9998;</button>
+                        <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation(); App.deleteAttachment('driver', ${idx}, '${escJs(f.id)}')">&#128465;</button>
                     </div>`).join('') || '<p style="color:var(--text3)">No attachments uploaded.</p>'}
                 </div>
                 ${customHtml ? `<div class="section"><div class="section-title">Custom Fields <button class="btn btn-ghost btn-xs" onclick="App.editDriverCustom(${idx})">Edit</button></div><div class="info-grid">${customHtml}</div></div>` : ''}
@@ -4622,8 +4629,8 @@ function _afterLoad() {
                         <span>${esc(fmtD(st.nextDue))}</span>
                         <span><span class="badge badge-${st.valid ? 'good' : 'critical'}" style="min-width:70px;justify-content:center">${st.valid ? 'Valid' : 'Expired'}</span></span>
                         <div style="display:flex;gap:4px">
-                            <button class="btn btn-xs btn-ghost" title="Edit" onclick="App.editTrainingItem(${idx},'${escAttr(t.id)}')">✎</button>
-                            <button class="btn btn-xs btn-ghost" style="color:var(--red)" title="Remove" onclick="App.removeTrainingItem(${idx},'${escAttr(t.id)}')">✕</button>
+                            <button class="btn btn-xs btn-ghost" title="Edit" onclick="App.editTrainingItem(${idx},'${escJs(t.id)}')">✎</button>
+                            <button class="btn btn-xs btn-ghost" style="color:var(--red)" title="Remove" onclick="App.removeTrainingItem(${idx},'${escJs(t.id)}')">✕</button>
                         </div>
                     </div>`;
                 }).join('');
@@ -4900,11 +4907,11 @@ function _afterLoad() {
                     return `<div class="doc-row">
                         <div class="doc-main">
                             <div class="doc-title">${esc(doc.type || 'Document')}</div>
-                            <div class="doc-meta">${doc.number ? `No. ${esc(doc.number)} · ` : ''}${doc.expiryDate ? `Expires ${esc(fmtD(doc.expiryDate))}` : '<span style="color:var(--amber)">no expiry date recorded</span>'}${file ? ` · <a href="#" style="color:var(--accent)" onclick="event.preventDefault(); App.previewAttachment('driver', ${idx}, '${escAttr(file.id)}')">📎 ${esc(file.name || 'file')}</a>` : (doc.fileId ? ' · <span style="color:var(--text3)">📎 file missing</span>' : '')}</div>
+                            <div class="doc-meta">${doc.number ? `No. ${esc(doc.number)} · ` : ''}${doc.expiryDate ? `Expires ${esc(fmtD(doc.expiryDate))}` : '<span style="color:var(--amber)">no expiry date recorded</span>'}${file ? ` · <a href="#" style="color:var(--accent)" onclick="event.preventDefault(); App.previewAttachment('driver', ${idx}, '${escJs(file.id)}')">📎 ${esc(file.name || 'file')}</a>` : (doc.fileId ? ' · <span style="color:var(--text3)">📎 file missing</span>' : '')}</div>
                         </div>
                         ${docChipHtml(doc)}
-                        <button class="btn btn-ghost btn-xs" title="Edit" onclick="App.openDriverDocForm(${idx}, '${escAttr(key)}', '${esc(back || 'documents')}')">✎</button>
-                        ${doc.builtin ? '' : `<button class="btn btn-ghost btn-xs" style="color:var(--red)" title="Remove" onclick="App.removeDriverDocument(${idx}, '${escAttr(doc.id)}')">✕</button>`}
+                        <button class="btn btn-ghost btn-xs" title="Edit" onclick="App.openDriverDocForm(${idx}, '${escJs(key)}', '${escJs(back || 'documents')}')">✎</button>
+                        ${doc.builtin ? '' : `<button class="btn btn-ghost btn-xs" style="color:var(--red)" title="Remove" onclick="App.removeDriverDocument(${idx}, '${escJs(doc.id)}')">✕</button>`}
                     </div>`;
                 }).join('');
             }
@@ -5491,7 +5498,7 @@ function _afterLoad() {
                     ${(expired + expiring) > 0 ? `<div style="font-size:10px;color:${expired ? 'var(--red)' : 'var(--amber)'};margin-top:4px">⚠ ${expired} expired, ${expiring} expiring</div>` : ''}
                     ${(t.issues || []).length ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">🔧 ${(t.issues || []).length} open issue${(t.issues || []).length > 1 ? 's' : ''}</div>` : ''}
                     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap" onclick="event.stopPropagation()">
-                        <button class="btn btn-ghost btn-xs" onclick="App.startJobCardForTruck('${escAttr(t.plate)}')">🧾 Job Card</button>
+                        <button class="btn btn-ghost btn-xs" onclick="App.startJobCardForTruck('${escJs(t.plate)}')">🧾 Job Card</button>
                         ${truckStatus === 'In Maintenance' ? '<span style="font-size:10px;color:var(--amber);align-self:center">In garage</span>' : ''}
                     </div>
                 </div>`;
@@ -5778,16 +5785,16 @@ function _afterLoad() {
                         <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('trailerAttachInput_${idx}')?.click();event.stopPropagation()">+ Upload</button>
                     </div>
                     <input id="trailerAttachInput_${idx}" type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="App.handleTrailerFileUpload(${idx},this.files)">
-                    ${(t.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewTrailerAttachment(${idx},'${escAttr(f.id)}')">
+                    ${(t.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewTrailerAttachment(${idx},'${escJs(f.id)}')">
                         ${getAttachmentThumbnailHtml(f)}
                         <div style="flex:1;min-width:0;overflow:hidden;cursor:pointer">
                             <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(String(f.name || 'Attachment'))}</div>
                             <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(fmtD(f.uploadedAt) || '')}</div>
                         </div>
-                        <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation();App.previewTrailerAttachment(${idx},'${escAttr(f.id)}')">&#128065;</button>
-                        <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation();App.downloadAttachment('trailer',${idx},'${escAttr(f.id)}')">&#8595;</button>
-                        <button class="btn btn-ghost btn-xs" title="Rename" onclick="event.stopPropagation();App.renameTrailerAttachment(${idx},'${escAttr(f.id)}')">&#9998;</button>
-                        <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation();App.deleteTrailerAttachment(${idx},'${escAttr(f.id)}')">&#128465;</button>
+                        <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation();App.previewTrailerAttachment(${idx},'${escJs(f.id)}')">&#128065;</button>
+                        <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation();App.downloadAttachment('trailer',${idx},'${escJs(f.id)}')">&#8595;</button>
+                        <button class="btn btn-ghost btn-xs" title="Rename" onclick="event.stopPropagation();App.renameTrailerAttachment(${idx},'${escJs(f.id)}')">&#9998;</button>
+                        <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation();App.deleteTrailerAttachment(${idx},'${escJs(f.id)}')">&#128465;</button>
                     </div>`).join('') || '<p style="color:var(--text3)">No attachments uploaded.</p>'}
                 </div>
                 <div class="section fg-dd" onmouseleave="App.closeFgDropdown(this)">
@@ -6298,7 +6305,7 @@ function _afterLoad() {
                             <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Assigned Driver</span>
                             <span style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                                 ${drv ? `<a href="#" style="color:var(--amber);text-decoration:none" onclick="event.preventDefault();App.openDriverModalFromAnyPage(${drv._idx})">👤 ${esc(drv.name)}</a><span style="font-size:11px;color:var(--text3)">${driverIdIsPlate(drv) || !drv.id ? '' : '#' + esc(drv.id) + ' · '}${esc(drv.status || '')}</span>` : '<span style="color:var(--text3)">No driver assigned</span>'}
-                                <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();App.openTruckAssignmentDrawer(${drv ? drv._idx : 'null'}, '${escAttr(t.plate)}')">🔁 ${drv ? 'Reassign' : 'Assign driver'}</button>
+                                <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();App.openTruckAssignmentDrawer(${drv ? drv._idx : 'null'}, '${escJs(t.plate)}')">🔁 ${drv ? 'Reassign' : 'Assign driver'}</button>
                             </span>
                         </div>
                     </div>
@@ -6322,16 +6329,16 @@ function _afterLoad() {
                         <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('truckAttachmentInput_${idx}')?.click(); event.stopPropagation()">+ Upload</button>
                     </div>
                     <input id="truckAttachmentInput_${idx}" type="file" accept="image/*,application/pdf,.pdf" multiple style="display:none" onchange="App.handleTruckFileUpload(${idx}, this.files)">
-                    ${(t.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewAttachment('truck', ${idx}, '${escAttr(f.id)}')">
+                    ${(t.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewAttachment('truck', ${idx}, '${escJs(f.id)}')">
                         ${getAttachmentThumbnailHtml(f)}
                         <div style="flex:1;min-width:0;overflow:hidden;cursor:pointer">
                             <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(String(f.name || 'Attachment'))}</div>
                             <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(getFileTypeLabel(f))} &bull; ${esc(fmtD(f.uploadedAt) || '')}</div>
                         </div>
-                        <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation(); App.previewAttachment('truck', ${idx}, '${escAttr(f.id)}')">&#128065;</button>
-                        <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation(); App.downloadAttachment('truck', ${idx}, '${escAttr(f.id)}')">&#8595;</button>
-                        <button class="btn btn-ghost btn-xs" title="Rename" onclick="event.stopPropagation(); App.renameTruckAttachment(${idx}, '${escAttr(f.id)}')">&#9998;</button>
-                        <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation(); App.deleteTruckAttachment(${idx}, '${escAttr(f.id)}')">&#128465;</button>
+                        <button class="btn btn-ghost btn-xs" title="Preview" onclick="event.stopPropagation(); App.previewAttachment('truck', ${idx}, '${escJs(f.id)}')">&#128065;</button>
+                        <button class="btn btn-ghost btn-xs" title="Download" onclick="event.stopPropagation(); App.downloadAttachment('truck', ${idx}, '${escJs(f.id)}')">&#8595;</button>
+                        <button class="btn btn-ghost btn-xs" title="Rename" onclick="event.stopPropagation(); App.renameTruckAttachment(${idx}, '${escJs(f.id)}')">&#9998;</button>
+                        <button class="btn btn-ghost btn-xs" title="Delete" onclick="event.stopPropagation(); App.deleteTruckAttachment(${idx}, '${escJs(f.id)}')">&#128465;</button>
                     </div>`).join('') || '<p style="color:var(--text3)">No attachments uploaded.</p>'}
                 </div>
                 <div class="section fg-dd" onmouseleave="App.closeFgDropdown(this)">
@@ -6365,7 +6372,7 @@ function _afterLoad() {
                     <div class="fg-dd-body">${maint.length ? maint.map(e => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
                         <span style="color:var(--text3);min-width:82px">${esc(formatDisplayDate(String(e.date || '').slice(0, 10)) || '—')}</span>
                         <span style="flex:1">🔧 ${esc(e.service || 'Service')}${e.mechanic ? ` <small style="color:var(--text3)">· ${esc(e.mechanic)}</small>` : ''}</span>
-                        ${e.jobCardId ? `<a href="#" style="color:var(--amber);text-decoration:none;font-size:11px" onclick="event.preventDefault();App.closeModal();App.showPage('jobcards');setTimeout(()=>App.openJobCardModal('${escAttr(e.jobCardId)}'),80)">${esc(e.jobCardId)}</a>` : '<span class="vtag" style="font-size:9px;color:var(--text3)">log</span>'}
+                        ${e.jobCardId ? `<a href="#" style="color:var(--amber);text-decoration:none;font-size:11px" onclick="event.preventDefault();App.closeModal();App.showPage('jobcards');setTimeout(()=>App.openJobCardModal('${escJs(e.jobCardId)}'),80)">${esc(e.jobCardId)}</a>` : '<span class="vtag" style="font-size:9px;color:var(--text3)">log</span>'}
                         <span style="color:var(--text2);min-width:90px;text-align:right">${fmtCost(e.cost)}</span>
                     </div>`).join('') : '<p style="color:var(--text3);font-size:12px">No maintenance recorded for this truck.</p>'}</div>
                 </div>`}
@@ -6405,7 +6412,7 @@ function _afterLoad() {
             </div>
             <div class="modal-actions">
                 <button class="btn btn-ghost btn-sm" onclick="App.closeModal()">Close</button>
-                <button class="btn btn-primary btn-sm" onclick="App.startJobCardForTruck('${escAttr(t.plate)}')">🧾 Job Card</button>
+                <button class="btn btn-primary btn-sm" onclick="App.startJobCardForTruck('${escJs(t.plate)}')">🧾 Job Card</button>
                 <button class="btn btn-ghost btn-sm" onclick="App.exportTruckData(${idx})">Export Truck Data</button>
                 <button class="btn btn-danger btn-sm" onclick="App.deleteTruck(${idx})">Delete Truck</button>
             </div>`;
@@ -7565,8 +7572,8 @@ function _afterLoad() {
                                                 </div>
                                             </div>
                                             ${f.uploadFailed || !f.data ? '' : `<div style="display:flex;gap:6px;flex-shrink:0">
-                                                <button class="btn btn-ghost btn-xs" onclick="App.previewAccidentAttachment(${args}, '${escAttr(f.id)}')">Preview</button>
-                                                <button class="btn btn-ghost btn-xs" onclick="App.downloadAccidentAttachment(${args}, '${escAttr(f.id)}')">Download</button>
+                                                <button class="btn btn-ghost btn-xs" onclick="App.previewAccidentAttachment(${args}, '${escJs(f.id)}')">Preview</button>
+                                                <button class="btn btn-ghost btn-xs" onclick="App.downloadAccidentAttachment(${args}, '${escJs(f.id)}')">Download</button>
                                             </div>`}
                                         </div>`).join('')}
                                 </div>
@@ -7903,7 +7910,7 @@ function _afterLoad() {
                     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
                         ${previewContent}
                         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
-                            <button class="btn btn-primary btn-sm" onclick="App.downloadAccidentAttachment(${driverIdx}, ${accidentIdx}, '${source === 'incident' ? 'incident' : 'driver'}', '${escAttr(fileId)}')">⬇ Download</button>
+                            <button class="btn btn-primary btn-sm" onclick="App.downloadAccidentAttachment(${driverIdx}, ${accidentIdx}, '${source === 'incident' ? 'incident' : 'driver'}', '${escJs(fileId)}')">⬇ Download</button>
                             <button class="btn btn-ghost btn-sm" onclick="App.closeModal()">Close</button>
                         </div>
                     </div>`);
@@ -8988,7 +8995,7 @@ function _afterLoad() {
                             const tripCount = isMulti ? assignment.trips.length + 1 : 1;
 
                             html += `
-                            <div class="osd-item" role="option" tabindex="-1" onclick="App.openOrderWithTruck(${Number(activeOrder._idx)}, '${escAttr(t.plate)}')"
+                            <div class="osd-item" role="option" tabindex="-1" onclick="App.openOrderWithTruck(${Number(activeOrder._idx)}, '${escJs(t.plate)}')"
                                  style="padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${m.color};border-radius:8px;margin-bottom:6px;cursor:pointer;transition:all 0.15s">
                                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -9082,7 +9089,7 @@ function _afterLoad() {
                     const searchText = `${t.plate || ''} ${t.brand || ''} ${t.model || ''} ${t.chassisNo || ''} ${drvName}`.toLowerCase();
                     return `<label class="tp-row${inMaint ? ' tp-row--disabled' : ''}" data-plate="${escAttr(up(t.plate))}" data-driver="${escAttr(drvName.toLowerCase())}" data-search="${escAttr(searchText)}">
                                 <input type="checkbox" value="${esc(t.plate)}" class="tpCb_${esc(pickerId)}" ${inMaint ? 'disabled' : ''}
-                                    onchange="App.syncPickerFromCheckbox('${escAttr(pickerId)}')"
+                                    onchange="App.syncPickerFromCheckbox('${escJs(pickerId)}')"
                                     style="accent-color:var(--accent);width:15px;height:15px;flex-shrink:0;cursor:${inMaint ? 'not-allowed' : 'pointer'}">
                                 <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
                                     <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap">${formatTruckLabel(t)}${t.model ? ` · <span style="font-size:11px;font-weight:400;color:var(--text3)">${esc(t.model)}</span>` : ''}</span>
@@ -9095,7 +9102,7 @@ function _afterLoad() {
                 return `<div style="display:flex;flex-direction:column;gap:8px" id="truckPicker_${esc(pickerId)}">
                     <div style="position:relative">
                         <input type="text" id="tpInput_${esc(pickerId)}" placeholder="Filter by plate or driver name, then tick the truck(s)…" autocomplete="off"
-                            oninput="App.syncPickerFromInput('${escAttr(pickerId)}')"
+                            oninput="App.syncPickerFromInput('${escJs(pickerId)}')"
                             style="width:100%;padding:9px 12px 9px 32px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;transition:border-color 0.2s"
                             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
                         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>
@@ -9158,7 +9165,7 @@ function _afterLoad() {
                                 const drv = getDriverForTruckPlate(plate);
                                 const disabled = row.classList.contains('tp-row--disabled');
                                 const drvHtml = drv && drv.name ? ` · 👤 <strong style="color:var(--accent)">${esc(drv.name)}</strong>` : '';
-                                return `<div class="tp-suggestion" ${disabled ? '' : `onclick="App.selectPickerTruck('${escAttr(pickerId)}', '${escAttr(plate)}')"`} style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--bg3);border-radius:6px;font-size:12px;cursor:${disabled ? 'not-allowed' : 'pointer'};opacity:${disabled ? '0.5' : '1'}">
+                                return `<div class="tp-suggestion" ${disabled ? '' : `onclick="App.selectPickerTruck('${escJs(pickerId)}', '${escJs(plate)}')"`} style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--bg3);border-radius:6px;font-size:12px;cursor:${disabled ? 'not-allowed' : 'pointer'};opacity:${disabled ? '0.5' : '1'}">
                                     <div>
                                         <span style="font-weight:700;color:var(--text)">🚛 ${t ? formatTruckLabel(t) : esc(plate)}</span>
                                         <span style="font-size:11px;color:var(--text2)">${drvHtml}</span>
@@ -9195,7 +9202,7 @@ function _afterLoad() {
                 const chips = document.getElementById(`tpSelected_${pickerId}`);
                 if (chips) {
                     chips.style.display = plates.length ? 'flex' : 'none';
-                    chips.innerHTML = plates.map(p => `<span class="vtag" style="background:var(--accent-soft);color:var(--accent);cursor:pointer" title="Remove" onclick="App.toggleTruckPickerRow('${escAttr(pickerId)}', '${escAttr(p)}')">🚛 ${esc(p)} ✕</span>`).join('');
+                    chips.innerHTML = plates.map(p => `<span class="vtag" style="background:var(--accent-soft);color:var(--accent);cursor:pointer" title="Remove" onclick="App.toggleTruckPickerRow('${escJs(pickerId)}', '${escJs(p)}')">🚛 ${esc(p)} ✕</span>`).join('');
                 }
             }
 
@@ -9510,8 +9517,8 @@ function _afterLoad() {
                             <div style="font-size:10.5px;color:var(--text3)"><span style="color:${kindColor};font-weight:600">${esc(d.kind || 'Document')}</span> · ${esc(fmtD(d.uploadedAt) || '')}${d.by ? ` · by ${esc(d.by)}` : ''}${d.uploadError ? ' · <span style="color:var(--amber)">stored locally (Drive upload failed)</span>' : ''}</div>
                         </div>
                         <div style="display:flex;gap:4px;flex-shrink:0">
-                            <button class="btn btn-ghost btn-xs" onclick="App.previewOrderDocument(${idx}, '${escAttr(d.id)}')">👁 View</button>
-                            <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="App.removeOrderDocument(${idx}, '${escAttr(d.id)}')">✕</button>
+                            <button class="btn btn-ghost btn-xs" onclick="App.previewOrderDocument(${idx}, '${escJs(d.id)}')">👁 View</button>
+                            <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="App.removeOrderDocument(${idx}, '${escJs(d.id)}')">✕</button>
                         </div>
                     </div>`;
                 }).join('') : `<div style="font-size:12px;color:var(--text3);font-style:italic;padding:6px 0">No documents yet. Attach the delivery note and the signed proof of delivery here.</div>`;
@@ -10257,8 +10264,8 @@ function _afterLoad() {
                             Is this truck being <strong>reassigned to start a new trip</strong> for this order, or is this a <strong>status correction</strong> (the offload date will be cleared)?
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <button class="btn btn-primary btn-sm" onclick="App.executeTruckReassignment(${Number(o._idx)}, ${truckIdx}, '${escAttr(target)}')">🔄 Reassign for New Trip (Start Trip ${currentTripNum + 1})</button>
-                            <button class="btn btn-ghost btn-sm" onclick="App.executeTruckStatusChange(${Number(o._idx)}, ${truckIdx}, '${escAttr(target)}', true)" style="border:1px solid var(--border)">✎ Status Correction Only</button>
+                            <button class="btn btn-primary btn-sm" onclick="App.executeTruckReassignment(${Number(o._idx)}, ${truckIdx}, '${escJs(target)}')">🔄 Reassign for New Trip (Start Trip ${currentTripNum + 1})</button>
+                            <button class="btn btn-ghost btn-sm" onclick="App.executeTruckStatusChange(${Number(o._idx)}, ${truckIdx}, '${escJs(target)}', true)" style="border:1px solid var(--border)">✎ Status Correction Only</button>
                             <button class="btn btn-ghost btn-sm" onclick="App.cancelOffloadedPrompt(${Number(o._idx)}, ${truckIdx})" style="color:var(--text3)">Cancel</button>
                         </div>
                     </div>`;
@@ -11769,11 +11776,17 @@ function _afterLoad() {
                 // limits how fast one account may call it). So a 404, 408, 429, a 5xx or no answer at all is
                 // tried again after 3 s, 8 s and 20 s before it counts as failed. The words no longer blame
                 // the internet connection, which was rarely the cause.
+                //
+                // Phase 0 (Oct 2026): the upload goes with the sign-in token, so the script can accept files only
+                // from an active account with access (apps-script/upload-auth.gs). An older script ignores it.
+                let idToken = '';
+                try { idToken = window.auth && window.auth.currentUser ? await window.auth.currentUser.getIdToken() : ''; } catch (e) { /* the script says what is wrong */ }
                 const body = JSON.stringify({
                     base64,
                     fileName: fileName || 'upload.bin',
                     mimeType: mimeType || 'application/octet-stream',
-                    folder: folder || 'fleetguard'
+                    folder: folder || 'fleetguard',
+                    idToken
                 });
                 const approxMb = (base64.length * 0.75) / (1024 * 1024);
                 const RETRYABLE = [404, 408, 425, 429, 500, 502, 503, 504];
@@ -14015,7 +14028,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                         <p style="font-size:11px;color:var(--text3);margin-top:10px">E-mails are sent by the Google Apps Script described in DEPLOY_NOTES.md ("Scheduled report emails"), which reads this schedule from Firebase. Saving here does not send anything by itself.</p>
                         <div id="rsError" style="color:var(--red);font-size:12px;margin-top:8px"></div>
                     </div>
-                    <div class="modal-footer"><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button><button class="btn btn-primary" onclick="App.saveReportSchedule('${escAttr(id || '')}')">Save schedule</button></div>`);
+                    <div class="modal-footer"><button class="btn btn-ghost" onclick="App.closeModal()">Cancel</button><button class="btn btn-primary" onclick="App.saveReportSchedule('${escJs(id || '')}')">Save schedule</button></div>`);
             }
             function saveReportSchedule(id) {
                 const v = x => (document.getElementById(x)?.value || '').trim();
@@ -15912,8 +15925,8 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                             </div>
                             <div class="jc-approved-cost">${formatRwf(t.actC)}</div>
                             <div style="display:flex;gap:6px">
-                                <button class="btn btn-sm btn-ghost" onclick="App.openJobCardPreview('${escAttr(jc.id)}')">View</button>
-                                <button class="btn btn-sm btn-ghost" onclick="App.generateJobCardReportById('${escAttr(jc.id)}')">Print</button>
+                                <button class="btn btn-sm btn-ghost" onclick="App.openJobCardPreview('${escJs(jc.id)}')">View</button>
+                                <button class="btn btn-sm btn-ghost" onclick="App.generateJobCardReportById('${escJs(jc.id)}')">Print</button>
                             </div>
                         </div>`;
                     }).join('')}</div>
@@ -16909,7 +16922,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                                     <input type="text" class="jc-m-mech" value="${esc(jcPersonName(m.mechanic) || defaultMech)}" placeholder="Mechanic name" style="padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text)">
                                 </div>
                                 ${jcNoteBoxHtml(m)}
-                                ${isExtra ? `<button class="btn btn-danger btn-xs" style="margin-top:8px" onclick="App.removeMechanicExtraLine('${id}','${escAttr(lineId)}')">Remove extra</button>` : ''}
+                                ${isExtra ? `<button class="btn btn-danger btn-xs" style="margin-top:8px" onclick="App.removeMechanicExtraLine('${id}','${escJs(lineId)}')">Remove extra</button>` : ''}
                             </div>`;
                         }
                         return `<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:8px;border:1px solid ${isExtra ? 'var(--teal)' : 'var(--border)'}">
