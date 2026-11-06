@@ -1,0 +1,99 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+      "$uid": {
+        ".read": "auth.uid === $uid || (auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('role').val() === 'Admin') || (auth.uid === $uid && !data.exists() && newData.child('role').val() === 'Driver' && newData.child('active').val() === true && newData.child('pages/fleetguard').val() === false && newData.child('pages/orders').val() === false && newData.child('pagesSetAt').isNumber() && newData.child('email').val() === auth.token.email)",
+        "role": {
+          ".write": "auth.uid === $uid && !data.exists() && newData.val() === 'Driver'"
+        },
+        "email": {
+          ".write": "auth.uid === $uid && newData.val() === auth.token.email"
+        },
+        "firstSeen": {
+          ".write": "auth.uid === $uid && newData.isNumber()"
+        }
+      }
+    },
+    "fleetguard": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))",
+      "drivers": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "trucks": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "trailers": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "orders": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "jobCards": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "recycleBin": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "hscPolicies": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "hscMeetings": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "incidents": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "auditTrail": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "lastUpdated": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "settings": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))",
+        "pinHash": {
+          ".validate": "newData.val() === data.val() || (auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+        },
+        "pinSalt": {
+          ".validate": "newData.val() === data.val() || (auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('role').val() === 'Admin')"
+        },
+        "locale": {
+          ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))"
+        }
+      },
+      "opsOrders": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))"
+      },
+      "opsSettings": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))"
+      },
+      "offloadReports": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      },
+      "attentionRequests": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "((auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true))) || (auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true)))"
+      },
+      "financePin": {
+        ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true))",
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+        "lock": {
+          ".write": "((auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true))) || (auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && root.child('users').child(auth.uid).child('pages').hasChildren() && ((root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) || root.child('users').child(auth.uid).child('pages/orders').val() === true)))"
+        }
+      },
+      "$other": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('active').val() !== false && (root.child('users').child(auth.uid).child('role').val() === 'Admin' || !root.child('users').child(auth.uid).child('pages').hasChildren() || (!(root.child('users').child(auth.uid).child('via').val() === 'Orders page' && !root.child('users').child(auth.uid).child('pagesSetAt').exists()) && root.child('users').child(auth.uid).child('pages/fleetguard').val() === true)))"
+      }
+    }
+  }
+}

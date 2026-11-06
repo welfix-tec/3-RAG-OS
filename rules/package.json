@@ -1,0 +1,14 @@
+{
+  "name": "fleetguard-rules",
+  "private": true,
+  "description": "Builds and tests the Firebase Realtime Database rules (database.rules.json).",
+  "scripts": {
+    "build": "node build-rules.cjs",
+    "test": "node build-rules.cjs && firebase emulators:exec --project demo-fleetguard --only database --config ../firebase.json \"node --test test/rules.test.cjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0",
+    "firebase-tools": "^14.0.0"
+  }
+}

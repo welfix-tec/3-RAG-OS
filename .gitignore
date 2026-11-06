@@ -8,3 +8,5 @@ _v2-release/
 *.py
 .claude/
 .cursor/
+node_modules/
+*-debug.log
