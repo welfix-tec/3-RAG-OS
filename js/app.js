@@ -12306,7 +12306,7 @@ function _afterLoad() {
                 rows.forEach((r, i) => { r.i = i; r.checked = false; r.error = ''; });
                 const folder = [set.driver && importTargetLabel('driver', set.driver), set.truck && set.truck.plate, set.trailer && set.trailer.id]
                     .filter(Boolean).map(bundleSafeName).join('_') || 'Documents';
-                attachBundleState = { set, rows, folder, summary: true, running: false, cancel: false, result: '' };
+                attachBundleState = { set, rows, folder, running: false, cancel: false, result: '' };
                 pushModal(`
                 <div class="modal-header"><div><h3>Download documents</h3><div class="modal-sub mono">${esc(folder)}.zip</div></div><div class="modal-close" onclick="App.closeAttachBundle()">✕</div></div>
                 <div class="modal-body"><div id="bundleBody"></div></div>
@@ -12330,21 +12330,14 @@ function _afterLoad() {
                             <span class="bundle-chip ${bundleStatusLabel(r).toLowerCase()}">${esc(bundleStatusLabel(r))}</span>
                         </label>`).join('') || (item ? '<div class="bundle-empty">No documents</div>' : '')}
                     </div>`;
-                }).join('') + `<label class="bundle-row bundle-sum"><input type="checkbox" ${st.summary ? 'checked' : ''} ${dis} onchange="App.setAttachBundleSummary(this.checked)"><span class="bundle-name">Validity summary<small>A sheet listing every document above, its expiry date and status</small></span></label>${st.result ? `<div class="bundle-result">${st.result}</div>` : ''}`;
+                }).join('') + `${st.result ? `<div class="bundle-result">${st.result}</div>` : ''}`;
                 if (scroll) scroll.scrollTop = top;
                 const n = st.rows.filter(r => r.checked && r.file).length, go = document.getElementById('bundleGo');
                 if (go) { go.disabled = st.running || !n; go.textContent = st.running ? 'Downloading…' : `Download ${n || ''} file${n === 1 ? '' : 's'}`.replace('  ', ' '); }
             }
             function setAttachBundleRow(i, on) { const st = attachBundleState; if (st && !st.running && st.rows[i]) { st.rows[i].checked = !!on; renderAttachBundle(); } }
             function setAttachBundleGroup(group, on) { const st = attachBundleState; if (st && !st.running) { st.rows.forEach(r => { if (r.group === group && r.file) r.checked = !!on; }); renderAttachBundle(); } }
-            function setAttachBundleSummary(on) { const st = attachBundleState; if (st && !st.running) { st.summary = !!on; renderAttachBundle(); } }
             function closeAttachBundle() { if (attachBundleState) attachBundleState.cancel = true; closeModal(); }
-            function bundleSummaryCsv(st) {
-                const cell = v => { let s = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
-                const head = ['Group', 'Belongs to', 'Document', 'Expiry date', 'Status', 'File attached'];
-                const lines = st.rows.map(r => [r.group[0].toUpperCase() + r.group.slice(1), r.owner, r.name, fmtD(r.expiry), bundleStatusLabel(r), r.file ? 'Yes' : 'No']);
-                return '﻿' + [head, ...lines].map(l => l.map(cell).join(',')).join('\r\n') + '\r\n';
-            }
             function bundleFileName(row, taken, base64) {
                 const file = row.file, mime = getAttachmentMimeType(file);
                 const known = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov' }[mime];
@@ -12413,7 +12406,6 @@ function _afterLoad() {
                 try {
                     if (st.cancel) return;
                     if (ok) {
-                        if (st.summary) dir.file('Validity summary.csv', bundleSummaryCsv(st));
                         progress('Building the ZIP…');
                         const blob = await zip.generateAsync({ type: 'blob' });
                         const a = document.createElement('a');
@@ -18226,7 +18218,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport,
                 exportDriverData, exportTruckData,
                 exportAllData, importAllData, resetAllData,
-                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, openAttachBundle, closeAttachBundle, runAttachBundle, setAttachBundleRow, setAttachBundleGroup, setAttachBundleSummary, toggleSettingsLock, restoreFromBackup,
+                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, openAttachBundle, closeAttachBundle, runAttachBundle, setAttachBundleRow, setAttachBundleGroup, toggleSettingsLock, restoreFromBackup,
                 handleDriverFileUpload, handleTruckFileUpload, deleteAttachment, previewAttachment, downloadAttachment,
                 renderReports, refreshReportsOnDataChange, switchReportCategory, toggleReportCard, onReportCheckChange, toggleAllReports, generateReport, printReport, downloadReport, quickReport,
                 setReportPeriodPreset, populateJcReportServiceFilter,
