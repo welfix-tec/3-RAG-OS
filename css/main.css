@@ -3994,3 +3994,23 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
 .fg-dd .fg-dd-count { font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--bg4); color: var(--text2); letter-spacing: 0; }
 .fg-dd:not(.open) .fg-dd-body { display: none; }
 .fg-dd.open .fg-dd-body { margin-top: 8px; }
+
+/* Nov 2026: download window — documents of the linked driver, truck and trailer */
+.bundle-group { margin-bottom: 14px; }
+.bundle-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bundle-all { display: inline-flex !important; align-items: center; gap: 6px; margin: 0 !important; font-size: 12px !important; font-weight: 500; text-transform: none !important; letter-spacing: normal !important; color: var(--text2); cursor: pointer; white-space: nowrap; }
+.bundle-row { display: grid !important; grid-template-columns: 18px 1fr 84px 66px; align-items: center; gap: 10px; margin: 0 !important; padding: 8px 2px; border-bottom: 1px solid var(--border); font-size: 12.5px !important; font-weight: 400; text-transform: none !important; letter-spacing: normal !important; color: var(--text); cursor: pointer; }
+.bundle-row.nofile { cursor: default; color: var(--text3); }
+.bundle-name { min-width: 0; overflow-wrap: anywhere; }
+.bundle-name small { display: block; font-size: 11px; color: var(--text3); }
+.bundle-name small.bundle-err { color: var(--red); }
+.bundle-date { color: var(--text2); font-size: 12px; }
+.bundle-chip { justify-self: start; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
+.bundle-chip:empty { display: none; }
+.bundle-chip.valid { color: var(--green); background: rgba(34, 201, 122, 0.14); }
+.bundle-chip.expiring { color: var(--amber); background: rgba(245, 158, 11, 0.14); }
+.bundle-chip.expired { color: var(--red); background: rgba(240, 76, 90, 0.14); }
+.bundle-empty { padding: 8px 2px; font-size: 12px; color: var(--text3); }
+.bundle-sum { grid-template-columns: 18px 1fr; border-bottom: 0; }
+.bundle-result { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--bg3); font-size: 12.5px; }
+.bundle-progress { margin-right: auto; font-size: 12px; color: var(--text2); overflow-wrap: anywhere; }

@@ -4099,7 +4099,7 @@ function _afterLoad() {
                 </div>
                 <div class="section">
                     <div class="section-title">Attachments 
-                        <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('driverAttachmentInput_${idx}')?.click(); event.stopPropagation()">+ Upload</button>
+                        <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('driverAttachmentInput_${idx}')?.click(); event.stopPropagation()">+ Upload</button><button class="btn btn-ghost btn-xs" style="margin-left:6px" title="Download documents of the linked driver, truck and trailer" aria-label="Download documents of the linked driver, truck and trailer" onclick="App.openAttachBundle('driver',${idx});event.stopPropagation()">⬇</button>
                     </div>
                     <input id="driverAttachmentInput_${idx}" type="file" accept="image/*,application/pdf,.pdf,video/*,.mp4,.mov,.webm,.m4v" multiple style="display:none" onchange="App.handleDriverFileUpload(${idx}, this.files)">
                     ${(d.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewAttachment('driver', ${idx}, '${escAttr(f.id)}')">
@@ -5775,7 +5775,7 @@ function _afterLoad() {
                 </div>
                 <div class="section">
                     <div class="section-title">Attachments 
-                        <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('trailerAttachInput_${idx}')?.click();event.stopPropagation()">+ Upload</button>
+                        <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('trailerAttachInput_${idx}')?.click();event.stopPropagation()">+ Upload</button><button class="btn btn-ghost btn-xs" style="margin-left:6px" title="Download documents of the linked driver, truck and trailer" aria-label="Download documents of the linked driver, truck and trailer" onclick="App.openAttachBundle('trailer',${idx});event.stopPropagation()">⬇</button>
                     </div>
                     <input id="trailerAttachInput_${idx}" type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="App.handleTrailerFileUpload(${idx},this.files)">
                     ${(t.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewTrailerAttachment(${idx},'${escAttr(f.id)}')">
@@ -6319,7 +6319,7 @@ function _afterLoad() {
                 </div>
                 <div class="section">
                     <div class="section-title">Attachments 
-                        <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('truckAttachmentInput_${idx}')?.click(); event.stopPropagation()">+ Upload</button>
+                        <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('truckAttachmentInput_${idx}')?.click(); event.stopPropagation()">+ Upload</button><button class="btn btn-ghost btn-xs" style="margin-left:6px" title="Download documents of the linked driver, truck and trailer" aria-label="Download documents of the linked driver, truck and trailer" onclick="App.openAttachBundle('truck',${idx});event.stopPropagation()">⬇</button>
                     </div>
                     <input id="truckAttachmentInput_${idx}" type="file" accept="image/*,application/pdf,.pdf" multiple style="display:none" onchange="App.handleTruckFileUpload(${idx}, this.files)">
                     ${(t.files || []).map(f => `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg2);cursor:pointer" onclick="App.previewAttachment('truck', ${idx}, '${escAttr(f.id)}')">
@@ -12241,6 +12241,207 @@ function _afterLoad() {
             </div>`);
             }
 
+            // ── Download linked documents (Nov 2026) ──
+            // The ⬇ beside + Upload opens one window, the same from a driver, truck or trailer: the documents of the driver,
+            // the truck and the trailer that are linked together, in that order. The ticked ones download as one ZIP named
+            // driver_truck_trailer. Drive does not let a page read its files, so they come through the Apps Script.
+            let attachBundleState = null;
+            function linkedFleetSet(type, item) {
+                const same = (a, b) => !!normalizePlate(a) && normalizePlate(a) === normalizePlate(b);
+                const trailerById = id => (trailers || []).find(x => same(x.id, id)) || null;
+                let driver = null, truck = null, trailer = null;
+                if (type === 'driver') {
+                    driver = item;
+                    truck = (trucks || []).find(x => same(x.plate, item.license_plate)) || null;
+                    trailer = trailerById((truck && truck.trailer) || (item.custom || {}).Trailer);
+                } else if (type === 'truck') {
+                    truck = item;
+                    driver = (drivers || []).find(d => same(d.license_plate, item.plate)) || null;
+                    trailer = trailerById(item.trailer || (driver && (driver.custom || {}).Trailer));
+                } else {
+                    trailer = item;
+                    truck = (trucks || []).find(x => same(x.trailer, item.id)) || null;
+                    driver = truck
+                        ? (drivers || []).find(d => same(d.license_plate, truck.plate)) || null
+                        : (drivers || []).find(d => same((d.custom || {}).Trailer, item.id)) || null;
+                    if (!truck && driver) truck = (trucks || []).find(x => same(x.plate, driver.license_plate)) || null;
+                }
+                return { driver, truck, trailer };
+            }
+            function bundleDocMatches(doc, file) {
+                if (doc.fileId && doc.fileId === file.id) return true;
+                const licence = s => /licen[cs]e/i.test(s);
+                const type = String(doc.type || '').trim().toLowerCase();
+                const cat = String(file.category || file.docType || '').trim().toLowerCase();
+                if (cat) return cat === type || (licence(cat) && licence(type));
+                return !!type && String(file.name || '').trim().toLowerCase().endsWith(' ' + type);
+            }
+            function bundleRowsFor(group, item) {
+                if (!item) return [];
+                const docs = (group === 'driver' ? getDriverDocList(item) : (Array.isArray(item.documents) ? item.documents : [])).filter(d => d && d.expiryDate);
+                const owner = importTargetLabel(group, item), used = new Set(), rows = [];
+                (Array.isArray(item.files) ? item.files : []).forEach(file => {
+                    if (!file) return;
+                    const doc = docs.find(d => bundleDocMatches(d, file));
+                    if (doc) used.add(doc);
+                    rows.push({ group, owner, file, name: file.name || 'Attachment', type: (doc && doc.type) || file.category || '', expiry: doc ? doc.expiryDate : '' });
+                });
+                docs.filter(d => !used.has(d)).forEach(d => rows.push({ group, owner, file: null, name: d.type || 'Document', type: d.type || '', expiry: d.expiryDate }));
+                return rows;
+            }
+            function bundleStatusLabel(row) {
+                if (!row.expiry) return '';
+                const st = docStatus({ expiryDate: row.expiry });
+                return st === 'expired' ? 'Expired' : st === 'expiring' ? 'Expiring' : 'Valid';
+            }
+            function bundleSafeName(s) {
+                return String(s || '').replace(/[\\/:*?"<>|\x00-\x1f]+/g, '-').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '');
+            }
+            function openAttachBundle(type, idx) {
+                const list = type === 'driver' ? drivers : type === 'trailer' ? trailers : trucks;
+                const item = (list || []).find(x => String(x._idx) === String(idx));
+                if (!item) return;
+                const set = linkedFleetSet(type, item);
+                const rows = [...bundleRowsFor('driver', set.driver), ...bundleRowsFor('truck', set.truck), ...bundleRowsFor('trailer', set.trailer)];
+                rows.forEach((r, i) => { r.i = i; r.checked = false; r.error = ''; });
+                const folder = [set.driver && importTargetLabel('driver', set.driver), set.truck && set.truck.plate, set.trailer && set.trailer.id]
+                    .filter(Boolean).map(bundleSafeName).join('_') || 'Documents';
+                attachBundleState = { set, rows, folder, summary: true, running: false, cancel: false, result: '' };
+                pushModal(`
+                <div class="modal-header"><div><h3>Download documents</h3><div class="modal-sub mono">${esc(folder)}.zip</div></div><div class="modal-close" onclick="App.closeAttachBundle()">✕</div></div>
+                <div class="modal-body"><div id="bundleBody"></div></div>
+                <div class="modal-actions"><span id="bundleProgress" class="bundle-progress"></span><button class="btn btn-ghost btn-sm" onclick="App.closeAttachBundle()">Close</button><button class="btn btn-primary btn-sm" id="bundleGo" onclick="App.runAttachBundle()" disabled>Download</button></div>`);
+                renderAttachBundle();
+            }
+            function renderAttachBundle() {
+                const st = attachBundleState, host = document.getElementById('bundleBody');
+                if (!st || !host) return;
+                const groups = [['driver', '👤 Driver', st.set.driver], ['truck', '🚛 Truck', st.set.truck], ['trailer', '🚚 Trailer', st.set.trailer]];
+                const scroll = host.closest('.modal-body'), top = scroll ? scroll.scrollTop : 0, dis = st.running ? 'disabled' : '';
+                host.innerHTML = groups.map(([key, label, item]) => {
+                    const rows = st.rows.filter(r => r.group === key), withFile = rows.filter(r => r.file);
+                    const allOn = withFile.length && withFile.every(r => r.checked);
+                    return `<div class="bundle-group">
+                        <div class="bundle-head"><span>${label} — <b>${item ? esc(importTargetLabel(key, item)) : 'none linked'}</b></span>${withFile.length ? `<label class="bundle-all"><input type="checkbox" ${allOn ? 'checked' : ''} ${dis} onchange="App.setAttachBundleGroup('${key}',this.checked)"> Select all</label>` : ''}</div>
+                        ${rows.map(r => `<label class="bundle-row ${r.file ? '' : 'nofile'}">
+                            ${r.file ? `<input type="checkbox" ${r.checked ? 'checked' : ''} ${dis} onchange="App.setAttachBundleRow(${r.i},this.checked)">` : '<span class="bundle-nobox"></span>'}
+                            <span class="bundle-name">${esc(r.name)}${r.file ? '' : '<small>No file attached</small>'}${r.error ? `<small class="bundle-err">${esc(r.error)}</small>` : ''}</span>
+                            <span class="bundle-date">${r.expiry ? esc(fmtD(r.expiry)) : '—'}</span>
+                            <span class="bundle-chip ${bundleStatusLabel(r).toLowerCase()}">${esc(bundleStatusLabel(r))}</span>
+                        </label>`).join('') || (item ? '<div class="bundle-empty">No documents</div>' : '')}
+                    </div>`;
+                }).join('') + `<label class="bundle-row bundle-sum"><input type="checkbox" ${st.summary ? 'checked' : ''} ${dis} onchange="App.setAttachBundleSummary(this.checked)"><span class="bundle-name">Validity summary<small>A sheet listing every document above, its expiry date and status</small></span></label>${st.result ? `<div class="bundle-result">${st.result}</div>` : ''}`;
+                if (scroll) scroll.scrollTop = top;
+                const n = st.rows.filter(r => r.checked && r.file).length, go = document.getElementById('bundleGo');
+                if (go) { go.disabled = st.running || !n; go.textContent = st.running ? 'Downloading…' : `Download ${n || ''} file${n === 1 ? '' : 's'}`.replace('  ', ' '); }
+            }
+            function setAttachBundleRow(i, on) { const st = attachBundleState; if (st && !st.running && st.rows[i]) { st.rows[i].checked = !!on; renderAttachBundle(); } }
+            function setAttachBundleGroup(group, on) { const st = attachBundleState; if (st && !st.running) { st.rows.forEach(r => { if (r.group === group && r.file) r.checked = !!on; }); renderAttachBundle(); } }
+            function setAttachBundleSummary(on) { const st = attachBundleState; if (st && !st.running) { st.summary = !!on; renderAttachBundle(); } }
+            function closeAttachBundle() { if (attachBundleState) attachBundleState.cancel = true; closeModal(); }
+            function bundleSummaryCsv(st) {
+                const cell = v => { let s = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+                const head = ['Group', 'Belongs to', 'Document', 'Expiry date', 'Status', 'File attached'];
+                const lines = st.rows.map(r => [r.group[0].toUpperCase() + r.group.slice(1), r.owner, r.name, fmtD(r.expiry), bundleStatusLabel(r), r.file ? 'Yes' : 'No']);
+                return '﻿' + [head, ...lines].map(l => l.map(cell).join(',')).join('\r\n') + '\r\n';
+            }
+            function bundleFileName(row, taken, base64) {
+                const file = row.file, mime = getAttachmentMimeType(file);
+                const known = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov' }[mime];
+                const m = /\.([a-z0-9]{2,5})$/i.exec(String(file.name || ''));
+                // images can be compressed on upload, so a stored name may end .png while the file is a JPEG: trust the content
+                const head = String(base64 || '');
+                const real = head.startsWith('/9j/') ? 'jpg' : head.startsWith('iVBOR') ? 'png' : head.startsWith('JVBER') ? 'pdf' : head.startsWith('UklGR') ? 'webp' : '';
+                const stated = m ? m[1].toLowerCase().replace('jpeg', 'jpg') : '';
+                const ext = real && real !== stated ? real : (m ? m[1] : (known || 'pdf'));
+                let base = bundleSafeName(m ? String(file.name).slice(0, -m[0].length) : file.name) || 'Attachment';
+                if (!normalizePlate(base).includes(normalizePlate(row.owner))) base = bundleSafeName(`${row.owner} ${base}`);
+                let name = `${base}.${ext}`;
+                for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base} (${n}).${ext}`;
+                taken.add(name.toLowerCase());
+                return name;
+            }
+            // One file from Drive, as base64, through the Apps Script. It serves signed-in FleetGuard users only.
+            async function fetchDriveFileBase64(driveId) {
+                const user = window.auth && window.auth.currentUser;
+                if (!user) throw new Error('Sign in again to download');
+                const idToken = await user.getIdToken();
+                const body = JSON.stringify({ action: 'download', id: driveId, idToken });
+                const WAITS = [2000, 6000], RETRYABLE = [404, 408, 425, 429, 500, 502, 503, 504];
+                let response = null, problem = 'the download service did not answer';
+                for (let i = 0; i <= WAITS.length; i++) {
+                    if (i) await new Promise(r => setTimeout(r, WAITS[i - 1]));
+                    try { response = await fetch(window.GOOGLE_APPS_SCRIPT_UPLOAD_URL, { method: 'POST', mode: 'cors', redirect: 'follow', headers: { 'Content-Type': 'text/plain' }, body }); }
+                    catch (e) { response = null; continue; }
+                    if (response.ok) break;
+                    problem = `the download service answered ${response.status}`;
+                    if (!RETRYABLE.includes(response.status)) break;
+                }
+                if (!response || !response.ok) throw new Error(problem);
+                let result;
+                try { result = await response.json(); } catch (e) { throw new Error('the download service sent something unreadable'); }
+                if (!result || !result.success || !result.base64) throw new Error((result && result.error) || 'the file could not be read');
+                return result.base64;
+            }
+            async function runAttachBundle() {
+                const st = attachBundleState;
+                if (!st || st.running) return;
+                const todo = st.rows.filter(r => r.checked && r.file);
+                if (!todo.length) return;
+                if (typeof JSZip === 'undefined') { showToast('The ZIP tool did not load — check the internet connection and reload'); return; }
+                const progress = t => { const el = document.getElementById('bundleProgress'); if (el) el.textContent = t; };
+                st.running = true; st.result = ''; st.rows.forEach(r => { r.error = ''; });
+                renderAttachBundle();
+                const zip = new JSZip(), dir = zip.folder(st.folder), taken = new Set();
+                let ok = 0;
+                for (let i = 0; i < todo.length && !st.cancel; i++) {
+                    const row = todo[i], f = row.file;
+                    progress(`Fetching ${i + 1} of ${todo.length}: ${row.name}`);
+                    try {
+                        const url = resolveDriveUrl(f.data || f.storageUrl || '') || f.data || '';
+                        const driveId = f.driveId || extractDriveFileId(url);
+                        let base64 = '';
+                        if (driveId) base64 = await fetchDriveFileBase64(driveId);
+                        else if (String(url).startsWith('data:')) base64 = dataUrlToBase64(url);
+                        else throw new Error('this file is not stored on Drive');
+                        dir.file(bundleFileName(row, taken, base64), base64, { base64: true });
+                        ok++;
+                    } catch (err) {
+                        row.error = (err && err.message) || 'Could not be fetched';
+                    }
+                }
+                try {
+                    if (st.cancel) return;
+                    if (ok) {
+                        if (st.summary) dir.file('Validity summary.csv', bundleSummaryCsv(st));
+                        progress('Building the ZIP…');
+                        const blob = await zip.generateAsync({ type: 'blob' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = `${st.folder}.zip`;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+                        logAudit('download', 'attachments', st.folder, `${ok} of ${todo.length} document(s) downloaded as ${st.folder}.zip`);
+                        saveAll(['auditTrail']);
+                    }
+                    const failed = todo.filter(r => r.error);
+                    // what failed stays ticked, ready to try again
+                    st.rows.forEach(r => { r.checked = !!r.error; });
+                    st.result = failed.length
+                        ? `<b>${ok} of ${todo.length} downloaded.</b> ${failed.length} failed and ${failed.length === 1 ? 'stays' : 'stay'} ticked to try again: ${failed.map(r => {
+                            const id = r.file.driveId || extractDriveFileId(resolveDriveUrl(r.file.data || r.file.storageUrl || '') || '');
+                            return id ? `<a href="https://drive.google.com/file/d/${esc(id)}/view" target="_blank" rel="noopener">${esc(r.name)}</a>` : esc(r.name);
+                        }).join(', ')}`
+                        : `<b>${ok} downloaded</b> as ${esc(st.folder)}.zip`;
+                } catch (err) {
+                    st.result = `<b>The ZIP could not be built:</b> ${esc((err && err.message) || err)}`;
+                } finally {
+                    st.running = false;
+                    progress('');
+                    renderAttachBundle();
+                }
+            }
+
             function downloadAttachment(entityType, idx, fileId) {
                 const target = entityType === 'driver'
                     ? drivers.find(x => String(x._idx) === String(idx))
@@ -18025,7 +18226,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport,
                 exportDriverData, exportTruckData,
                 exportAllData, importAllData, resetAllData,
-                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, toggleSettingsLock, restoreFromBackup,
+                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, openAttachBundle, closeAttachBundle, runAttachBundle, setAttachBundleRow, setAttachBundleGroup, setAttachBundleSummary, toggleSettingsLock, restoreFromBackup,
                 handleDriverFileUpload, handleTruckFileUpload, deleteAttachment, previewAttachment, downloadAttachment,
                 renderReports, refreshReportsOnDataChange, switchReportCategory, toggleReportCard, onReportCheckChange, toggleAllReports, generateReport, printReport, downloadReport, quickReport,
                 setReportPeriodPreset, populateJcReportServiceFilter,
