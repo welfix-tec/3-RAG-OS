@@ -1548,8 +1548,14 @@
             /* Oct 2026: 3 steps. Orders saved before the change still carry the old 4 (depot, driver, sent, received). */
             function opsDocStep(t) { const st = +((t.doc && t.doc.step) || 0); return t.doc && t.doc.v === 2 ? st : [0, 1, 1, 2][st] ?? 0; }
             /* where the original is right now: the newest of FleetGuard's own choice and the Orders page */
+            function opsRepLevel(x) { return !x ? 0 : x.stage === 'depot' ? 1 : (x.aaNo ? 2 : 0); }
+            function opsRepStage(o, t) {
+                const a = opsRepLevel(t.report), b = opsRepLevel(offloadReports[opsKey(o.id, t.id)]);
+                return { stage: ['none', 'depot', 'full'][Math.max(a, b)], tr: a, rec: b };
+            }
             function opsHolder(o, t) {
                 if (opsDocStep(t) === 2) return 'received';
+                if (opsRepStage(o, t).stage === 'depot') return 'depot';
                 const r = offloadReports[opsKey(o.id, t.id)];
                 if (r && ['depot', 'inhand'].includes(r.originalAt)) return r.originalAt;
                 return opsDocStep(t) === 1 ? 'inhand' : 'depot';
@@ -1585,7 +1591,10 @@
                 if (t.status !== 'Offloaded') return '—';
                 const h = opsHolder(o, t), k = opsKey(o.id, t.id);
                 if (h === 'received') return `<span class="ops-chip" style="color:#15803d;border-color:#15803d55">✓ Received at office</span>`;
-                if (!t.report && !offloadReports[k]) return '<span style="color:var(--text3)">after the report</span>';
+                const rs = opsRepStage(o, t);
+                if (rs.stage === 'none') return '<span style="color:var(--text3)">after the report</span>';
+                if (rs.stage === 'depot') { const since0 = opsHolderSince(o, t); return `<div class="ops-holds"><span class="ops-hold on">At depot</span><button class="btn btn-primary btn-xs" onclick="App.openOffloadReportForm('${escAttr(o.id)}','${escAttr(t.id)}',true)" title="The original is in hand — fill the full report">Fill original</button>${since0 ? `<span class="ops-age ${opsAgeDays(since0) >= 3 ? 'late' : ''}" title="Days since the depot details were filed">⏱ ${esc(opsAge(since0))}</span>` : ''}</div>`; }
+                if (h === 'inhand') { const since1 = opsHolderSince(o, t); return `<div class="ops-holds"><span class="ops-hold on">In hand</span>${since1 ? `<span class="ops-age ${opsAgeDays(since1) >= 3 ? 'late' : ''}" title="Days since the report was filed">⏱ ${esc(opsAge(since1))}</span>` : ''}</div>`; }
                 const since = opsHolderSince(o, t), tx = h === 'inhand' ? 'In hand' : 'At depot', other = h === 'inhand' ? 'At depot' : 'In hand';
                 return `<div class="ops-holds"><span class="ops-hold on">${tx}</span><button class="ops-swap" onclick="App.swapOpsHolder('${escAttr(o.id)}','${escAttr(t.id)}')" title="Change to: ${other}" aria-label="Change to ${other}">⇄</button>${since ? `<span class="ops-age ${opsAgeDays(since) >= 3 ? 'late' : ''}" title="Days since the report was filed">⏱ ${esc(opsAge(since))}</span>` : ''}</div>`;
             }
@@ -1596,6 +1605,25 @@
             const opsShort = r => r ? (r.shortL != null ? r.shortL : (r.lossL || 0)) : 0;
             function opsLoadVol(o) { if (o.loadVolumeL) return o.loadVolumeL; return opsArr(o.trips).reduce((a, x) => a + (Number(x.capacityL) || 0), 0); }
             function opsStageChip(o) { const s = OPS_STAGE[o.stage] || [o.stage || '—', '#6b7280']; return `<span class="ops-chip" style="color:${s[1]};border-color:${s[1]}55;background:${s[1]}14">${esc(s[0])}</span>`; }
+            /* an offloaded truck reads by its original document: received at the office, on its way (in hand), or still at the depot */
+            function opsStatusTxt(o, t) {
+                if (t.status !== 'Offloaded') return String(t.status || '—').replace(/^Allocated to /, 'Alloc. ');
+                if (opsRepStage(o, t).stage === 'none') return 'Offloaded';
+                const h = opsHolder(o, t);
+                return h === 'received' ? 'Document received' : h === 'inhand' ? 'Sent to office' : 'Waiting for original doc';
+            }
+            function opsStatusChip(o, t) {
+                if (t.status !== 'Offloaded') return opsTripChip(t);
+                const tx = opsStatusTxt(o, t), c = tx === 'Document received' ? '#15803d' : tx === 'Sent to office' ? '#2563eb' : tx === 'Waiting for original doc' ? '#d97706' : '#0f766e';
+                return `<span class="ops-chip" style="color:${c};border-color:${c}55;background:${c}14" title="${tx === 'Offloaded' ? 'Offloaded — report not filled yet' : tx === 'Waiting for original doc' ? 'Offloaded — the original is still at the depot' : tx === 'Sent to office' ? 'Offloaded — the original is in hand, on its way to the office' : 'Offloaded — the original was received at the office'}">${esc(tx)}</span>`;
+            }
+            /* depots typed on earlier reports, plus the order destinations — offered as suggestions */
+            function opsOffloadDepots() {
+                const all = [];
+                opsOrders.forEach(o => { all.push(o.destination); opsArr(o.trips).forEach(t => all.push(t.report && t.report.offloadDepot)); });
+                Object.values(offloadReports || {}).forEach(r => all.push(r && r.offloadDepot));
+                return [...new Set(all.filter(Boolean).map(x => String(x).trim()))].sort();
+            }
             function opsTripChip(t) {
                 const c = t.status === 'Offloaded' ? '#15803d' : t.status === 'Queued' ? '#7c3aed' : t.status === 'WD' ? '#d97706' : /^Allocated/.test(t.status || '') ? '#6b7280' : '#2563eb';
                 return `<span class="ops-chip" style="color:${c};border-color:${c}55;background:${c}14">${esc(String(t.status || '—').replace(/^Allocated to /, 'Alloc. '))}</span>`;
@@ -1604,8 +1632,14 @@
             function opsPendingReports() {
                 const out = [];
                 opsOrders.forEach(o => opsArr(o.trips).forEach(t => {
-                    if (t.status !== 'Offloaded' || t.report) return;
-                    out.push({ o, t, sent: !!offloadReports[opsKey(o.id, t.id)], at: (opsArr(t.history).slice().reverse().find(h => h.to === 'Offloaded') || {}).at || '' });
+                    if (t.status !== 'Offloaded') return;
+                    const rs = opsRepStage(o, t);
+                    if (rs.tr === 2) return;   // the Orders page has the full report
+                    const offAt = (opsArr(t.history).slice().reverse().find(h => h.to === 'Offloaded') || {}).at || '';
+                    if (rs.stage === 'none') { out.push({ o, t, kind: 'report', sent: false, at: offAt }); return; }
+                    if (rs.tr === 0 && rs.stage === 'full') { out.push({ o, t, kind: 'report', sent: true, at: offAt }); return; }
+                    const r = offloadReports[opsKey(o.id, t.id)] || {}, d = t.report && t.report.stage === 'depot' ? t.report : r;
+                    out.push({ o, t, kind: 'original', sent: rs.stage === 'full', at: d.fgAt || d.at || offAt });
                 }));
                 return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
             }
@@ -1614,7 +1648,7 @@
             function renderOpsOrders() {
                 const host = document.getElementById('opsOrdersView');
                 if (!host) return;
-                const pend = opsPendingReports(), toFill = pend.filter(x => !x.sent);
+                const all = opsPendingReports(), pend = all.filter(x => x.kind === 'report'), toFill = pend.filter(x => !x.sent), orig = all.filter(x => x.kind === 'original'), origFill = orig.filter(x => !x.sent);
                 host.innerHTML = `
                 <div class="ops-head">
                     <div><h2 style="font-family:var(--font-display);font-size:20px;margin-bottom:4px;">📦 Orders</h2>
@@ -1630,6 +1664,15 @@
                         <div style="text-align:right">${x.sent ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓ — waiting for the Orders page</span>' : `<button class="btn btn-primary btn-sm" onclick="App.openOffloadReportForm('${escAttr(x.o.id)}','${escAttr(x.t.id)}')">Fill report</button>`}</div>
                     </div>`).join('')}</div>
                 </div>` : ''}
+                ${orig.length ? `<div class="ops-fill ops-orig">
+                    <div class="ops-fill-h">📄 Original documents to fill <span class="ops-count">${origFill.length}</span><span style="font-size:11px;color:var(--text3);font-weight:500">· depot details sent, original still at the depot${orig.length > origFill.length ? ` · ${orig.length - origFill.length} sent, waiting for the Orders page` : ''}</span></div>
+                    <div class="ops-fill-list" id="opsOrigList">${orig.map(x => `<div class="ops-fill-row">
+                        <div><b class="ops-plate">${esc(x.t.plate)}</b> <span style="color:var(--text3);font-size:12px">${esc(x.t.trailer || '')}</span><div style="font-size:12px;color:var(--text2)">${esc(x.t.driver || '—')}</div></div>
+                        <div style="font-size:12px"><b>${esc(x.o.clientOrderNo)}</b> · ${esc(x.o.client)} · ${esc(x.o.product)}</div>
+                        <div class="ops-age ${opsAgeDays(x.at) >= 3 ? 'late' : ''}" title="Depot details filed ${escAttr(opsDt(x.at))}">⏱ ${esc(opsAge(x.at))}</div>
+                        <div style="text-align:right">${x.sent ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓ — waiting for the Orders page</span>' : `<button class="btn btn-primary btn-sm" onclick="App.openOffloadReportForm('${escAttr(x.o.id)}','${escAttr(x.t.id)}')">Fill original document</button>`}</div>
+                    </div>`).join('')}</div>
+                </div>` : ''}
                 <div class="toolbar" style="margin-top:14px">
                     <div class="search-wrap" style="flex:1;min-width:240px"><span class="search-icon">🔍</span><input type="text" id="opsSearch" placeholder="Search order, client, plate, driver…" value="${escAttr(opsView.q)}" oninput="App.setOpsQuery(this.value)" autocomplete="off"></div>
                     <select onchange="App.setOpsStage(this.value)">${[['active', 'Active orders'], ['done', 'Completed & invoiced'], ['all', 'All orders']].map(x => `<option value="${x[0]}" ${opsView.stage === x[0] ? 'selected' : ''}>${x[1]}</option>`).join('')}</select>
@@ -1640,11 +1683,13 @@
             }
             /* the list shows 5 trucks; the rest scroll inside it */
             function fitOpsFillList() {
-                const L = document.getElementById('opsFillList');
+                ['opsFillList', 'opsOrigList'].forEach(id => {
+                const L = document.getElementById(id);
                 if (!L) return;
                 const rows = [...L.children];
                 if (rows.length <= 5) { L.style.maxHeight = 'none'; return; }
                 L.style.maxHeight = rows.slice(0, 5).reduce((h, r) => h + r.offsetHeight, 0) + 'px';
+                });
             }
             /* time since the truck offloaded: hours under a day, then days */
             function opsAgeDays(iso) { const t = new Date(iso).getTime(); return isNaN(t) ? 0 : (Date.now() - t) / 864e5; }
@@ -1664,13 +1709,13 @@
                 if (!list.length) { grid.innerHTML = `<div class="ops-empty">No orders match.</div>`; return; }
                 grid.innerHTML = list.map(o => {
                     const trips = opsArr(o.trips), counts = {};
-                    trips.forEach(t => { const k = String(t.status || '').replace(/^Allocated to /, 'Alloc. '); counts[k] = (counts[k] || 0) + 1; });
-                    const off = trips.filter(t => t.status === 'Offloaded').length, wait = trips.filter(t => t.status === 'Offloaded' && !t.report).length, vol = opsLoadVol(o);
+                    trips.forEach(t => { const k = opsStatusTxt(o, t); counts[k] = (counts[k] || 0) + 1; });
+                    const off = trips.filter(t => t.status === 'Offloaded').length, wait = trips.filter(t => t.status === 'Offloaded' && !t.report).length, origW = trips.filter(t => t.status === 'Offloaded' && opsRepStage(o, t).stage === 'depot').length, vol = opsLoadVol(o);
                     return `<div class="ops-card ${o.stage === 'invoiced' ? 'done' : ''}" onclick="App.openOpsOrder('${escAttr(o.id)}')">
                         <div class="ops-card-h"><span class="ops-client">${esc(o.client)}</span><b class="ops-no">${esc(o.clientOrderNo)}</b>${opsStageChip(o)}</div>
                         <div class="ops-kv"><div><span>Product</span><b>${esc(o.product)}</b></div><div><span>${vol ? 'To load' : 'Volume'}</span><b>${opsFmt(vol || o.volumeL)} L</b></div><div><span>Trucks</span><b>${trips.length || opsArr(o.nominees).length}</b></div></div>
                         <div class="ops-route">${esc(o.depot || '')} → ${esc(o.destination || '')}</div>
-                        <div class="ops-foot">${Object.entries(counts).map(([k, n]) => `<span class="ops-mini">${n} ${esc(k)}</span>`).join('')}${wait ? `<span class="ops-mini warn">🔔 ${wait} report${wait === 1 ? '' : 's'} to fill</span>` : ''}<span style="margin-left:auto;font-size:11px;color:var(--text3)">${trips.length ? `${off}/${trips.length} offloaded` : esc(fmtD(o.receivedAt))}</span></div>
+                        <div class="ops-foot">${Object.entries(counts).map(([k, n]) => `<span class="ops-mini">${n} ${esc(k)}</span>`).join('')}${wait ? `<span class="ops-mini warn">🔔 ${wait} report${wait === 1 ? '' : 's'} to fill</span>` : ''}${origW ? `<span class="ops-mini warn">📄 ${origW} original${origW === 1 ? '' : 's'} to fill</span>` : ''}<span style="margin-left:auto;font-size:11px;color:var(--text3)">${trips.length ? `${off}/${trips.length} offloaded` : esc(fmtD(o.receivedAt))}</span></div>
                     </div>`;
                 }).join('');
             }
@@ -1684,9 +1729,12 @@
                 const trips = opsArr(o.trips), vol = opsLoadVol(o);
                 const row = t => {
                     const k = opsKey(o.id, t.id), sent = !!offloadReports[k], r = t.report;
-                    const rep = r ? `<span class="ops-chip" style="color:#15803d;border-color:#15803d55" title="${escAttr((r.aaNo || '') + (r.filledBy ? ' · by ' + r.filledBy : ''))}">✓ ${esc(r.aaNo || 'filed')}</span>${r.depotInvoiceUrl ? ` <a href="${escAttr(r.depotInvoiceUrl)}" target="_blank" rel="noopener" title="Depot invoice photo">📎</a>` : ''}`
+                    const rs = opsRepStage(o, t);
+                    const rep = rs.stage === 'depot' ? `<span class="ops-chip" style="color:#d97706;border-color:#d9770655" title="Depot details${r && r.transitNo ? ' · transit ' + escAttr(r.transitNo) : ''} — the original is still at the depot">Depot details ✓</span>`
+                        : rs.stage === 'full' && rs.tr < 2 ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓</span>'
+                        : r ? `<span class="ops-chip" style="color:#15803d;border-color:#15803d55" title="${escAttr((r.aaNo || '') + (r.filledBy ? ' · by ' + r.filledBy : ''))}">✓ ${esc(r.aaNo || 'filed')}</span>${r.depotInvoiceUrl ? ` <a href="${escAttr(r.depotInvoiceUrl)}" target="_blank" rel="noopener" title="Depot invoice photo">📎</a>` : ''}`
                         : t.status === 'Offloaded' ? (sent ? '<span class="ops-chip" style="color:#15803d;border-color:#15803d55">Sent ✓</span>' : `<button class="btn btn-primary btn-xs" onclick="App.openOffloadReportForm('${escAttr(o.id)}','${escAttr(t.id)}',true)">Fill report</button>`) : '<span style="color:var(--text3)">—</span>';
-                    return `<tr><td><b class="ops-plate">${esc(t.plate)}</b><div style="font-size:11px;color:var(--text3)">${esc(t.trailer || '')}</div></td><td>${esc(t.driver || '—')}</td><td>${opsFmt(t.capacityL)} L</td><td>${opsTripChip(t)}</td><td>${t.loadedL ? opsFmt(t.loadedL) + ' L' : '—'}</td><td>${r ? opsFmt(r.offloadedL) + ' L<div style="font-size:11px;color:var(--text3)">short ' + opsFmt(opsShort(r)) + ' L</div>' : '—'}</td><td>${opsHolderCell(o, t)}</td><td>${rep}</td></tr>`;
+                    return `<tr><td><b class="ops-plate">${esc(t.plate)}</b><div style="font-size:11px;color:var(--text3)">${esc(t.trailer || '')}</div></td><td>${esc(t.driver || '—')}</td><td>${opsFmt(t.capacityL)} L</td><td>${opsStatusChip(o, t)}</td><td>${t.loadedL ? opsFmt(t.loadedL) + ' L' : '—'}</td><td>${r ? opsFmt(r.offloadedL) + ' L<div style="font-size:11px;color:var(--text3)">short ' + opsFmt(opsShort(r)) + ' L' + (r.offloadDepot ? ' · ' + esc(r.offloadDepot) : '') + '</div>' : '—'}</td><td>${opsHolderCell(o, t)}</td><td>${rep}</td></tr>`;
                 };
                 openModal(`
                 <div class="modal-header"><div style="flex:1"><div class="modal-name">${esc(o.clientOrderNo)} <span style="font-size:13px;color:var(--text3);font-weight:500">· ${esc(o.client)}</span></div><div class="modal-sub">${opsStageChip(o)} &nbsp;view only — changes are made on the Orders page</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
@@ -1712,36 +1760,62 @@
             function openOffloadReportForm(oid, tid, fromOrder) {
                 const o = opsOrders.find(x => x.id === oid), t = o && opsArr(o.trips).find(x => x.id === tid);
                 if (!t) { showToast('This truck is no longer on the order.'); return; }
-                if (t.report) { showToast(`${t.plate} already has a report — corrections are made on the Orders page.`); return; }
+                const st = opsRepStage(o, t);
+                if (st.stage === 'full') { showToast(`${t.plate} already has its report — corrections are made on the Orders page.`); return; }
+                const onlyHand = st.stage === 'depot';   // depot details are in: what is left is the original document (in hand)
+                const k = opsKey(oid, tid), pre = (t.report && t.report.stage === 'depot' ? t.report : null) || (offloadReports[k] && offloadReports[k].stage === 'depot' ? offloadReports[k] : null) || {};
+                const v = x => x == null ? '' : escAttr(String(x));
                 const inp = 'width:100%;padding:8px;margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text)';
                 const lab = 'font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em';
                 const html = `
-                <div class="modal-header"><div style="flex:1"><div class="modal-name">Offload report — ${esc(t.plate)}</div><div class="modal-sub">${esc(o.clientOrderNo)} · ${esc(o.client)} · ${esc(o.product)} · ${esc(t.driver || '')}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
+                <div class="modal-header"><div style="flex:1"><div class="modal-name">${onlyHand ? 'Original document' : 'Offload report'} — ${esc(t.plate)}</div><div class="modal-sub">${esc(o.clientOrderNo)} · ${esc(o.client)} · ${esc(o.product)} · ${esc(t.driver || '')}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
                 <div class="modal-body">
-                    <div class="ops-form">
-                        <div><label style="${lab}">AA number (avis d'arrivée) *</label><input id="ofr_aa" style="${inp}" placeholder="e.g. AA-77104"></div>
-                        <div><label style="${lab}">Offload date *</label><input id="ofr_date" type="date" style="${inp}" value="${todayYMD()}"></div>
-                        <div><label style="${lab}">Litres loaded (AA receipt) *</label><input id="ofr_loaded" type="number" min="0" style="${inp}" value="${t.loadedL || ''}" oninput="App.ofrCalc()"></div>
-                        <div><label style="${lab}">Temperature at loading (°C) *</label><input id="ofr_ltemp" type="number" step="0.1" style="${inp}"></div>
-                        <div><label style="${lab}">Litres offloaded *</label><input id="ofr_off" type="number" min="0" style="${inp}" oninput="App.ofrCalc()"></div>
-                        <div><label style="${lab}">Temperature at offloading (°C) *</label><input id="ofr_temp" type="number" step="0.1" style="${inp}"></div>
-                        <div><label style="${lab}">Allowed transit loss (litres) *</label><input id="ofr_transit" type="number" min="0" style="${inp}" placeholder="0 if none" oninput="App.ofrCalc()"></div>
-                        <div><label style="${lab}">Short (litres) * <span id="ofr_how" style="text-transform:none;letter-spacing:0;color:var(--text3)">— auto, you can type over it</span></label><input id="ofr_short" type="number" min="0" style="${inp}" data-manual="" oninput="this.dataset.manual='1';App.ofrCalc()"><div id="ofr_note" style="font-size:11px;color:var(--text3);margin-top:3px"></div></div>
-                        <div><label style="${lab}">Depot invoice number *</label><input id="ofr_inv" style="${inp}" placeholder="e.g. KOT-INV-55812"></div>
-                        <div><label style="${lab}">Depot invoice photo *</label><input id="ofr_file" type="file" accept="image/*,application/pdf" style="${inp};padding:6px"></div>
-                        <div><label style="${lab}">Remarks</label><input id="ofr_note2" style="${inp}" placeholder="Seal numbers, shortages disputed, etc."></div>
-                        <div><label style="${lab}">Original document is *</label><div class="ops-holds" id="ofr_hold" style="margin-top:6px"><label class="ops-hold"><input type="radio" name="ofr_hold" value="depot" onchange="this.closest('.ops-holds').querySelectorAll('.ops-hold').forEach(l=>l.classList.toggle('on',l.contains(this)))"> At the depot</label><label class="ops-hold"><input type="radio" name="ofr_hold" value="inhand" onchange="this.closest('.ops-holds').querySelectorAll('.ops-hold').forEach(l=>l.classList.toggle('on',l.contains(this)))"> In hand (to the office)</label></div></div>
-                        <div><label style="${lab}">Filled by (your name) *</label><input id="ofr_by" style="${inp}" placeholder="Your full name" value="${escAttr((window.auth && window.auth.currentUser && (window.auth.currentUser.displayName || window.auth.currentUser.email)) || '')}"></div>
+                    <div class="ofr-q">
+                        <div class="ofr-q-t">Where is the original document? *</div>
+                        <div class="ops-holds" id="ofr_hold">
+                            ${onlyHand ? '' : `<label class="ops-hold ofr-pick"><input type="radio" name="ofr_hold" value="depot" onchange="App.ofrMode('depot')"> At the depot <small>depot details now, the original later</small></label>`}
+                            <label class="ops-hold ofr-pick ${onlyHand ? 'on' : ''}"><input type="radio" name="ofr_hold" value="inhand" ${onlyHand ? 'checked' : ''} onchange="App.ofrMode('inhand')"> In hand (to the office) <small>full report</small></label>
+                        </div>
+                        ${onlyHand ? `<div class="ofr-q-note">Depot details were sent by ${esc(pre.filledBy || '—')} — complete the report now that the original is in hand. The depot figures are filled in; correct them if needed.</div>` : ''}
+                    </div>
+                    <!-- In hand = the original report form (same order and wording); At the depot = only the fields marked d1–d8, in that order -->
+                    <div class="ops-form" id="ofr_fields" data-mode="${onlyHand ? 'inhand' : ''}">
+                        <div class="ofr-full"><label style="${lab}">AA number (avis d'arrivée) *</label><input id="ofr_aa" style="${inp}" placeholder="e.g. AA-77104"></div>
+                        <div class="ofr-full"><label style="${lab}">Offload date *</label><input id="ofr_date" type="date" style="${inp}" value="${v(pre.offloadDate || todayYMD())}"></div>
+                        <div class="d3"><label style="${lab}"><span class="lb-d">Quantity loaded (litres) *</span><span class="lb-h">Litres loaded (AA receipt) *</span></label><input id="ofr_loaded" type="number" min="0" style="${inp}" value="${v(pre.loadedL || t.loadedL || '')}" oninput="App.ofrCalc()"></div>
+                        <div class="ofr-full"><label style="${lab}">Temperature at loading (°C) *</label><input id="ofr_ltemp" type="number" step="0.1" style="${inp}"></div>
+                        <div class="d4"><label style="${lab}"><span class="lb-d">Quantity offloaded (litres) *</span><span class="lb-h">Litres offloaded *</span></label><input id="ofr_off" type="number" min="0" style="${inp}" value="${v(pre.offloadedL || '')}" oninput="App.ofrCalc()"></div>
+                        <div class="ofr-full"><label style="${lab}">Temperature at offloading (°C) *</label><input id="ofr_temp" type="number" step="0.1" style="${inp}"></div>
+                        <div class="d6"><label style="${lab}"><span class="lb-d">Allowed loss (litres) *</span><span class="lb-h">Allowed transit loss (litres) *</span></label><input id="ofr_transit" type="number" min="0" style="${inp}" placeholder="0 if none" value="${v(pre.transitLossL)}" oninput="App.ofrCalc()"></div>
+                        <div class="d7"><label style="${lab}">Short (litres) * <span id="ofr_how" style="text-transform:none;letter-spacing:0;color:var(--text3)">— auto, you can type over it</span></label><input id="ofr_short" type="number" min="0" style="${inp}" value="${v(pre.shortL)}" data-manual="${pre.shortManual ? '1' : ''}" oninput="this.dataset.manual='1';App.ofrCalc()"><div id="ofr_note" style="font-size:11px;color:var(--text3);margin-top:3px"></div></div>
+                        <div class="d5"><label style="${lab}">Total loss (litres)</label><input id="ofr_tloss" style="${inp};opacity:.75" readonly tabindex="-1" placeholder="loaded − offloaded"></div>
+                        <div class="d1"><label style="${lab}"><span class="lb-d">Depot where offloaded *</span><span class="lb-h">Offloading depot *</span></label><input id="ofr_odepot" style="${inp}" list="ofr_odepot_l" autocomplete="off" placeholder="Depot where it offloaded" value="${v(pre.offloadDepot)}"><datalist id="ofr_odepot_l">${opsOffloadDepots().map(d => `<option value="${escAttr(d)}">`).join('')}</datalist></div>
+                        <div class="d2 ofr-dep"><label style="${lab}">Transit number *</label><input id="ofr_tno" style="${inp}" autocomplete="off" placeholder="e.g. T1-2026-0457" value="${v(pre.transitNo)}"></div>
+                        <div class="ofr-full"><label style="${lab}">Depot invoice number *</label><input id="ofr_inv" style="${inp}" placeholder="e.g. KOT-INV-55812"></div>
+                        <div class="ofr-full"><label style="${lab}">Depot invoice photo *</label><input id="ofr_file" type="file" accept="image/*,application/pdf" style="${inp};padding:6px"></div>
+                        <div class="ofr-full"><label style="${lab}">Remarks</label><input id="ofr_note2" style="${inp}" placeholder="Seal numbers, shortages disputed, etc."></div>
+                        <div class="d8"><label style="${lab}">Filled by (your name) *</label><input id="ofr_by" style="${inp}" placeholder="Your full name" value="${escAttr((window.auth && window.auth.currentUser && (window.auth.currentUser.displayName || window.auth.currentUser.email)) || '')}"></div>
                     </div>
                     <div id="ofr_err" style="display:none;margin-top:10px;font-size:12px;color:var(--red)"></div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
                         <button class="btn btn-ghost btn-sm" onclick="App.closeModal()">Cancel</button>
-                        <button class="btn btn-primary btn-sm" id="ofr_send" onclick="App.submitOffloadReport('${escAttr(oid)}','${escAttr(tid)}')">Send report to the Orders page</button>
+                        <button class="btn btn-primary btn-sm" id="ofr_send" ${onlyHand ? '' : 'disabled'} onclick="App.submitOffloadReport('${escAttr(oid)}','${escAttr(tid)}')">${onlyHand ? 'Send the original document' : 'Choose where the original is'}</button>
                     </div>
                 </div>`;
                 if (fromOrder) pushModal(html); else openModal(html);
                 document.getElementById('modalBox').classList.add('modal-wide', 'ofr-modal');
                 ofrCalc();
+            }
+            /* the first choice decides the form: depot details only, or the full report */
+            function ofrMode(m) {
+                const f = document.getElementById('ofr_fields'), b = document.getElementById('ofr_send');
+                if (!f || !['depot', 'inhand'].includes(m)) return;
+                f.dataset.mode = m;
+                document.querySelectorAll('#ofr_hold .ops-hold').forEach(l => l.classList.toggle('on', !!l.querySelector(`input[value="${m}"]`)));
+                if (b) { b.disabled = false; b.textContent = m === 'depot' ? 'Send depot details' : 'Send report to the Orders page'; }
+                const e = document.getElementById('ofr_err'); if (e) e.style.display = 'none';
+                ofrCalc();
+                setTimeout(() => { const i = document.getElementById('ofr_odepot'); if (i && !i.value) i.focus(); }, 30);
             }
             /* Short = (loaded − allowed transit loss) − offloaded, never below 0; a figure typed by hand is kept */
             function ofrCalc() {
@@ -1751,30 +1825,58 @@
                 const f = l && o ? Math.max(0, l - tr - o) : null, manual = s.dataset.manual === '1';
                 if (!manual) s.value = f == null ? '' : f;
                 g('ofr_how').innerHTML = manual ? `— typed by hand · <a href="#" onclick="event.preventDefault();document.getElementById('ofr_short').dataset.manual='';App.ofrCalc()">use formula</a>` : '— auto, you can type over it';
+                { const tl = g('ofr_tloss'); if (tl) tl.value = l && o ? opsFmt(l - o) + ' L' : ''; }
                 g('ofr_note').textContent = f == null ? 'Expected on arrival = loaded − allowed transit loss' : `Expected ${opsFmt(l - tr)} L · formula gives ${opsFmt(f)} L`;
             }
             async function submitOffloadReport(oid, tid, skipPhoto) {
                 const g = id => document.getElementById(id), err = g('ofr_err'), btn = g('ofr_send');
-                const fail = m => { if (err) { err.innerHTML = m; err.style.display = 'block'; } if (btn) { btn.disabled = false; btn.textContent = 'Send report to the Orders page'; } };
+                const mode = (g('ofr_fields') || {}).dataset ? g('ofr_fields').dataset.mode : '';
+                const label = mode === 'depot' ? 'Send depot details' : 'Send report to the Orders page';
+                const fail = m => { if (err) { err.innerHTML = m; err.style.display = 'block'; } if (btn) { btn.disabled = false; btn.textContent = label; } };
+                if (!mode) return fail('Choose first where the original document is: at the depot or in hand.');
                 const o = opsOrders.find(x => x.id === oid), t = o && opsArr(o.trips).find(x => x.id === tid);
                 if (!t) return fail('This truck is no longer on the order.');
-                if (t.report || offloadReports[opsKey(oid, tid)]) return fail('A report for this truck has already been sent.');
+                const st = opsRepStage(o, t), k = opsKey(oid, tid), prevRec = offloadReports[k] || null;
+                if (st.stage === 'full') return fail('The report for this truck has already been sent.');
+                if (mode === 'depot' && st.stage === 'depot') return fail('Depot details were already sent — fill the original document when it is in hand.');
                 if (typeof database === 'undefined' || !remoteReady || offlineMode) return fail('Not connected to the live database — try again when online.');
-                const aa = g('ofr_aa').value.trim(), date = g('ofr_date').value, loaded = +g('ofr_loaded').value, ltemp = g('ofr_ltemp').value, off = +g('ofr_off').value,
-                    temp = g('ofr_temp').value, transit = g('ofr_transit').value, shortV = g('ofr_short').value, inv = g('ofr_inv').value.trim(), by = g('ofr_by').value.trim(), file = g('ofr_file').files[0];
+                const clean = x => String(x || '').replace(/\s+/g, ' ').trim();
+                const odep = clean(g('ofr_odepot').value), tno = clean(g('ofr_tno').value), loaded = +g('ofr_loaded').value, off = +g('ofr_off').value,
+                    transit = g('ofr_transit').value, shortV = g('ofr_short').value, by = g('ofr_by').value.trim();
+                const dm = mode === 'depot';
+                if (!odep) return fail(dm ? 'Depot where offloaded is required.' : 'Offloading depot is required.');
+                if (dm && !tno) return fail('Transit number is required.');   // asked on the depot form only
+                if (!(loaded > 0)) return fail(dm ? 'Quantity loaded is required.' : 'Litres loaded is required.');
+                if (!(off > 0)) return fail(dm ? 'Quantity offloaded is required.' : 'Litres offloaded is required.');
+                if (transit === '' || +transit < 0) return fail(dm ? 'Allowed loss is required (type 0 if none).' : 'Allowed transit loss is required (type 0 if none).');
+                if (shortV === '' || +shortV < 0) return fail('Short is required (0 or more).');
+                const loadedN = Math.round(loaded), offN = Math.round(off), tr = Math.round(+transit) || 0, shortL = Math.round(+shortV);
+                const formula = Math.max(0, loadedN - tr - offN), at = new Date().toISOString();
+                const email = (window.auth && window.auth.currentUser && window.auth.currentUser.email) || '';
+                const base = { orderId: oid, tripId: tid, orderNo: o.clientOrderNo, plate: t.plate, offloadDepot: odep, transitNo: tno, loadedL: loadedN, offloadedL: offN, lossL: loadedN - offN,
+                    transitLossL: tr, shortL, shortManual: shortL !== formula, at };
+                if (mode === 'depot') {
+                    if (!by) return fail('Type your name in "Filled by".');
+                    const offDay = String((opsArr(t.history).slice().reverse().find(h => h.to === 'Offloaded') || {}).at || at).slice(0, 10);
+                    const rec = Object.assign(base, { stage: 'depot', offloadDate: offDay, filledBy: by, filledByEmail: email, originalAt: 'depot', originalAtSetAt: at, originalAtBy: by });
+                    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+                    try { await database.ref('fleetguard/offloadReports/' + k).set(rec); } catch (e) { return fail('Could not send: ' + esc(e.message || e)); }
+                    offloadReports[k] = rec;
+                    logAudit('create', 'offloadReport', t.plate, `Depot details for ${t.plate} (${o.clientOrderNo}) sent to the Orders page by ${by} — original at the depot`);
+                    saveAll(['auditTrail']);
+                    _modalStack = []; closeModal();
+                    showToast(`Depot details for ${t.plate} sent — the Orders page shows it as waiting for the original`);
+                    renderOpsOrders(); updateSidebarBadges();
+                    return;
+                }
+                const aa = g('ofr_aa').value.trim(), date = g('ofr_date').value, ltemp = g('ofr_ltemp').value, temp = g('ofr_temp').value, inv = g('ofr_inv').value.trim(), file = g('ofr_file').files[0];
                 if (!aa) return fail('AA number is required.');
-                const aaUsed = opsOrders.some(x => opsArr(x.trips).some(y => y.report && String(y.report.aaNo || '').toLowerCase() === aa.toLowerCase())) || Object.values(offloadReports).some(r => r && String(r.aaNo || '').toLowerCase() === aa.toLowerCase());
+                const aaUsed = opsOrders.some(x => opsArr(x.trips).some(y => y !== t && y.report && String(y.report.aaNo || '').toLowerCase() === aa.toLowerCase())) || Object.entries(offloadReports).some(([kk, r]) => kk !== k && r && String(r.aaNo || '').toLowerCase() === aa.toLowerCase());
                 if (aaUsed) return fail('That AA number is already used by another truck — it must be unique.');
                 if (!date) return fail('Offload date is required.');
-                if (!(loaded > 0)) return fail('Litres loaded is required.');
                 if (ltemp === '') return fail('Temperature at loading is required.');
-                if (!(off > 0)) return fail('Litres offloaded is required.');
                 if (temp === '') return fail('Temperature at offloading is required.');
-                if (transit === '' || +transit < 0) return fail('Allowed transit loss is required (type 0 if none).');
-                if (shortV === '' || +shortV < 0) return fail('Short is required (0 or more).');
                 if (!inv) return fail('Depot invoice number is required.');
-                const hold = (document.querySelector('input[name="ofr_hold"]:checked') || {}).value || '';
-                if (!hold) return fail('Choose where the original document is: at the depot or in hand.');
                 if (!by) return fail('Type your name in "Filled by".');
                 if (!file && !skipPhoto) return fail('Add the photo of the depot invoice.');
                 if (btn) { btn.disabled = true; btn.textContent = file && !skipPhoto ? 'Uploading the photo…' : 'Sending…'; }
@@ -1786,27 +1888,22 @@
                         const res = await uploadToGoogleDrive({ base64: dataUrlToBase64(dataUrl), fileName: `${sanitizeFileName(o.clientOrderNo)}_${sanitizeFileName(t.plate)}_${sanitizeFileName(aa)}.${ext}`, mimeType: file.type || 'image/jpeg', folder: 'fleetguard/offload-reports' });
                         fileRec = { name: file.name, url: res.url, id: res.id || null };
                     } catch (e) {
-                        return fail(`The photo could not be uploaded: ${esc(e.message || e)}<br><a href="#" onclick="event.preventDefault();App.submitOffloadReport('${escAttr(oid)}','${escAttr(tid)}',true)">Send the report without the photo</a> (it can be added later on the Orders page as a file name only).`);
+                        return fail(`The photo could not be uploaded: ${esc(e.message || e)}<br><a href="#" onclick="event.preventDefault();App.submitOffloadReport('${escAttr(oid)}','${escAttr(tid)}',true)">Send the report without the photo</a> (it can be added later on the Orders page).`);
                     }
                 }
-                const loadedN = Math.round(loaded), offN = Math.round(off), tr = Math.round(+transit) || 0, shortL = Math.round(+shortV);
-                const formula = Math.max(0, loadedN - tr - offN);
-                const rec = {
-                    orderId: oid, tripId: tid, orderNo: o.clientOrderNo, plate: t.plate, aaNo: aa, offloadDate: date, loadedL: loadedN, loadTempC: +ltemp, offloadedL: offN, tempC: +temp,
-                    transitLossL: tr, shortL, shortManual: shortL !== formula, depotInvoiceRef: inv, note: g('ofr_note2').value.trim(), filledBy: by,
-                    filledByEmail: (window.auth && window.auth.currentUser && window.auth.currentUser.email) || '', at: new Date().toISOString()
-                };
-                rec.originalAt = hold; rec.originalAtSetAt = rec.at; rec.originalAtBy = by;
+                const rec = Object.assign(base, { stage: 'full', aaNo: aa, offloadDate: date, loadTempC: +ltemp, tempC: +temp, depotInvoiceRef: inv, note: g('ofr_note2').value.trim(),
+                    filledBy: by, filledByEmail: email, originalAt: 'inhand', originalAtSetAt: at, originalAtBy: by });
+                if (st.stage === 'depot') { const d0 = (t.report && t.report.stage === 'depot' ? t.report : prevRec) || {}; rec.depotFiledAt = d0.fgAt || d0.at || ''; rec.depotFiledBy = d0.filledBy || ''; }
                 if (fileRec) rec.file = fileRec;
                 try {
-                    await database.ref('fleetguard/offloadReports/' + opsKey(oid, tid)).set(rec);
+                    await database.ref('fleetguard/offloadReports/' + k).set(rec);
                 } catch (e) { return fail('Could not send: ' + esc(e.message || e)); }
-                offloadReports[opsKey(oid, tid)] = rec;
-                logAudit('create', 'offloadReport', t.plate, `Offload report ${aa} for ${t.plate} (${o.clientOrderNo}) sent to the Orders page by ${by} — original ${hold === 'inhand' ? 'in hand' : 'at the depot'}`);
+                offloadReports[k] = rec;
+                logAudit('create', 'offloadReport', t.plate, st.stage === 'depot' ? `Original document ${aa} for ${t.plate} (${o.clientOrderNo}) sent to the Orders page by ${by} — in hand` : `Offload report ${aa} for ${t.plate} (${o.clientOrderNo}) sent to the Orders page by ${by} — original in hand`);
                 saveAll(['auditTrail']);
                 _modalStack = [];
                 closeModal();
-                showToast(`Report for ${t.plate} sent to the Orders page`);
+                showToast(st.stage === 'depot' ? `Original document for ${t.plate} sent to the Orders page` : `Report for ${t.plate} sent to the Orders page`);
                 renderOpsOrders(); updateSidebarBadges();
             }
 
@@ -1826,9 +1923,9 @@
                     opsOrders = opsArr(data.opsOrders);
                     offloadReports = data.offloadReports || {};
                     attnChanged = true;   // same redraw path as the attention list
-                    const n = opsToFill().length;
+                    const n = opsToFill().filter(x => x.kind !== 'original').length;
                     if (_opsToFillSeen !== null && n > _opsToFillSeen) {
-                        const x = opsToFill()[0];
+                        const x = opsToFill().filter(y => y.kind !== 'original')[0];
                         try { showToast(`🔔 ${x.t.plate} offloaded (${x.o.clientOrderNo}) — offload report to fill under Orders`, 6000); } catch (e) { /* toast must never break sync */ }
                     }
                     _opsToFillSeen = n;
@@ -3205,7 +3302,7 @@ function _afterLoad() {
                     alerts.push({
                         groupKey: 'opsfill', groupLabel: 'Offload reports to fill', groupIcon: '🛢',
                         id: `opsfill:${x.o.id}|${x.t.id}`, urgency: 0,
-                        title: `${esc(x.t.plate)} offloaded — report to fill`,
+                        title: x.kind === 'original' ? `${esc(x.t.plate)} — original document to fill` : `${esc(x.t.plate)} offloaded — report to fill`,
                         desc: `${esc(x.o.clientOrderNo)} · ${esc(x.o.client)} · ${esc(x.t.driver || '')}${x.at ? ' · ' + esc(opsDt(x.at)) : ''}`,
                         action: `App.showPage('orders');setTimeout(()=>App.openOffloadReportForm('${escAttr(x.o.id)}','${escAttr(x.t.id)}'),80)`
                     });
@@ -18246,7 +18343,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 setTruckSubTab,
                 renderTrailerMetrics, renderTrailerCards, openTrailerModal,
                 addTrailerForm, createTrailerFromForm, deleteTrailer, updateTrailerStatus,
-                renderOpsOrders, setOpsQuery, setOpsStage, openOpsOrder, openOffloadReportForm, ofrCalc, submitOffloadReport,
+                renderOpsOrders, setOpsQuery, setOpsStage, openOpsOrder, openOffloadReportForm, ofrMode, ofrCalc, submitOffloadReport,
                 addDocToTrailer, updateTrailerDocExpiry, removeDocFromTrailer,
                 addTrailerIssue, removeTrailerIssue,
                 handleTrailerFileUpload, renameTrailerAttachment, deleteTrailerAttachment, previewTrailerAttachment,

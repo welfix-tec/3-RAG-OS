@@ -454,6 +454,13 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 .acct-b.out:hover{color:var(--red);border-color:rgba(220,38,38,.35);background:rgba(220,38,38,.07)}
 .acct-b svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .demo-tag{font-size:10px;font-weight:800;letter-spacing:.06em;color:#b45309;background:rgba(217,119,6,.12);border:1px solid rgba(217,119,6,.35);border-radius:6px;padding:2px 6px}
+/* Nov 2026 — section headings in the nomination list */
+.nom-fleet tr.nom-sec td{padding:8px 10px 6px;background:var(--bg3);border-left:4px solid var(--border2);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text2)}
+.nom-fleet tr.nom-sec.s1 td{border-left-color:var(--green)}.nom-fleet tr.nom-sec.s2 td{border-left-color:var(--amber)}
+.nom-fleet tr.nom-sec.s3 td{border-left-color:#2563eb}.nom-fleet tr.nom-sec.s4 td{border-left-color:var(--text3)}
+.nom-sec-n{display:inline-block;margin-left:8px;min-width:20px;padding:1px 7px;border-radius:999px;background:var(--bg2);border:1px solid var(--border2);font-size:10.5px;text-align:center;color:var(--text)}
+.ro-in{background:var(--bg3)!important;color:var(--text2);cursor:default}
+.form.rep-dep .fo{display:none}
 @keyframes flash{0%{background:rgba(61,127,255,.25)}100%{background:transparent}}
 </style>
 </head>
@@ -559,6 +566,14 @@ const TRIP_COLOR={'Queued':'purple','Allocated to Dar':'gray','Allocated to Tang
 const isAlloc=s=>ALLOC.includes(s);
 /* loading places added by Operations (double-click the status box on Assign) — kept in S.allocPlaces, shown after Dar and Tanga */
 const placeStatus=p=>'Allocated to '+p;
+/* Nov 2026: a truck is allocated to the order's own loading depot — "Allocated to <depot typed on the order>".
+   A depot seen for the first time joins the status list (saved with the shared Orders settings); no depot → Dar. */
+function allocFor(o){
+  const p=String((o&&o.depot)||'').replace(/\s+/g,' ').trim();if(!p)return 'Allocated to Dar';
+  const hit=ALLOC.find(x=>x.toLowerCase()===placeStatus(p).toLowerCase());if(hit)return hit;
+  const st=registerPlace(p);S.allocPlaces=S.allocPlaces||[];if(!S.allocPlaces.some(x=>String(x).toLowerCase()===p.toLowerCase()))S.allocPlaces.push(p);
+  return st;
+}
 function registerPlace(p){
   const st=placeStatus(p);if(ALLOC.includes(st))return st;
   ALLOC.push(st);TRIP_STATUSES.splice(ALLOC.length-1,0,st);
@@ -763,7 +778,8 @@ function load(){
   if(!Array.isArray(S.deletedOrders))S.deletedOrders=[];purgeDeleted();
   if(!Array.isArray(S.roadStatuses))S.roadStatuses=[];S.roadStatuses.forEach(registerRoad);
   S.orders=(S.orders||[]).map(normOrder);
-  S.role='Operations';}   /* Finance opens only with its PIN, never from a saved page */
+  S.role='Operations';
+  try{autoAssignApproved()}catch(e){console.warn('[Orders] auto-assign',e)}}   /* Finance opens only with its PIN, never from a saved page */
 /* one order made whole: old status names, and every list Firebase leaves out when it is empty */
 const MIG={'Allocated':'Allocated to Dar','Loading':'WD'};
 function normOrder(o){
@@ -830,7 +846,9 @@ function applyCloudOrders(val){
     if(localOnly.length){CLOUD.localOnly=localOnly;try{localStorage.setItem('fg_orders_unshared',JSON.stringify(localOnly))}catch(e){}}
   }
   S.orders=remote;CLOUD.sent={};remote.forEach(o=>{CLOUD.sent[o.id]=JSON.stringify(o)});
-  CLOUD.gotOrders=true;cloudMaybeReady();ingestReports();safeRender();
+  CLOUD.gotOrders=true;cloudMaybeReady();ingestReports();
+  try{if(autoAssignApproved())save()}catch(e){console.warn('[Orders] auto-assign',e)}
+  safeRender();
 }
 function applyCloudSettings(v){
   if(v&&Object.keys(v).length){
@@ -848,9 +866,10 @@ function ingestReports(){
     if(!r||!r.orderId||!r.tripId)return;const o=byId(r.orderId),t=o&&o.trips.find(x=>x.id===r.tripId);if(!t)return;
     if(t.report&&(!t.report.fgAt||t.report.fgAt>=r.at))return;
     const loaded=+r.loadedL||t.loadedL||0;t.loadedL=loaded||t.loadedL;
-    t.report={aaNo:r.aaNo||'',offloadDate:r.offloadDate||'',offloadedL:+r.offloadedL||0,lossL:loaded-(+r.offloadedL||0),loadTempC:+r.loadTempC,tempC:+r.tempC,transitLossL:+r.transitLossL||0,shortL:+r.shortL||0,shortManual:!!r.shortManual,
-      depotInvoiceRef:r.depotInvoiceRef||'',depotInvoiceFile:r.file&&r.file.name||'',depotInvoiceUrl:r.file&&r.file.url||'',note:r.note||'',filledBy:r.filledBy||'FleetGuard',filledByEmail:r.filledByEmail||'',source:'FleetGuard',fgAt:r.at,at:r.at};
-    o.history.push({ev:`Offload report for ${t.plate} filed in FleetGuard by ${t.report.filledBy} — ${t.report.aaNo}, ${fmt(t.report.offloadedL)} L offloaded, short ${fmt(t.report.shortL)} L`,at:r.at,by:'FleetGuard'});n++;
+    const wasDepot=!!(t.report&&t.report.stage==='depot'),dep=r.stage==='depot';
+    t.report={...(dep?{stage:'depot'}:{}),transitNo:r.transitNo||'',aaNo:r.aaNo||'',offloadDate:r.offloadDate||'',offloadedL:+r.offloadedL||0,lossL:loaded-(+r.offloadedL||0),loadTempC:r.loadTempC!=null?+r.loadTempC:null,tempC:r.tempC!=null?+r.tempC:null,transitLossL:+r.transitLossL||0,shortL:+r.shortL||0,shortManual:!!r.shortManual,
+      offloadDepot:r.offloadDepot||'',depotInvoiceRef:r.depotInvoiceRef||'',depotInvoiceFile:r.file&&r.file.name||'',depotInvoiceUrl:r.file&&r.file.url||'',note:r.note||'',filledBy:r.filledBy||'FleetGuard',filledByEmail:r.filledByEmail||'',source:'FleetGuard',fgAt:r.at,at:r.at};
+    o.history.push({ev:dep?`Depot details for ${t.plate} filed in FleetGuard by ${t.report.filledBy} — original at the depot · ${t.report.offloadDepot}, ${fmt(t.report.offloadedL)} L offloaded, short ${fmt(t.report.shortL)} L`:wasDepot?`Original document for ${t.plate} filed in FleetGuard by ${t.report.filledBy} — ${t.report.aaNo}, in hand`:`Offload report for ${t.plate} filed in FleetGuard by ${t.report.filledBy} — ${t.report.aaNo}, ${fmt(t.report.offloadedL)} L offloaded, short ${fmt(t.report.shortL)} L`,at:r.at,by:'FleetGuard'});n++;
   });
   /* where the original is (FleetGuard: at the depot / in hand) — until it is Received at office here */
   let h=0;
@@ -907,7 +926,9 @@ const nomCap=o=>o.nominees.filter(n=>n.status!=='rejected').reduce((a,n)=>a+n.ca
 const offloadedL=o=>o.trips.reduce((a,t)=>a+(t.report?t.report.offloadedL:0),0);
 /* reports filed before the Short field read their old loss figure */
 const shortOf=r=>r?(r.shortL!=null?r.shortL:(r.lossL||0)):0;
-const tempsOf=r=>r?(r.loadTempC!=null?`${r.loadTempC}°C → ${r.tempC}°C`:`${r.tempC}°C`):'';
+const tempsOf=r=>r&&r.tempC!=null&&!isNaN(r.tempC)?(r.loadTempC!=null&&!isNaN(r.loadTempC)?`${r.loadTempC}°C → ${r.tempC}°C`:`${r.tempC}°C`):'';
+/* depot details only: the original is still at the depot and its full report is not filed yet */
+const isDepotRep=t=>!!(t&&t.report&&t.report.stage==='depot');
 const loadedL=o=>o.trips.reduce((a,t)=>a+(t.loadedL||0),0);
 /* every live commitment of a plate: active trips (incl. queued) and nominations still open */
 function engagements(plate){
@@ -955,7 +976,7 @@ function refreshStage(o){
 const invoiceable=t=>t.status==='Offloaded'&&t.report&&t.doc.step===DOC_RECV;
 /* days with the original still out: counted from the report being filed, at the depot or in hand, until Received at office */
 const stuckDays=t=>{if(t.report&&(t.report.fgAt||t.report.at))return daysSince(t.report.fgAt||t.report.at);const h=t.doc.history;return h.length?daysSince(h[h.length-1].at):0};
-const holderTxt=t=>t.doc.step===1?'In hand':'At depot';
+const holderTxt=t=>isDepotRep(t)?'Waiting for original doc':t.doc.step===1?'In hand':'At depot';
 
 /* ---------- clients ---------- */
 function allClients(){const gone=new Set(S.removedClients||[]);return [...new Set([...Object.keys(S.compliance||{}),...S.orders.map(o=>o.client)].map(c=>String(c||'').trim().toUpperCase()).filter(Boolean))].filter(c=>!gone.has(c)).sort()}
@@ -1339,7 +1360,7 @@ async function confirmDeleteOrder(id){
   /* trucks queued on other orders behind this one start there now, as if it had offloaded */
   let freed=0;
   S.orders.forEach(o2=>{if(o2.id===o.id)return;
-    o2.trips.forEach(t2=>{if(t2.status===QUEUED&&t2.queuedBehind&&t2.queuedBehind.oid===o.id){t2.status='Allocated to Dar';t2.queuedBehind=null;t2.history.push({to:'Allocated to Dar',at:now(),by:'System',note:'released — '+o.clientOrderNo+' was deleted'});log(o2,`${t2.plate} released from queue — ${o.clientOrderNo} was deleted`);freed++}});
+    o2.trips.forEach(t2=>{if(t2.status===QUEUED&&t2.queuedBehind&&t2.queuedBehind.oid===o.id){const st2=allocFor(o2);t2.status=st2;t2.queuedBehind=null;t2.history.push({to:st2,at:now(),by:'System',note:'released — '+o.clientOrderNo+' was deleted'});log(o2,`${t2.plate} released from queue — ${o.clientOrderNo} was deleted`);freed++}});
     o2.nominees.forEach(n=>{if(n.queuedBehind&&n.queuedBehind.oid===o.id)n.queuedBehind=null})});
   log(o,'Order deleted — '+reason);
   purgeDeleted();
@@ -1370,6 +1391,25 @@ async function restoreOrder(id){
 
 /* ---- 2 nomination ---- */
 const NOM_STAGES=['received','nominated','approved'];
+/* Nov 2026 — the nomination list in four sections:
+   1 free: on no other order and nothing to fix · 2 free but a driver/truck/trailer document needs attention
+   3 on another order and close to offloading (on the road, In Transit, WD) · 4 on another order at an early stage
+   (Allocated, Queued, or only nominated elsewhere). A busy truck goes to 3 or 4 even with a document notice.
+   Inside a section: the soonest free first; trucks with no driver (cannot be ticked) last. */
+const NOM_SEC={1:'Free — documents in order',2:'Free — documents need attention',3:'Offloading soon — finishing another order',4:'Further away — other orders first'};
+function nomSecOf(f,o){
+  const e=engagements(f.plate).filter(x=>x.o.id!==o.id);
+  if(!e.length)return {s:fleetIssues(f,o.product).length?2:1,k:0};
+  const run=e.filter(x=>x.kind==='trip'&&x.status!==QUEUED),more=e.filter(x=>!(x.kind==='trip'&&x.status!==QUEUED));
+  const r=run.length?Math.max(...run.map(x=>rank(x.status))):null;
+  if(!more.length&&r>=1)return {s:3,k:r};
+  return {s:4,k:more.length?(more.some(x=>x.kind==='trip')?-1:-2)-more.length/100:(r??0)};
+}
+function nomSections(o,list){
+  const g={1:[],2:[],3:[],4:[]};
+  list.forEach(f=>{const x=nomSecOf(f,o);g[x.s].push({f,k:x.k,nd:f.driver?0:1})});
+  return [1,2,3,4].filter(n=>g[n].length).map(n=>({s:n,list:g[n].sort((a,b)=>(a.nd-b.nd)||(b.k-a.k)||String(a.f.plate).localeCompare(String(b.f.plate))).map(x=>x.f)}));
+}
 function renderNomination(){
   const host=document.getElementById('nomBody');
   const cands=S.orders.filter(o=>NOM_STAGES.includes(o.stage)).filter(orderInRange).filter(x=>matchQ(x,'nomination')).sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt));
@@ -1393,6 +1433,7 @@ function nomSearchApply(){
   const box=document.querySelector('.nom-fleet');if(!box)return;
   const rows=[...box.querySelectorAll('tbody tr[data-plate]')];let n=0;
   rows.forEach(r=>{const hit=nomHit({plate:r.dataset.plate,trailer:r.dataset.trailer,driver:r.dataset.driver},NOMQ.q);r.style.display=hit?'':'none';if(hit)n++});
+  box.querySelectorAll('tbody tr.nom-sec').forEach(h=>{h.style.display=rows.some(r=>r.dataset.sec===h.dataset.sec&&r.style.display!=='none')?'':'none'});   /* a section with no match hides its heading */
   const info=document.getElementById('nomQInfo');if(!info)return;
   const q=NOMQ.q.trim();
   if(!q){info.textContent='';return}
@@ -1434,19 +1475,19 @@ function openNom(oid){
       ${liveHint()}
       <hr class="div" style="margin:14px 0">
       <div class="tbl nom-fleet"><table><thead><tr><th></th><th>Truck / trailer</th><th>Driver</th><th>${esc(o.product)} capacity</th></tr></thead><tbody>
-      ${SHOW.map(f=>{
+      ${nomSections(o,SHOW).map(g=>`<tr class="nom-sec s${g.s}" data-sec="${g.s}"><td colspan="4"><span class="nom-sec-t">${g.s} · ${NOM_SEC[g.s]}</span><span class="nom-sec-n">${g.list.length}</span></td></tr>`+g.list.map(f=>{
         const anchor=inList.has(f.plate)?null:queueAnchor(f.plate,o.id);
         const dis=false;
         const nc=!isCompliant(o.client,f.plate);
         const rj=(o.rejected||[]).some(x=>samePlate(x,f.plate));
         const iss=fleetIssues(f,o.product);
-        const blocked=rj||hardBlock(iss);
-        return `<tr class="${inList.has(f.plate)?'sel':''} ${anchor?'busyrow':''}" data-plate="${esc(f.plate)}" data-trailer="${esc(f.trailer||'')}" data-driver="${esc(f.driver||'')}">
+        const blocked=hardBlock(iss);   /* a truck the client rejected can be ticked again (Nov 2026) — it keeps its tag */
+        return `<tr class="${inList.has(f.plate)?'sel':''} ${anchor?'busyrow':''}" data-sec="${g.s}" data-plate="${esc(f.plate)}" data-trailer="${esc(f.trailer||'')}" data-driver="${esc(f.driver||'')}">
         <td><input type="checkbox" style="width:16px;height:16px" ${inList.has(f.plate)?'checked':''} ${locked||blocked?'disabled':''} onchange="T.toggleNominee('${o.id}','${esc(f.plate)}',this.checked)" title="${blocked?esc(iss.join(', ')):anchor?'Busy on '+esc(anchor.orderNo)+' — ticking it queues this truck for this order':''}"></td>
-        <td class="mono">${attnIcon(f,o)}<b>${esc(f.plate)}</b>${expBadge(f)}<div class="tiny">${esc(f.trailer||'no trailer')}${f.status?' · '+esc(f.status):''}</div>${nc?`<span class="chip amber" style="margin-top:4px" title="Not on ${esc(o.client)}'s compliant list — can still be nominated">not on ${esc(o.client)} list</span>`:''}${rj?`<span class="chip red" style="margin-top:4px" title="Rejected by ${esc(o.client)} for this order — can still be nominated on another order">rejected · this order</span>`:''}</td>
+        <td class="mono">${attnIcon(f,o)}<b>${esc(f.plate)}</b>${expBadge(f)}<div class="tiny">${esc(f.trailer||'no trailer')}${f.status?' · '+esc(f.status):''}</div>${nc?`<span class="chip amber" style="margin-top:4px" title="Not on ${esc(o.client)}'s compliant list — can still be nominated">not on ${esc(o.client)} list</span>`:''}${rj?`<span class="chip red" style="margin-top:4px" title="Rejected by ${esc(o.client)} for this order — you can tick it again if needed">rejected · this order</span>`:''}</td>
         <td>${f.driver?esc(f.driver):'<span class="chip red">no driver</span>'}${f.driver?`<div class="tiny">${esc(f.licence||'no licence')} · ${esc(f.passport||'no passport')}</div>`:''}</td>
         <td><input class="cap-in ${capSource(f,o.product)==='typed'?'typed':''}" type="number" step="500" value="${capFor(f,o.product)||''}" placeholder="set" ${locked?'disabled':''} onchange="T.setCap('${esc(f.plate)}','${esc(o.product)}',this.value)" title="${esc(o.product)} litres. ${capSource(f,o.product)==='typed'?'Typed here — trailer says '+(capNum((f.caps||{})[o.product])?fmt(f.caps[o.product])+' L':'nothing')+'. Clear the box to go back to the trailer figure.':capSource(f,o.product)==='trailer'?'From trailer '+esc(f.trailer)+' in FleetGuard. Type to change it for '+esc(o.product)+' here.':'Not set on the trailer — type it here, or fill it in FleetGuard.'}"> L<span class="cap-src">${capSource(f,o.product)==='typed'?'typed':capSource(f,o.product)==='trailer'?'trailer':''}</span>
-          ${anchor?`<div class="qtag" title="This truck is currently ${anchor.kind==='trip'?'on a trip':'nominated'} for ${esc(anchor.orderNo)}. You can still nominate it here: it will wait as Queued and start this order as soon as it offloads ${esc(anchor.orderNo)}.">⏳ on ${esc(anchor.orderNo)} (${esc(TRIP_SHORT[anchor.status]||anchor.status)}) · tick to queue</div>`:iss.length?`<div class="tiny" style="color:var(--amber)">${esc(iss.join(' · '))}</div>`:''}</td></tr>`}).join('')}
+          ${anchor?`<div class="qtag" title="This truck is currently ${anchor.kind==='trip'?'on a trip':'nominated'} for ${esc(anchor.orderNo)}. You can still nominate it here: it will wait as Queued and start this order as soon as it offloads ${esc(anchor.orderNo)}.">⏳ on ${esc(anchor.orderNo)} (${esc(TRIP_SHORT[anchor.status]||anchor.status)}) · tick to queue</div>`:iss.length?`<div class="tiny" style="color:var(--amber)">${esc(iss.join(' · '))}</div>`:''}</td></tr>`}).join('')).join('')}
       </tbody></table></div>
       ${FB.state==='live'?`<p class="tiny" style="margin-top:8px">${SHOW.length} trucks${SHOW.length>8?' · scroll the list':''} · ${esc(o.product)} capacity comes from the trailer in FleetGuard — type to change it · <b>?</b> = needs an update in FleetGuard</p>`:''}
     </div>
@@ -1463,7 +1504,7 @@ function openNom(oid){
         const st={proposed:'Not sent yet',sent:'Awaiting the client',accepted:'Accepted by the client',rejected:'Rejected by the client'}[n.status]||'';
         return `<div class="nom-card ${n.status}" title="${esc(n.plate+' — '+st)}">
           <div class="nc-top"><span class="nc-dot" title="${esc(st)}"></span><b class="mono">${esc(n.plate)}</b><span class="nc-cap">${fmt(n.capacityL)} L</span>
-            <span class="nc-act">${sent&&S.role==='Operations'&&n.status==='sent'?`<button class="nc-b ok" title="Client accepted ${esc(n.plate)}" onclick="T.answer('${o.id}','${esc(n.plate)}','accepted')">✓</button><button class="nc-b no" title="Client rejected ${esc(n.plate)}" onclick="T.answer('${o.id}','${esc(n.plate)}','rejected')">✕</button>`:''}${sent&&S.role==='Operations'&&n.status==='rejected'?`<button class="nc-b" title="Remove ${esc(n.plate)} and pick a replacement" onclick="T.removeNominee('${o.id}','${esc(n.plate)}')">↺</button>`:''}${!locked&&S.role==='Operations'&&n.status!=='rejected'?`<button class="nc-x" title="Remove ${esc(n.plate)} from the list" onclick="T.toggleNominee('${o.id}','${esc(n.plate)}',false)">×</button>`:''}</span></div>
+            <span class="nc-act">${sent&&S.role==='Operations'&&n.status==='sent'?`<button class="nc-b ok" title="Client accepted ${esc(n.plate)}" onclick="T.answer('${o.id}','${esc(n.plate)}','accepted')">✓</button><button class="nc-b no" title="Client rejected ${esc(n.plate)} — it goes back to the list" onclick="T.removeNominee('${o.id}','${esc(n.plate)}')">✕</button>`:''}${sent&&S.role==='Operations'&&n.status==='rejected'?`<button class="nc-b" title="Remove ${esc(n.plate)} and pick a replacement" onclick="T.removeNominee('${o.id}','${esc(n.plate)}')">↺</button>`:''}${!locked&&S.role==='Operations'&&n.status!=='rejected'?`<button class="nc-x" title="Remove ${esc(n.plate)} from the list" onclick="T.toggleNominee('${o.id}','${esc(n.plate)}',false)">×</button>`:''}</span></div>
           <!-- line 2: icons only (no text) under the plate, then the driver's full name -->
           <div class="nc-mid tiny">${exp.length?`<span class="nc-ic red" title="${esc(exp.join(', '))} — update it in FleetGuard">⚠</span>`:''}${n.queuedBehind?`<span class="nc-ic purple" title="Still on ${esc(n.queuedBehind.orderNo)} — starts this order after offloading it">⏳</span>`:''}${nc?`<span class="nc-ic amber" title="Not on ${esc(o.client)}'s compliant list">!</span>`:''}<span class="nc-drv" title="${esc(n.driver||'No driver')}">${esc(n.driver||'No driver')}</span><span class="nc-cap nc-cap2">${fmt(n.capacityL)} L</span></div>
         </div>`}).join(''):`<div class="empty" style="grid-column:1/-1;padding:22px">Tick trucks on the left.</div>`}
@@ -1474,7 +1515,7 @@ function openNom(oid){
         ${sent?`<div class="nom-note">Sent to ${esc(o.client)} — tick ✓ / ✕ as they answer.${pending?' '+pending+' awaiting.':''}${proposed?' <b>'+proposed+' not sent yet.</b>':''}${!ok?' <span style="color:var(--amber)">'+fmt(-diff)+' L short.</span>':''}</div>
           <div class="row"><button class="btn sm" title="Preview the list" onclick="T.showTemplate('${o.id}')">📄 Preview</button><button class="btn sm" title="Excel for the client" onclick="T.exportXlsx('${o.id}')">⬇ Excel</button>${proposed?`<button class="btn sm primary" onclick="T.sendNomination('${o.id}')">Send ${proposed} new to ${o.client} →</button>`:''}${pending+proposed?`<button class="btn sm green" onclick="T.approveAll('${o.id}')" title="Mark every truck awaiting the client&#39;s answer as accepted and confirm the nomination">✓ Approved all (${pending+proposed})</button>`:''}<button class="btn sm ${proposed?'':'primary'}" onclick="T.approveNomination('${o.id}')" ${pending===0&&proposed===0&&accepted>0?'':'disabled'}>Client approved →</button></div>
           `:''}
-        ${locked?`<div class="alert ok">Approved by ${o.client}.</div><button class="btn primary" onclick="T.focus('${o.id}','assign')">Assign order to trucks →</button>`:''}
+        ${locked?`<div class="alert ok">Approved by ${o.client}.</div>`:''}
         </div>
     </div>
   </div></div>
@@ -1492,8 +1533,8 @@ function signInBox(){
   <div class="form"><div class="full"><label>Email</label><input id="si_email" type="email" autocomplete="username"></div><div class="full"><label>Password</label><input id="si_pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')T.fbSignIn()"></div><div class="full" id="si_err" style="display:none;color:var(--red);font-size:12px"></div></div></div>
   <div class="modal-f"><button class="btn" onclick="T.closeSub()">Cancel</button><button class="btn primary" id="si_btn" onclick="T.fbSignIn()">Sign in</button></div>`);
 }
-function toggleNominee(id,plate,on){const o=byId(id);if(on){if(o.nominees.some(n=>n.plate===plate))return;const f=fleet().find(x=>x.plate===plate);if(!f)return;const nonc=!isCompliant(o.client,plate);const iss=fleetIssues(f,o.product);if(hardBlock(iss)){toast(f.plate+': '+iss.join(', '));return}const cap=capFor(f,o.product);if(!cap){toast(f.plate+': '+o.product+' capacity not set — type it in the list, or fill it on the trailer in FleetGuard');return}const anchor=queueAnchor(plate,o.id);o.nominees.push({...f,capacityL:cap,status:'proposed',snapAt:now(),nonCompliant:nonc,queuedBehind:anchor?{oid:anchor.oid,orderNo:anchor.orderNo,client:anchor.client}:null});if(nonc&&!anchor)toast(plate+' is not on '+o.client+"'s list — nominated anyway");if(anchor)toast(plate+' will queue behind '+anchor.orderNo+' and start this order after it offloads')}else o.nominees=o.nominees.filter(n=>n.plate!==plate);render()}
-function removeNominee(id,plate){const o=byId(id);o.nominees=o.nominees.filter(n=>n.plate!==plate);o.rejected=o.rejected||[];if(!o.rejected.some(x=>samePlate(x,plate)))o.rejected.push(plate);log(o,`${plate} rejected by ${o.client} — back in the fleet list, blocked for this order only`);toast(plate+' returned to the fleet list (rejected for this order)');render()}
+function toggleNominee(id,plate,on){const o=byId(id);if(on){if(o.nominees.some(n=>n.plate===plate))return;const f=fleet().find(x=>x.plate===plate);if(!f)return;const nonc=!isCompliant(o.client,plate);const iss=fleetIssues(f,o.product);if(hardBlock(iss)){toast(f.plate+': '+iss.join(', '));return}const cap=capFor(f,o.product);if(!cap){toast(f.plate+': '+o.product+' capacity not set — type it in the list, or fill it on the trailer in FleetGuard');return}const anchor=queueAnchor(plate,o.id);o.nominees.push({...f,capacityL:cap,status:'proposed',snapAt:now(),nonCompliant:nonc,queuedBehind:anchor?{oid:anchor.oid,orderNo:anchor.orderNo,client:anchor.client}:null});if(nonc&&!anchor)toast(plate+' is not on '+o.client+"'s list — nominated anyway");if(anchor)toast(plate+' will queue behind '+anchor.orderNo+' and start this order after it offloads');if((o.rejected||[]).some(x=>samePlate(x,plate))){log(o,`${plate} nominated again after ${o.client} rejected it`);if(!anchor)toast(plate+' nominated again (it was rejected before) — send it to '+o.client)}}else o.nominees=o.nominees.filter(n=>n.plate!==plate);render()}
+function removeNominee(id,plate){const o=byId(id);o.nominees=o.nominees.filter(n=>n.plate!==plate);o.rejected=o.rejected||[];if(!o.rejected.some(x=>samePlate(x,plate)))o.rejected.push(plate);log(o,`${plate} rejected by ${o.client} — back in the fleet list`);toast(plate+' rejected — back in the list (tagged; it can be ticked again)');render()}
 function sendNomination(id){const o=byId(id);const fresh=o.nominees.filter(n=>n.status==='proposed');if(!fresh.length){toast('Nothing new to send');return}fresh.forEach(n=>n.status='sent');const first=o.stage==='received';o.stage='nominated';log(o,first?`Nomination list (${o.nominees.length} trucks / ${fmt(nomCap(o))} L) sent to ${o.client}`:`${fresh.length} added truck${fresh.length>1?'s':''} sent to ${o.client}: ${fresh.map(n=>n.plate).join(', ')}`);toast(first?'Nomination list marked as sent':fresh.length+' new truck(s) marked as sent — others unchanged');render()}
 function reopenNomination(id){const o=byId(id);o.nominees.forEach(n=>{if(n.status!=='rejected')n.status='proposed'});o.nominees=o.nominees.filter(n=>n.status!=='rejected');o.stage='received';log(o,'Nomination list reopened for editing');render()}
 function answer(id,plate,st){const o=byId(id);const n=o.nominees.find(x=>x.plate===plate);n.status=st;log(o,`${o.client} ${st} ${plate}`);render()}
@@ -1509,7 +1550,8 @@ function approveNomination(id){const o=byId(id);S.ui.nomModal=null;closeModal();
   /* the volume to load follows the approved trucks, which can be more or less than requested */
   o.loadVolumeL=o.nominees.reduce((a,n)=>a+(n.capacityL||0),0);
   log(o,`Volume to load set to ${fmt(o.loadVolumeL)} L from ${o.nominees.length} approved truck${o.nominees.length===1?'':'s'} (requested ${fmt(o.volumeL)} L)`);
-  toast('Nominees approved');focus(id,'assign')}
+  const q=assignCore(o);   /* Nov 2026: the approved trucks are assigned straight away — no separate Assign step */
+  toast(q?`Nominees approved — ${o.trips.length-q} truck${o.trips.length-q===1?'':'s'} allocated, ${q} queued behind other orders`:`Nominees approved — ${o.trips.length} truck${o.trips.length===1?'':'s'} assigned (${allocFor(o)})`);focus(id,'assign');openAssign(id)}
 /* ===== Timeline as a PDF report (⬇ on a timeline). jsPDF is fetched from cdnjs only when somebody downloads,
    so the page itself loads no faster or slower. The logo is embedded (LOGO_3RAG) so it prints even off-line-hosted. ===== */
 const LOGO_3RAG='data:image/jpeg;base64,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';
@@ -1540,8 +1582,9 @@ async function timelinePdf(oid,tid){
   const head={fillColor:[243,244,246],textColor:INK,fontStyle:'bold',fontSize:8.5},body={fontSize:8.5,textColor:INK,cellPadding:1.8},line={lineColor:[229,231,235],lineWidth:.2};
   const facts=t?[
       ['Truck',t.plate,'Trailer',t.trailer||'—'],['Driver',t.driver||'—','Capacity',fmt(t.capacityL||0)+' L '+o.product],
-      ['Status',TRIP_LABEL[t.status]||t.status,'Litres loaded',t.loadedL?fmt(t.loadedL)+' L':'—'],
+      ['Status',TRIP_LABEL[t.status]||t.status,'Litres loaded',(t.loadedL?fmt(t.loadedL)+' L':'—')+(t.loadDate?' (loaded '+fmtD(t.loadDate)+')':'')],
       ['Offloaded',t.report?fmt(t.report.offloadedL)+' L ('+fmtD(t.report.offloadDate)+')':'—','Short',t.report?fmt(shortOf(t.report))+' L':'—'],
+      ['Total loss',t.report&&t.loadedL?fmt(t.loadedL-t.report.offloadedL)+' L':'—','Offloading depot',(t.report&&t.report.offloadDepot)||'—'],
       ['AA number',t.report?t.report.aaNo:'—','Original document',t.status==='Offloaded'?DOC_STEPS[(t.doc&&t.doc.step)||0]+(t.doc&&t.doc.receivedBy?' — received by '+t.doc.receivedBy:''):'—'],
       ['Route',o.depot+' → '+o.destination,'Invoice',t.invoice&&t.invoice.status==='invoiced'?('Invoiced '+(t.invoice.month||'')+(t.invoice.ref?' · '+t.invoice.ref:'')):'Pending']]
     :[['Client',o.client,'Order number',o.clientOrderNo],['Product',o.product,'Received',fmtD(o.receivedAt)],
@@ -1714,7 +1757,7 @@ function openAssign(id){
   const o=byId(id);
   if(o.stage==='approved'){
     modal(`<div class="modal-h"><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><h3 class="mono">${esc(o.clientOrderNo)}</h3>${stageChip(o)}<button class="x" onclick="T.closeModal()">×</button></div>
-    <div class="modal-b"><div class="alert info">${o.nominees.length} approved · ${fmt(nomCap(o))} L. Trucks start as <b>Allocated to Dar</b>.</div>
+    <div class="modal-b"><div class="alert info">${o.nominees.length} approved · ${fmt(nomCap(o))} L. Trucks start as <b>${esc(allocFor(o))}</b>.</div>
     <div class="tbl"><table><thead><tr><th>Truck</th><th>Trailer</th><th>Driver</th><th>Capacity</th></tr></thead><tbody>${o.nominees.map(n=>`<tr><td class="mono"><b>${esc(n.plate)}</b></td><td class="mono">${esc(n.trailer||'')}</td><td>${esc(n.driver)}</td><td>${fmt(n.capacityL)} L</td></tr>`).join('')}</tbody></table></div></div>
     <div class="modal-f"><button class="btn" onclick="T.closeModal()">Cancel</button><button class="btn primary ops" onclick="T.assign('${o.id}')">Assign order to ${o.nominees.length} truck${o.nominees.length>1?'s':''} →</button></div>`);
     return;
@@ -1734,8 +1777,8 @@ function openAssign(id){
         <div class="truckrow">
           <div class="tr-exp"><button class="chev" onclick="T.toggleTrip('${o.id}','${t.id}')" title="Dates &amp; timeline">${isOpen?'▾':'▸'}</button></div>
           <div class="tr-plate mono"><b>${esc(t.plate)}</b>${t.status!=='Offloaded'?expBadge(liveTruck(t.plate)):''}<span class="tiny">${esc(t.trailer||'')}</span></div>
-          <div class="tr-drv">${esc(t.driver||'—')}<span class="tiny">${t.loadedL?fmt(t.loadedL)+' L loaded':'cap. '+fmt(t.capacityL||0)+' L'}</span></div>
-          <div class="tr-doc">${t.status===QUEUED?`<span class="tiny" style="color:var(--purple)">⏳ after ${esc((t.queuedBehind||{}).orderNo||'previous order')}</span>`:t.status==='Offloaded'?(t.report?`<span class="chip green" title="AA ${esc(t.report.aaNo)}${t.report.filledBy?' · filled by '+esc(t.report.filledBy):''}">report ✓</span>${S.role==='Operations'?`<button class="ic-btn" title="Correct the offload report" onclick="T.fromAssign('${o.id}','${t.id}')">✎</button>`:''}${t.nextOrder?` <span class="chip purple" title="After offloading, this truck went on to ${esc(t.nextOrder.orderNo)}">→ ${esc(t.nextOrder.orderNo)}</span>`:''}`:fgReports()?`<span class="chip amber" title="FleetGuard fills the offload report — it appears here as soon as it is sent">Waiting for FleetGuard report</span>`:`<button class="btn sm primary ops" onclick="T.fromAssign('${o.id}','${t.id}')">Fill report</button>`):`<span class="tiny">${L.open?'since '+dur(L[rank(t.status)===0?'toLoad':rank(t.status)===1?'waitDocs':'inTransit']||0):''}${t.releasedFrom?` · <span style="color:var(--purple)">after ${esc(t.releasedFrom.orderNo)}</span>`:''}</span> ${nextChip(o,t)}`}</div>
+          <div class="tr-drv">${esc(t.driver||'—')}<span class="tiny">${t.loadedL?fmt(t.loadedL)+' L loaded':(t.loadDate?'loaded '+fmtD(t.loadDate)+' · ':'')+'cap. '+fmt(t.capacityL||0)+' L'}</span></div>
+          <div class="tr-doc">${t.status===QUEUED?`<span class="tiny" style="color:var(--purple)">⏳ after ${esc((t.queuedBehind||{}).orderNo||'previous order')}</span>`:t.status==='Offloaded'?(t.report?`${isDepotRep(t)?`<span class="chip green" title="Depot details${t.report.filledBy?' · filled by '+esc(t.report.filledBy):''} — the original is still at the depot">depot doc ✓</span>`:`<span class="chip blue" title="Original document filed — AA ${esc(t.report.aaNo)}${t.report.filledBy?' · filled by '+esc(t.report.filledBy):''}">org doc ✓</span>`}${isDepotRep(t)?`<button class="ic-btn" title="View the depot details (read only)" onclick="T.fromAssign('${o.id}','${t.id}')">👁</button>`:S.role==='Operations'?`<button class="ic-btn" title="Correct the offload report" onclick="T.fromAssign('${o.id}','${t.id}')">✎</button>`:''}${t.nextOrder?` <span class="chip purple" title="After offloading, this truck went on to ${esc(t.nextOrder.orderNo)}">→ ${esc(t.nextOrder.orderNo)}</span>`:''}`:fgReports()?`<span class="chip amber" title="FleetGuard fills the offload report — it appears here as soon as it is sent">Waiting for FleetGuard report</span>`:`<button class="btn sm primary ops" onclick="T.fromAssign('${o.id}','${t.id}')">Fill report</button>`):`<span class="tiny">${L.open?'since '+dur(L[rank(t.status)===0?'toLoad':rank(t.status)===1?'waitDocs':'inTransit']||0):''}${t.releasedFrom?` · <span style="color:var(--purple)">after ${esc(t.releasedFrom.orderNo)}</span>`:''}</span> ${nextChip(o,t)}`}</div>
           <div class="tr-sel">${t.status===QUEUED
             ? `${tripChip(t)}`
             : ops ? `<span class="st-box ${undoBlock(o,t)?'':'has-x'}"><select onchange="T.setTripStatus('${o.id}','${t.id}',this.value)" ondblclick="T.openPlace('${o.id}','${t.id}')" ${t.amendment?'disabled title="Amendment pending — wait for the client\'s answer"':'title="Double-click to add a status that is not in the list"'}>${TRIP_STATUSES.map(x=>`<option value="${esc(x)}" ${t.status===x?'selected':''}>${esc(TRIP_LABEL[x])}</option>`).join('')}<option value="__place">＋ Add status…</option></select>${undoBlock(o,t)?'':`<button class="st-x" title="Remove this status — back to ${esc(TRIP_SHORT[t.history[t.history.length-2].to]||t.history[t.history.length-2].to)}" onclick="T.undoStatus('${o.id}','${t.id}')">×</button>`}</span>`
@@ -1775,14 +1818,14 @@ function setTripStatus(oid,tid,to){
   const o=byId(oid),t=o.trips.find(x=>x.id===tid);
   if(to==='__place'){openPlace(oid,tid);return}
   if(to===t.status)return;
-  if(rank(to)>=1&&!t.loadedL){askLoaded(oid,tid,to);return}
+  if(rank(to)>=1&&!t.loadDate&&!t.loadedL){askLoaded(oid,tid,to);return}
   applyStatus(o,t,to);
   if(to==='Offloaded'){render();if(fgReports()){toast(t.plate+' offloaded — FleetGuard fills the offload report');openAssign(oid)}else openReport(oid,tid);return}
   render();openAssign(oid);
 }
 function applyStatus(o,t,to){
   t.status=to;t.history.push({to,at:now(),by:S.role});
-  if(isAlloc(to))t.loadedL=null;
+  if(isAlloc(to)){t.loadedL=null;t.loadDate=null}
   if(to==='Offloaded'&&(!t.doc||!(t.doc.step>0)))t.doc={step:0,history:[{step:0,at:now(),by:S.role}]};   /* the original-invoice clock starts at offloading */
   log(o,`${t.plate} → ${TRIP_SHORT[to]||to}`);
   if(to==='Offloaded')releaseQueued(o,t);
@@ -1790,16 +1833,16 @@ function applyStatus(o,t,to){
 }
 function askLoaded(oid,tid,to){
   const o=byId(oid),t=o.trips.find(x=>x.id===tid);
-  modal(`<div class="modal-h"><h3>Litres loaded — ${esc(t.plate)}</h3><button class="x" onclick="T.closeModal();T.openAssign('${oid}')">×</button></div>
-  <div class="modal-b"><p class="muted" style="margin-bottom:12px">Loaded at ${esc(o.depot)} — used to compute the loss.</p>
-  <div class="form"><div><label>Litres loaded</label><input id="f_loaded" type="number" value="${t.capacityL||''}" onkeydown="if(event.key==='Enter')T.confirmLoaded('${oid}','${tid}','${to}')"></div><div><label>Loading date</label><input id="f_ldate" type="date" value="${today()}"></div></div></div>
+  modal(`<div class="modal-h"><h3>Loading date — ${esc(t.plate)}</h3><button class="x" onclick="T.closeModal();T.openAssign('${oid}')">×</button></div>
+  <div class="modal-b"><p class="muted" style="margin-bottom:12px">Loaded at ${esc(o.depot)}. The litres loaded come from the AA receipt in the offload report.</p>
+  <div class="form"><div><label>Loading date</label><input id="f_ldate" type="date" value="${t.loadDate||today()}" max="${today()}" onkeydown="if(event.key==='Enter')T.confirmLoaded('${oid}','${tid}','${to}')"></div></div></div>
   <div class="modal-f"><button class="btn" onclick="T.closeModal();T.openAssign('${oid}')">Cancel</button><button class="btn primary" onclick="T.confirmLoaded('${oid}','${tid}','${to}')">Save &amp; set ${esc(TRIP_SHORT[to]||to)}</button></div>`);
 }
 function confirmLoaded(oid,tid,to){
-  const o=byId(oid),t=o.trips.find(x=>x.id===tid),l=+document.getElementById('f_loaded').value;
-  if(!l){toast('Enter litres loaded');return}
-  t.loadedL=l;closeModal();
-  applyStatus(o,t,to);
+  const o=byId(oid),t=o.trips.find(x=>x.id===tid),d=(document.getElementById('f_ldate')||{}).value||'';
+  if(!d){toast('Enter the loading date');return}
+  t.loadDate=d;closeModal();
+  applyStatus(o,t,to);{const h=t.history[t.history.length-1];if(h)h.note=(h.note?h.note+' · ':'')+'loaded '+d}
   if(to==='Offloaded'){render();if(fgReports()){toast(t.plate+' offloaded — FleetGuard fills the offload report');openAssign(oid)}else openReport(oid,tid);return}
   render();openAssign(oid);
 }
@@ -1853,7 +1896,7 @@ async function undoStatus(oid,tid){
   t.history.pop();
   t.removedHistory=t.removedHistory||[];
   t.removedHistory.push({...last,removedAt:now(),removedBy:S.role});
-  t.status=prev.to;
+  t.status=prev.to;if(isAlloc(prev.to)||prev.to===QUEUED)t.loadDate=null;
   log(o,`${t.plate}: “${TRIP_SHORT[last.to]||last.to}” removed — back to ${TRIP_SHORT[prev.to]||prev.to}`);
   refreshStage(o);
   toast(`${t.plate} is back to ${TRIP_SHORT[prev.to]||prev.to}`);
@@ -1878,7 +1921,7 @@ function openAddTrip(oid){
       <td style="text-align:right"><button class="btn sm primary" ${why?'disabled':''} onclick="T.addTrip('${o.id}','${esc(f.plate)}')">＋ Add</button></td></tr>`}).join('');
   modal(`<div class="modal-h"><h3>Add a truck — ${esc(o.clientOrderNo)}</h3><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><span class="chip gray">${esc(o.product)}</span><button class="x" onclick="T.openAssign('${o.id}')">×</button></div>
   <div class="modal-b">
-    <p class="muted" style="margin-bottom:10px">The truck joins this order straight away as <b>Allocated to Dar</b> (or <b>Queued</b> if it is on another order's trip). ${o.stage==='completed'?'This order is completed — adding a truck reopens it.':''}</p>
+    <p class="muted" style="margin-bottom:10px">The truck joins this order straight away as <b>${esc(allocFor(o))}</b> (or <b>Queued</b> if it is on another order's trip). ${o.stage==='completed'?'This order is completed — adding a truck reopens it.':''}</p>
     <div class="search" style="margin-bottom:10px;width:100%"><span class="s-ic">⌕</span><input id="addTripQ" placeholder="Search plate, trailer, driver…" oninput="const v=this.value.trim().toLowerCase();document.querySelectorAll('#addTripRows tr').forEach(r=>r.style.display=!v||r.dataset.k.includes(v)?'':'none')"></div>
     <div class="tbl nom-fleet" style="max-height:55vh"><table><thead><tr><th>Truck / trailer</th><th>Driver</th><th>${esc(o.product)} capacity</th><th>Status</th><th></th></tr></thead><tbody id="addTripRows">${rows||'<tr><td colspan="5" class="tiny">No trucks in the live fleet.</td></tr>'}</tbody></table></div>
   </div>
@@ -1891,7 +1934,7 @@ function addTrip(oid,plate){
   if(o.trips.some(t=>samePlate(t.plate,f.plate))){toast(f.plate+' is already on this order');return}
   const iss=fleetIssues(f,o.product);if(hardBlock(iss)){toast(f.plate+': '+iss.join(', '));return}
   const cap=capFor(f,o.product);if(!cap){toast(f.plate+': '+o.product+' capacity not set');return}
-  const anchor=queueAnchor(f.plate,o.id),queued=!!(anchor&&anchor.kind==='trip'),st=queued?QUEUED:'Allocated to Dar';
+  const anchor=queueAnchor(f.plate,o.id),queued=!!(anchor&&anchor.kind==='trip'),st=queued?QUEUED:allocFor(o);
   const wasDone=o.stage==='completed',volBefore=loadVol(o);
   o.trips.push({id:uid(),plate:f.plate,trailer:f.trailer,driver:f.driver,licence:f.licence||'',passport:f.passport||'',phone:f.phone||'',capacityL:cap,status:st,
     history:[{to:st,at:now(),by:S.role,note:'added after assignment'+(queued?' — waiting for '+anchor.orderNo:'')}],
@@ -1905,18 +1948,22 @@ function addTrip(oid,plate){
   render();openAssign(oid);
 }
 function fromAssign(oid,tid){closeModal();openReport(oid,tid)}
-function assign(id){const o=byId(id);const FL=fleet();let q=0;o.trips=o.nominees.map(n0=>{const n=Object.assign({},n0,FL.find(f=>f.plate===n0.plate)||{});
+function assign(id){const o=byId(id);const q=assignCore(o);closeModal();toast(q?`Order assigned — ${o.trips.length-q} allocated, ${q} queued until their current order offloads`:`Order assigned — trucks are now ${allocFor(o)}`);render();openAssign(id)}
+/* the approved trucks become trips: Allocated to Dar, or Queued behind the order they are still on */
+function assignCore(o){const FL=fleet();let q=0;o.trips=o.nominees.map(n0=>{const n=Object.assign({},n0,FL.find(f=>f.plate===n0.plate)||{});
   const anchor=queueAnchor(n.plate,o.id);const queued=!!(anchor&&anchor.kind==='trip');if(queued)q++;
-  const st=queued?QUEUED:'Allocated to Dar';
+  const st=queued?QUEUED:allocFor(o);
   return{id:uid(),plate:n.plate,trailer:n.trailer,driver:n.driver,licence:n.licence||'',passport:n.passport||'',phone:n.phone||'',capacityL:n0.capacityL||capFor(n,o.product),status:st,history:[{to:st,at:now(),by:S.role,note:queued?'waiting for '+anchor.orderNo:''}],queuedBehind:queued?{oid:anchor.oid,orderNo:anchor.orderNo,client:anchor.client}:null,loadedL:null,report:null,doc:{step:0,history:[{step:0,at:now(),by:S.role}]},invoice:{status:'pending',month:null,markedBy:null,at:null}}});
-  o.stage='assigned';log(o,`Order assigned to ${o.trips.length} trucks${q?` (${q} queued behind other orders)`:''}`);closeModal();toast(q?`Order assigned — ${o.trips.length-q} allocated, ${q} queued until their current order offloads`:'Order assigned — trucks are now Allocated to Dar');render();openAssign(id)}
+  o.stage='assigned';log(o,`Order assigned automatically to ${o.trips.length} truck${o.trips.length===1?'':'s'}${q?` (${q} queued behind other orders)`:''}`);return q}
+/* orders approved before the automatic assign existed: assigned once, the next time the page loads them */
+function autoAssignApproved(){let k=0;S.orders.forEach(o=>{if(o.stage==='approved'&&o.nominees.length&&!o.trips.length){assignCore(o);k++}});return k}
 /* when a trip offloads, release the trips queued behind that order for the same plate */
 function releaseQueued(o,t){
   let n=0;
   S.orders.forEach(o2=>o2.trips.forEach(t2=>{
     if(t2.status===QUEUED&&samePlate(t2.plate,t.plate)&&t2.queuedBehind&&t2.queuedBehind.oid===o.id){
-      t2.status='Allocated to Dar';t2.history.push({to:'Allocated to Dar',at:now(),by:'System',note:'released — '+o.clientOrderNo+' offloaded'});t2.releasedFrom={oid:o.id,orderNo:o.clientOrderNo};
-      log(o2,`${t2.plate} released from queue — ${o.clientOrderNo} offloaded, now Allocated to Dar for this order`);
+      t2.status=allocFor(o2);t2.history.push({to:t2.status,at:now(),by:'System',note:'released — '+o.clientOrderNo+' offloaded'});t2.releasedFrom={oid:o.id,orderNo:o.clientOrderNo};
+      log(o2,`${t2.plate} released from queue — ${o.clientOrderNo} offloaded, now ${t2.status} for this order`);
       t.nextOrder={oid:o2.id,orderNo:o2.clientOrderNo,client:o2.client};n++;
     }
   }));
@@ -1962,7 +2009,7 @@ function amendAnswer(oid,tid,ok){
   t.amendment=null;
   if(!same){
     if(to.anchor){t.queuedBehind={oid:to.anchor.oid,orderNo:to.anchor.orderNo,client:to.anchor.client};if(t.status!==QUEUED){t.status=QUEUED;t.history.push({to:QUEUED,at:now(),by:S.role,note:'amended — waiting for '+to.anchor.orderNo})}}
-    else{t.queuedBehind=null;if(t.status===QUEUED||t.loadedL===null){const st='Allocated to Dar';if(t.status!==st){t.status=st;t.history.push({to:st,at:now(),by:S.role,note:'amended from '+t.amendedFrom.plate})}t.loadedL=null}}
+    else{t.queuedBehind=null;if(t.status===QUEUED||rank(t.status)<1){const st=allocFor(o);if(t.status!==st){t.status=st;t.history.push({to:st,at:now(),by:S.role,note:'amended from '+t.amendedFrom.plate})}t.loadedL=null;t.loadDate=null}}
   }
   log(o,`${o.client} approved the amendment: ${t.amendedFrom.plate} → ${t.plate}${to.anchor?' (queued behind '+to.anchor.orderNo+')':''}`);
   toast(`Amendment approved — ${t.plate} now carries this load`);refreshStage(o);render();openAssign(oid);
@@ -1983,7 +2030,7 @@ function amendXlsx(oid){
   const widths={A:12,B:20,C:18,D:30,E:14,F:22,G:12,H:12,I:12,J:16,K:16,L:22,M:22};
   buildXlsx('AMENDMENTS',data,[],widths).then(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Amendment ${o.clientOrderNo} ${o.client} ${o.product}.xlsx`.replace(/[\/:*?"<>|]/g,'-');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);log(o,`Amendment Excel exported (${A.length} truck${A.length>1?'s':''})`);toast('Amendment Excel downloaded — send it to '+o.client)}).catch(e=>toast('Excel export failed: '+e.message));
 }
-function releaseNow(oid,tid){const o=byId(oid),t=o.trips.find(x=>x.id===tid);if(t.status!==QUEUED)return;t.status='Allocated to Dar';t.history.push({to:'Allocated to Dar',at:now(),by:S.role,note:'released manually'});log(o,`${t.plate} released from queue manually`);refreshStage(o);render();openAssign(oid)}
+function releaseNow(oid,tid){const o=byId(oid),t=o.trips.find(x=>x.id===tid);if(t.status!==QUEUED)return;t.status=allocFor(o);t.history.push({to:t.status,at:now(),by:S.role,note:'released manually'});log(o,`${t.plate} released from queue manually`);refreshStage(o);render();openAssign(oid)}
 /* ---- truck view (Documentation & Invoicing search) ---- */
 function truckMatches(page){
   const v=q(page);if(!v)return [];
@@ -2070,14 +2117,14 @@ function renderDocs(){
 /* full detail for one bucket: every truck, grouped by order — the same table as before */
 function docRows(o,trips,pick){
   return trips.map(t=>`<tr>
-      ${pick?`<td>${t.report&&t.doc.step<DOC_RECV?`<input type="checkbox" class="recv-cb" data-oid="${o.id}" data-tid="${t.id}" style="width:16px;height:16px" onchange="T.receivePick()" title="Tick to mark received at office together">`:''}</td>`:''}
+      ${pick?`<td>${t.report&&!isDepotRep(t)&&t.doc.step<DOC_RECV?`<input type="checkbox" class="recv-cb" data-oid="${o.id}" data-tid="${t.id}" style="width:16px;height:16px" onchange="T.receivePick()" title="Tick to mark received at office together">`:''}</td>`:''}
       <td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver)}</div>${nextChip(o,t)}</td>
-      <td>${fmtD(t.report?t.report.offloadDate:t.history[t.history.length-1].at)}</td>
+      <td>${fmtD(t.report?t.report.offloadDate:t.history[t.history.length-1].at)}${t.report&&t.report.offloadDepot?`<div class="tiny">${esc(t.report.offloadDepot)}</div>`:''}</td>
       <td class="mono">${t.report?esc(t.report.aaNo):'<span class="chip red">missing</span>'}</td>
       <td>${t.report?`${fmt(t.report.offloadedL)} L<div class="tiny">short ${fmt(shortOf(t.report))} L · ${tempsOf(t.report)}</div>`:'—'}</td>
       <td>${t.report?`<span class="mono" style="font-size:11.5px">${esc(t.report.depotInvoiceRef)}</span><div class="tiny">${t.report.depotInvoiceUrl?`📎 <a href="${esc(t.report.depotInvoiceUrl)}" target="_blank" rel="noopener">photo</a>`:t.report.depotInvoiceFile?'📎 '+esc(t.report.depotInvoiceFile):'no file'}${t.report.filledBy&&t.report.source==='FleetGuard'?` · by ${esc(t.report.filledBy)}`:''}</div>`:'—'}</td>
-      <td class="doc-st">${t.report?(t.doc.step<DOC_RECV?`<div class="doc-now"><span class="chip amber" title="As set in FleetGuard">${holderTxt(t)}</span><span class="stuck">${stuckDays(t)} day${stuckDays(t)===1?'':'s'}</span></div><button class="btn sm primary doc-recv" onclick="T.setDoc('${o.id}','${t.id}',${DOC_RECV})">Received at office</button>`:`<div class="doc-now"><span class="chip green">Received at office</span></div><div class="tiny" style="margin-top:4px">${t.doc.receivedBy?'by '+esc(t.doc.receivedBy)+' · ':''}${fmtD(t.doc.history[t.doc.history.length-1].at)}${t.invoice.status!=='invoiced'?` · <a href="#" onclick="event.preventDefault();T.undoReceived('${o.id}','${t.id}')">undo</a>`:''}</div>`):'<span class="tiny">fill the report first</span>'}</td>
-      <td class="doc-act">${t.report?`<button class="ic-btn" title="Correct the offload report or replace the photo" onclick="T.openReport('${o.id}','${t.id}')">✎</button>`:fgReports()?`<span class="chip amber" title="FleetGuard fills it — it appears here when sent">waiting for FleetGuard</span>`:`<button class="btn sm primary ops" onclick="T.openReport('${o.id}','${t.id}')">Fill report</button>`}</td></tr>`).join('');
+      <td class="doc-st">${t.report?(t.doc.step<DOC_RECV?`<div class="doc-now"><span class="chip amber" title="As set in FleetGuard">${holderTxt(t)}</span><span class="stuck">${stuckDays(t)} day${stuckDays(t)===1?'':'s'}</span></div>${isDepotRep(t)?'<div class="tiny" style="margin-top:6px">FleetGuard files the original when it is in hand</div>':`<button class="btn sm primary doc-recv" onclick="T.setDoc('${o.id}','${t.id}',${DOC_RECV})">Received at office</button>`}`:`<div class="doc-now"><span class="chip green">Received at office</span></div><div class="tiny" style="margin-top:4px">${t.doc.receivedBy?'by '+esc(t.doc.receivedBy)+' · ':''}${fmtD(t.doc.history[t.doc.history.length-1].at)}${t.invoice.status!=='invoiced'?` · <a href="#" onclick="event.preventDefault();T.undoReceived('${o.id}','${t.id}')">undo</a>`:''}</div>`):'<span class="tiny">fill the report first</span>'}</td>
+      <td class="doc-act">${t.report?isDepotRep(t)?`<button class="ic-btn" title="View the depot details (read only — FleetGuard completes them with the original)" onclick="T.openReport('${o.id}','${t.id}')">👁</button>`:`<button class="ic-btn" title="Correct the offload report or replace the photo" onclick="T.openReport('${o.id}','${t.id}')">✎</button>`:fgReports()?`<span class="chip amber" title="FleetGuard fills it — it appears here when sent">waiting for FleetGuard</span>`:`<button class="btn sm primary ops" onclick="T.openReport('${o.id}','${t.id}')">Fill report</button>`}</td></tr>`).join('');
 }
 function openDocs(bucket,oid){
   if(bucket&&!DOC_BUCKETS[bucket]){const tmp=bucket;bucket=oid;oid=tmp}   /* tolerate old (oid,bucket) order */
@@ -2109,7 +2156,7 @@ function openDocs(bucket,oid){
   <div class="modal-f"><button class="btn" onclick="T.closeDocs()">Close</button>${bucket==='inhand'?`<button class="btn primary" onclick="T.closeDocs();T.go('invoice')">Invoicing →</button>`:''}</div>`,true);
 }
 function closeDocs(){S.ui.docModal=null;closeModal();render()}
-function setDoc(oid,tid,step,name){const o=byId(oid),t=o.trips.find(x=>x.id===tid);if(t.invoice.status==='invoiced'){toast('Already invoiced');return}if(step!==DOC_RECV||step===t.doc.step)return;   /* At depot / In hand come from FleetGuard */
+function setDoc(oid,tid,step,name){const o=byId(oid),t=o.trips.find(x=>x.id===tid);if(t.invoice.status==='invoiced'){toast('Already invoiced');return}if(isDepotRep(t)){toast('Waiting for the original document — FleetGuard files it when it is in hand');return}if(step!==DOC_RECV||step===t.doc.step)return;   /* At depot / In hand come from FleetGuard */
   if(!name){receiveOne(oid,tid);return}   /* "Received at office" needs the receiver's name */
   applyDoc(o,t,step,name);if(step===DOC_RECV)toast(`${t.plate}: original received by ${name} — ready to invoice`);render();
   const M=S.ui.docModal;if(M)openDocs(M.bucket,M.oid)}
@@ -2145,56 +2192,67 @@ function receiveSel(){
   if(!boxes.length){toast('Tick at least one truck');return}
   if(!name){toast('Type who received the originals');if(i)i.focus();return}
   let k=0;
-  boxes.forEach(b=>{const o=byId(b.dataset.oid),t=o&&o.trips.find(x=>x.id===b.dataset.tid);if(!t||!t.report||t.doc.step===DOC_RECV||t.invoice.status==='invoiced')return;applyDoc(o,t,DOC_RECV,name);k++});
+  boxes.forEach(b=>{const o=byId(b.dataset.oid),t=o&&o.trips.find(x=>x.id===b.dataset.tid);if(!t||!t.report||isDepotRep(t)||t.doc.step===DOC_RECV||t.invoice.status==='invoiced')return;applyDoc(o,t,DOC_RECV,name);k++});
   S.ui.lastReceiver=name;toast(`${k} original${k===1?'':'s'} received at office by ${name} — ready to invoice`);render();
   const M=S.ui.docModal;if(M)openDocs(M.bucket,M.oid);
 }
 function openReport(oid,tid){
   const o=byId(oid),t=o.trips.find(x=>x.id===tid),r=t.report||{};
-  const fromFg=r.source==='FleetGuard';
-  modal(`<div class="modal-h"><h3>${t.report?'Correct offload report':'Offload report'} — ${esc(t.plate)}</h3><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><span class="mono muted">${esc(o.clientOrderNo)}</span><button class="x" onclick="T.closeModal()">×</button></div>
-  <div class="modal-b">${fromFg?`<div class="alert info" style="margin-bottom:12px">Filed in FleetGuard by <b>${esc(r.filledBy||'')}</b> on ${esc(dt(r.fgAt||r.at))}${r.depotInvoiceUrl?` · <a href="${esc(r.depotInvoiceUrl)}" target="_blank" rel="noopener">depot invoice photo</a>`:''}. A correction here is kept; FleetGuard does not send it again.</div>`:''}<div class="form">
-    <div><label>AA number (avis d'arrivée) — unique per truck</label><input id="r_aa" value="${esc(r.aaNo||'')}" placeholder="e.g. AA-77104"></div>
-    <div><label>Offload date</label><input id="r_date" type="date" value="${r.offloadDate||today()}"></div>
+  const fromFg=r.source==='FleetGuard',dep=r.stage==='depot';
+  modal(`<div class="modal-h"><h3>${dep?'Depot details — waiting for original doc':t.report?'Correct offload report':'Offload report'} — ${esc(t.plate)}</h3><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><span class="mono muted">${esc(o.clientOrderNo)}</span><button class="x" onclick="T.closeModal()">×</button></div>
+  <div class="modal-b">${dep?`<div class="alert warn" style="margin-bottom:12px">The original document is still <b>at the depot</b>. These depot details came from FleetGuard (${esc(r.filledBy||'')}, ${esc(dt(r.fgAt||r.at))}) and are <b>view only</b> here — corrections are made in FleetGuard when the original document is filled. The full report — AA number, temperatures, depot invoice — is filled in FleetGuard when the original is in hand.</div>`:fromFg?`<div class="alert info" style="margin-bottom:12px">Filed in FleetGuard by <b>${esc(r.filledBy||'')}</b> on ${esc(dt(r.fgAt||r.at))}${r.depotInvoiceUrl?` · <a href="${esc(r.depotInvoiceUrl)}" target="_blank" rel="noopener">depot invoice photo</a>`:''}. A correction here is kept; FleetGuard does not send it again.</div>`:''}<div class="form ${dep?'rep-dep':''}">
+    <div class="fo"><label>AA number (avis d'arrivée) — unique per truck</label><input id="r_aa" value="${esc(r.aaNo||'')}" placeholder="e.g. AA-77104"></div>
+    <div class="fo"><label>Offload date</label><input id="r_date" type="date" value="${r.offloadDate||today()}"></div>
     <div><label>Litres loaded (from the AA receipt)</label><input id="r_loaded" type="number" min="0" value="${t.loadedL||''}" oninput="T.calcLoss()"></div>
-    <div><label>Temperature at loading (°C)</label><input id="r_ltemp" type="number" step="0.1" value="${r.loadTempC??''}"></div>
+    <div class="fo"><label>Temperature at loading (°C)</label><input id="r_ltemp" type="number" step="0.1" value="${r.loadTempC??''}"></div>
     <div><label>Litres offloaded</label><input id="r_off" type="number" min="0" value="${r.offloadedL||''}" oninput="T.calcLoss()"></div>
-    <div><label>Temperature at offloading (°C)</label><input id="r_temp" type="number" step="0.1" value="${r.tempC??''}"></div>
+    <div class="fo"><label>Temperature at offloading (°C)</label><input id="r_temp" type="number" step="0.1" value="${r.tempC??''}"></div>
     <div><label>Allowed transit loss (litres)</label><input id="r_transit" type="number" min="0" value="${r.transitLossL??''}" oninput="T.calcLoss()"></div>
     <div><label>Short (litres) <span class="tiny" id="r_short_how"></span></label><input id="r_short" type="number" min="0" value="${r.shortL??''}" data-manual="${r.shortManual?'1':''}" oninput="this.dataset.manual='1';T.calcLoss()"><div class="tiny" id="r_short_note" style="margin-top:4px"></div></div>
-    <div><label>Depot invoice number</label><input id="r_inv" value="${esc(r.depotInvoiceRef||'')}" placeholder="e.g. KOT-INV-55812"></div>
-    <div><label>Depot invoice (scan / photo)${r.depotInvoiceUrl||r.depotInvoiceFile?' — choose a file to replace it':''}</label><input id="r_file" type="file" accept="image/*,.pdf" style="padding:6px">${r.depotInvoiceUrl?`<div class="tiny" style="margin-top:4px">📎 <a href="${esc(r.depotInvoiceUrl)}" target="_blank" rel="noopener">${esc(r.depotInvoiceFile||'photo')}</a>${r.photoBy?' · '+esc(r.photoBy):r.source==='FleetGuard'?' (from FleetGuard)':''}</div>`:r.depotInvoiceFile?`<div class="tiny" style="margin-top:4px">Attached: ${esc(r.depotInvoiceFile)}</div>`:''}${asArr(r.photoHistory).length?`<details class="tiny" style="margin-top:4px"><summary>Earlier photos · ${asArr(r.photoHistory).length}</summary>${asArr(r.photoHistory).slice().reverse().map(p=>`<div>${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name||'photo')}</a>`:esc(p.name||'file')} · replaced ${esc(dt(p.replacedAt))} by ${esc(p.replacedBy||'')}</div>`).join('')}</details>`:''}</div>
-    <div class="full"><label>Remarks</label><input id="r_note" value="${esc(r.note||'')}" placeholder="Seal numbers, shortages disputed, etc."></div>
+    <div><label>Total loss (litres) <span class="tiny">— loaded − offloaded</span></label><input id="r_tloss" class="ro-in" readonly tabindex="-1" placeholder="auto"></div>
+    <div><label>Offloading depot</label><input id="r_odepot" list="r_odepot_l" value="${esc(r.offloadDepot||'')}" placeholder="Depot where it offloaded" autocomplete="off"><datalist id="r_odepot_l">${offloadDepots().map(d=>`<option value="${esc(d)}">`).join('')}</datalist></div>
+    <div ${dep?'':'style="display:none"'}><label>Transit number</label><input id="r_transitno" value="${esc(r.transitNo||'')}" placeholder="e.g. T1-2026-0457" autocomplete="off"></div>
+    <div class="fo"><label>Depot invoice number</label><input id="r_inv" value="${esc(r.depotInvoiceRef||'')}" placeholder="e.g. KOT-INV-55812"></div>
+    <div class="fo"><label>Depot invoice (scan / photo)${r.depotInvoiceUrl||r.depotInvoiceFile?' — choose a file to replace it':''}</label><input id="r_file" type="file" accept="image/*,.pdf" style="padding:6px">${r.depotInvoiceUrl?`<div class="tiny" style="margin-top:4px">📎 <a href="${esc(r.depotInvoiceUrl)}" target="_blank" rel="noopener">${esc(r.depotInvoiceFile||'photo')}</a>${r.photoBy?' · '+esc(r.photoBy):r.source==='FleetGuard'?' (from FleetGuard)':''}</div>`:r.depotInvoiceFile?`<div class="tiny" style="margin-top:4px">Attached: ${esc(r.depotInvoiceFile)}</div>`:''}${asArr(r.photoHistory).length?`<details class="tiny" style="margin-top:4px"><summary>Earlier photos · ${asArr(r.photoHistory).length}</summary>${asArr(r.photoHistory).slice().reverse().map(p=>`<div>${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name||'photo')}</a>`:esc(p.name||'file')} · replaced ${esc(dt(p.replacedAt))} by ${esc(p.replacedBy||'')}</div>`).join('')}</details>`:''}</div>
+    <div class="full fo"><label>Remarks</label><input id="r_note" value="${esc(r.note||'')}" placeholder="Seal numbers, shortages disputed, etc."></div>
     <div class="full" id="r_err" style="display:none;color:var(--red);font-size:12px"></div>
   </div><p class="tiny" style="margin-top:12px">${cloudOn()?'Operations or Finance can correct any figure or replace the photo — each change is written to the timeline with who made it.':'File name recorded here; the photo is uploaded when the report is filed in FleetGuard.'}</p></div>
-  <div class="modal-f"><button class="btn" onclick="T.closeModal()">Cancel</button><button class="btn primary" id="r_save" onclick="T.saveReport('${oid}','${tid}')">Save report</button></div>`);
+  <div class="modal-f">${dep?`<button class="btn primary" onclick="T.closeModal()">Close</button>`:`<button class="btn" onclick="T.closeModal()">Cancel</button><button class="btn primary" id="r_save" onclick="T.saveReport('${oid}','${tid}')">Save report</button>`}</div>`);
   calcLoss();
+  if(dep)document.querySelectorAll('#modal .form input').forEach(i=>{i.readOnly=true;i.tabIndex=-1;i.classList.add('ro-in');if(i.type==='file')i.disabled=true});   /* depot details: read only */
 }
 /* Short = (loaded − allowed transit loss) − offloaded, never below 0. Pre-filled by the formula; once typed by hand, the typed figure stays. */
+/* depots typed on earlier reports, plus the order destinations — offered as suggestions */
+function offloadDepots(){return [...new Set(S.orders.flatMap(o=>[o.destination,...o.trips.map(t=>t.report&&t.report.offloadDepot)]).filter(Boolean).map(x=>String(x).trim()))].sort()}
 function shortFormula(loaded,transit,off){return loaded&&off?Math.max(0,loaded-(transit||0)-off):null}
 function calcLoss(){
   const g=id=>document.getElementById(id),s=g('r_short');if(!s)return;
   const l=+g('r_loaded').value,o=+g('r_off').value,tr=+g('r_transit').value||0,f=shortFormula(l,tr,o),manual=s.dataset.manual==='1';
   if(!manual)s.value=f==null?'':f;
   g('r_short_how').innerHTML=manual?`— typed by hand · <a href="#" onclick="event.preventDefault();T.shortAuto()">use formula</a>`:'— auto, you can type over it';
+  {const tl=g('r_tloss');if(tl)tl.value=l&&o?fmt(l-o)+' L':''}
   const n=g('r_short_note');
   n.textContent=f==null?'Expected on arrival = loaded − allowed transit loss':`Expected ${fmt(l-tr)} L · formula gives ${fmt(f)} L${l-tr-o<0?' (more than expected arrived — within allowance)':''}${manual&&+s.value!==f?' · typed figure kept':''}`;
 }
 function shortAuto(){const s=document.getElementById('r_short');if(s){s.dataset.manual='';calcLoss()}}
 async function saveReport(oid,tid,skipPhoto){
   const o=byId(oid),t=o.trips.find(x=>x.id===tid);const g=id=>document.getElementById(id);
+  if(isDepotRep(t)){toast('Depot details are view only — FleetGuard completes them with the original document');return}
   const aa=g('r_aa').value.trim(),off=+g('r_off').value,loaded=+g('r_loaded').value,temp=g('r_temp').value,ltemp=g('r_ltemp').value,transit=g('r_transit').value,shortV=g('r_short').value,inv=g('r_inv').value.trim();
   const err=g('r_err'),btn=g('r_save');const fail=(m,html)=>{err.style.display='block';if(html)err.innerHTML=m;else err.textContent=m;if(btn){btn.disabled=false;btn.textContent='Save report'}};
-  if(!aa)return fail('AA number is required.');
-  if(S.orders.some(x=>x.trips.some(y=>y!==t&&y.report&&y.report.aaNo.toLowerCase()===aa.toLowerCase())))return fail('That AA number is already used by another truck — it must be unique.');
+  const dep=isDepotRep(t),tno=(g('r_transitno').value||'').replace(/\s+/g,' ').trim();
+  if(!dep&&!aa)return fail('AA number is required.');
+  if(!dep&&S.orders.some(x=>x.trips.some(y=>y!==t&&y.report&&String(y.report.aaNo||'').toLowerCase()===aa.toLowerCase())))return fail('That AA number is already used by another truck — it must be unique.');
   if(!(loaded>0))return fail('Litres loaded is required.');
-  if(ltemp==='')return fail('Temperature at loading is required.');
+  if(!dep&&ltemp==='')return fail('Temperature at loading is required.');
   if(!(off>0))return fail('Litres offloaded is required.');
-  if(temp==='')return fail('Temperature at offloading is required.');
+  if(!dep&&temp==='')return fail('Temperature at offloading is required.');
   if(transit===''||+transit<0)return fail('Allowed transit loss is required (type 0 if none).');
   if(shortV===''||+shortV<0)return fail('Short is required (0 or more).');
-  if(!inv)return fail('Depot invoice number is required.');
-  const file=skipPhoto?null:g('r_file').files[0];
+  if(!dep&&!inv)return fail('Depot invoice number is required.');
+  const odep=(g('r_odepot').value||'').replace(/\s+/g,' ').trim();
+  if(!odep)return fail('Offloading depot is required.');
+  const file=skipPhoto||dep?null:g('r_file').files[0];
   let up=null;const loadedBefore=t.loadedL;
   if(file&&cloudOn()){
     if(btn){btn.disabled=true;btn.textContent='Uploading the photo…'}
@@ -2205,18 +2263,19 @@ async function saveReport(oid,tid,skipPhoto){
   t.loadedL=loaded;
   const prev=t.report;
   const prevLoaded=prev?loadedBefore:null;
-  t.report={...(prev||{}),aaNo:aa,offloadDate:g('r_date').value,offloadedL:off,lossL:loaded-off,loadTempC:+ltemp,tempC:+temp,transitLossL:+transit,shortL,shortManual:manual,depotInvoiceRef:inv,depotInvoiceFile:file?file.name:(prev&&prev.depotInvoiceFile)||'',note:g('r_note').value.trim(),filledBy:prev&&prev.filledBy?prev.filledBy:who(),at:prev?prev.at:now()};
+  t.report={...(prev||{}),aaNo:aa,offloadDate:g('r_date').value,offloadedL:off,lossL:loaded-off,loadTempC:+ltemp,tempC:+temp,transitLossL:+transit,shortL,shortManual:manual,offloadDepot:odep,transitNo:tno,depotInvoiceRef:inv,depotInvoiceFile:file?file.name:(prev&&prev.depotInvoiceFile)||'',note:g('r_note').value.trim(),filledBy:prev&&prev.filledBy?prev.filledBy:who(),at:prev?prev.at:now()};
   if(up){if(prev&&(prev.depotInvoiceUrl||prev.depotInvoiceFile))t.report.photoHistory=[...asArr(prev.photoHistory),{name:prev.depotInvoiceFile||'',url:prev.depotInvoiceUrl||'',replacedAt:now(),replacedBy:who()}];t.report.depotInvoiceUrl=up.url;t.report.depotInvoiceFile=file.name;t.report.photoBy=who()}
   else if(file&&prev&&prev.depotInvoiceUrl){t.report.depotInvoiceFile=prev.depotInvoiceFile}   /* not shared: keep the FleetGuard photo */
+  if(dep&&prev){t.report.loadTempC=prev.loadTempC??null;t.report.tempC=prev.tempC??null;t.report.aaNo=prev.aaNo||'';t.report.stage='depot'}   /* depot details: the original-only fields stay empty */
   if(prev){
     /* every changed figure goes to the timeline: old → new */
-    const F=[['AA',x=>x.aaNo],['offload date',x=>x.offloadDate],['offloaded',x=>fmt(x.offloadedL)+' L'],['temp at loading',x=>x.loadTempC+'°C'],['temp at offloading',x=>x.tempC+'°C'],['transit loss',x=>fmt(x.transitLossL)+' L'],['short',x=>fmt(x.shortL)+' L'],['depot invoice',x=>x.depotInvoiceRef],['remarks',x=>x.note||'—']];
+    const F=[['AA',x=>x.aaNo],['offload date',x=>x.offloadDate],['offloaded',x=>fmt(x.offloadedL)+' L'],['temp at loading',x=>x.loadTempC+'°C'],['temp at offloading',x=>x.tempC+'°C'],['transit loss',x=>fmt(x.transitLossL)+' L'],['short',x=>fmt(x.shortL)+' L'],['offloading depot',x=>x.offloadDepot||'—'],['transit number',x=>x.transitNo||'—'],['depot invoice',x=>x.depotInvoiceRef],['remarks',x=>x.note||'—']];
     const ch=F.map(([k,f])=>{const a=String(f(prev)),b=String(f(t.report));return a!==b?`${k} ${a} → ${b}`:''}).filter(Boolean);
     if(prevLoaded!==loaded)ch.unshift(`loaded ${fmt(prevLoaded||0)} → ${fmt(loaded)} L`);
     if(up)ch.push(prev.depotInvoiceUrl||prev.depotInvoiceFile?`photo replaced (was ${prev.depotInvoiceFile||'photo'})`:'photo added');
     if(!ch.length){closeModal();toast('Nothing changed');const M0=S.ui.docModal;if(M0)openDocs(M0.bucket,M0.oid);return}
     t.report.correctedBy=who();t.report.correctedAt=now();
-    log(o,`Offload report for ${t.plate} corrected — ${ch.join('; ')}`);
+    log(o,`${dep?'Depot details':'Offload report'} for ${t.plate} corrected — ${ch.join('; ')}`);
   }else log(o,`Offload report filed for ${t.plate} (${aa}, ${fmt(off)} L, short ${fmt(shortL)} L${manual?' typed':''})`);
   closeModal();toast(prev?'Report corrected — written to the timeline':'Report saved — now track the original document');render();
   const M=S.ui.docModal;if(M)openDocs(M.bucket,M.oid);
