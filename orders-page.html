@@ -150,6 +150,10 @@ tr.sel td{background:rgba(61,127,255,.07)}
 .doc-now{display:flex;align-items:center;gap:8px}
 .doc-recv{margin-top:6px}
 .doc-tbl td.doc-act{text-align:right;width:1%}
+.doc-tbl td.doc-act .chase-b{margin-right:6px;vertical-align:middle}
+.chase-b svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chase-b:not(.chased){color:var(--amber)}
+.chase-b.chased{color:var(--text3);background:var(--bg3);border-style:dashed}
 .alert{padding:10px 12px;border-radius:8px;font-size:12.5px;margin-bottom:10px}
 .alert.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--amber)}
 .alert.info{background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent2)}
@@ -377,6 +381,28 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 .st-box{position:relative;display:inline-flex;align-items:center;max-width:100%;vertical-align:middle}
 .st-box select{max-width:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;background-size:11px 8px;padding-right:30px}
 .st-box.has-x select{padding-right:54px}
+/* Nov 2026 — the status dropdown (own list, so an added status can carry ✕) and the Statuses window */
+.st-btn{font-family:inherit;font-size:13px;text-align:left;color:var(--text);background-color:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 30px 8px 10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;min-width:150px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;background-size:11px 8px}
+.st-btn:hover:not(:disabled){border-color:var(--accent-border)}.st-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}.st-btn:disabled{opacity:.6;cursor:not-allowed}
+.st-box.has-x .st-btn{padding-right:54px}
+.st-menu{position:fixed;z-index:95;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 48px rgba(15,23,42,.22);padding:6px;overflow-y:auto;max-width:calc(100vw - 16px)}
+.stm-row{display:flex;align-items:center;gap:4px;border-radius:8px}
+.stm-row:hover{background:var(--bg3)}.stm-row.cur{background:var(--accent-soft)}
+.stm-l{flex:1;min-width:0;text-align:left;font-family:inherit;font-size:13px;color:var(--text);background:none;border:none;padding:9px 10px;cursor:pointer;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stm-row.cur .stm-l{font-weight:700;color:var(--accent2)}
+.stm-row.gone .stm-l{cursor:default;display:flex;flex-direction:column;gap:1px}.stm-row.gone small{font-size:10.5px;font-weight:500;color:var(--text3)}
+.stm-x{flex:none;width:28px;height:28px;margin-right:4px;border:none;border-radius:50%;background:transparent;color:var(--text3);font-size:13px;line-height:1;cursor:pointer}
+.stm-x:hover{background:rgba(220,38,38,.12);color:var(--red)}
+.stm-row.add{margin-top:4px;border-top:1px solid var(--border2);border-radius:0 0 8px 8px}.stm-row.add .stm-l{color:var(--accent2);font-weight:600}
+.st-list{margin-top:14px;border:1px solid var(--border2);border-radius:12px;overflow:hidden}
+.st-row{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;background:var(--bg2);border-bottom:1px solid var(--border2)}
+.st-row:last-child{border-bottom:none}.st-row.sel{background:var(--accent-soft)}
+.st-row.dragging{background:var(--bg3);box-shadow:0 6px 18px rgba(15,23,42,.18);position:relative;z-index:1}
+.st-drag{flex:none;width:30px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--text3);cursor:grab;touch-action:none;user-select:none;font-size:15px;letter-spacing:-2px;border-radius:6px}
+.st-drag:hover{background:var(--bg3);color:var(--text)}.st-row.dragging .st-drag{cursor:grabbing}
+.st-name{flex:1;min-width:0;text-align:left;font-family:inherit;font-size:13px;color:var(--text);background:none;border:none;padding:8px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-orig{margin-left:8px;font-size:10.5px;color:var(--text3)}.st-orig::before{content:'was '}
+.st-edit{flex:none}
 .st-x{position:absolute;right:28px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:50%;border:none;background:transparent;color:var(--text3);font-size:15px;line-height:1;padding:0;cursor:pointer}
 .st-x:hover{background:rgba(220,38,38,.1);color:var(--red)}
 .ic-btn{width:28px;height:28px;margin-left:6px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);font-size:14px;line-height:1;padding:0;cursor:pointer;vertical-align:middle}
@@ -400,7 +426,7 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 .to-load{color:var(--text)}
 .tr-sel{display:flex;align-items:center;justify-content:flex-end;flex-wrap:nowrap}
 .tr-sel .st-box{flex:0 1 auto;min-width:0}
-@media(max-width:820px){.tr-sel{justify-content:flex-start}.tr-sel .st-box{flex:1 1 auto}.tr-sel .st-box select{width:100%}}
+@media(max-width:820px){.tr-sel{justify-content:flex-start}.tr-sel .st-box{flex:1 1 auto}.tr-sel .st-box select,.tr-sel .st-box .st-btn{width:100%}}
 /* timeline: one download icon in the right corner */
 .tl summary{display:flex;align-items:center}
 .tl-dl{margin-left:auto;width:26px;height:26px;border-radius:7px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);font-size:13px;line-height:1;padding:0;cursor:pointer;text-transform:none}
@@ -456,6 +482,7 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 .demo-tag{font-size:10px;font-weight:800;letter-spacing:.06em;color:#b45309;background:rgba(217,119,6,.12);border:1px solid rgba(217,119,6,.35);border-radius:6px;padding:2px 6px}
 /* Nov 2026 — section headings in the nomination list */
 .nom-fleet tr.nom-sec td{padding:8px 10px 6px;background:var(--bg3);border-left:4px solid var(--border2);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text2)}
+.nom-fleet tr.nom-sec.s0 td{border-left-color:var(--accent);background:var(--accent-soft);color:var(--accent2)}
 .nom-fleet tr.nom-sec.s1 td{border-left-color:var(--green)}.nom-fleet tr.nom-sec.s2 td{border-left-color:var(--amber)}
 .nom-fleet tr.nom-sec.s3 td{border-left-color:#2563eb}.nom-fleet tr.nom-sec.s4 td{border-left-color:var(--text3)}
 .nom-sec-n{display:inline-block;margin-left:8px;min-width:20px;padding:1px 7px;border-radius:999px;background:var(--bg2);border:1px solid var(--border2);font-size:10.5px;text-align:center;color:var(--text)}
@@ -560,38 +587,82 @@ const KEY='fg_orders_v3';const APP_VERSION='1.6';
 const ALLOC=['Allocated to Dar','Allocated to Tanga'];
 const TRIP_STATUSES=[...ALLOC,'WD','In Transit','Offloaded'];
 const QUEUED='Queued';
+const CORE=['WD','In Transit','Offloaded'],BASE_ALLOC=['Allocated to Dar','Allocated to Tanga'];
+const ALL_STATUSES=[QUEUED,...TRIP_STATUSES];
 const TRIP_LABEL={'Queued':'Queued — finishing another order first','Allocated to Dar':'Allocated — loading in Dar es Salaam','Allocated to Tanga':'Allocated — loading in Tanga','WD':'WD — loaded, waiting for documents','In Transit':'In Transit to destination','Offloaded':'Offloaded'};
 const TRIP_SHORT={'Queued':'Queued','Allocated to Dar':'Alloc. Dar','Allocated to Tanga':'Alloc. Tanga','WD':'WD','In Transit':'In Transit','Offloaded':'Offloaded'};
 const TRIP_COLOR={'Queued':'purple','Allocated to Dar':'gray','Allocated to Tanga':'gray','WD':'amber','In Transit':'blue','Offloaded':'green'};
-const isAlloc=s=>ALLOC.includes(s);
+const isAlloc=s=>ALLOC.includes(s)||/^Allocated to /.test(String(s||''));
+const DEF_LABEL={...TRIP_LABEL},DEF_SHORT={...TRIP_SHORT};   /* the built-in wording, restored when a display name is taken away */
 /* loading places added by Operations (double-click the status box on Assign) — kept in S.allocPlaces, shown after Dar and Tanga */
 const placeStatus=p=>'Allocated to '+p;
 /* Nov 2026: a truck is allocated to the order's own loading depot — "Allocated to <depot typed on the order>".
    A depot seen for the first time joins the status list (saved with the shared Orders settings); no depot → Dar. */
 function allocFor(o){
   const p=String((o&&o.depot)||'').replace(/\s+/g,' ').trim();if(!p)return 'Allocated to Dar';
-  const hit=ALLOC.find(x=>x.toLowerCase()===placeStatus(p).toLowerCase());if(hit)return hit;
-  const st=registerPlace(p);S.allocPlaces=S.allocPlaces||[];if(!S.allocPlaces.some(x=>String(x).toLowerCase()===p.toLowerCase()))S.allocPlaces.push(p);
-  return st;
+  let hit=ALLOC.find(x=>x.toLowerCase()===placeStatus(p).toLowerCase());if(hit&&TRIP_STATUSES.includes(hit))return hit;
+  /* removed from the list earlier but still on trucks or in timelines: keep that spelling, so one depot never gets two names */
+  if(!hit){const k=placeStatus(p).toLowerCase();S.orders.some(o2=>o2.trips.some(t=>[t.status,...(t.history||[]).map(h=>h.to)].some(x=>{if(String(x||'').toLowerCase()===k){hit=x;return true}return false})))}
+  const place=hit?hit.replace(/^Allocated to /,''):p;S.allocPlaces=S.allocPlaces||[];if(!S.allocPlaces.some(x=>String(x).toLowerCase()===place.toLowerCase()))S.allocPlaces.push(place);
+  return registerPlace(place);
 }
+/* ===== Status list (Nov 2026) =====
+   Built-in: the two base loading places, WD, In Transit, Offloaded (and Queued, set by the system).
+   Added: loading places (S.allocPlaces — they follow the loading depot typed on an order) and the statuses Operations type
+   (S.roadStatuses). The list everybody chooses from is TRIP_STATUSES, in the order saved in S.statusOrder (drag to arrange).
+   A status removed from the list is simply no longer offered: trucks already on it keep it, and timelines keep the name.
+   Meaning never depends on the order of the list: "Allocated to …" = not loaded yet, WD = loaded, Offloaded = report;
+   every other status (added, or one that was removed from the list) counts as ON THE ROAD, like In Transit. */
 function registerPlace(p){
-  const st=placeStatus(p);if(ALLOC.includes(st))return st;
-  ALLOC.push(st);TRIP_STATUSES.splice(ALLOC.length-1,0,st);
-  if(typeof ALL_STATUSES!=='undefined'&&!ALL_STATUSES.includes(st))ALL_STATUSES.splice(ALL_STATUSES.indexOf('WD'),0,st);
-  TRIP_LABEL[st]='Allocated — loading in '+p;TRIP_SHORT[st]='Alloc. '+p;TRIP_COLOR[st]='gray';
-  return st;
+  const st=placeStatus(p);
+  if(!ALLOC.includes(st)){ALLOC.push(st);TRIP_LABEL[st]='Allocated — loading in '+p;TRIP_SHORT[st]='Alloc. '+p;TRIP_COLOR[st]='gray'}
+  syncStatusList();return st;
 }
-/* statuses Operations adds themselves ("＋ Add status…" on Assign) — kept in S.roadStatuses. Every one counts as ON THE ROAD,
-   like In Transit: it sits between WD and Offloaded, and its time counts as transit time. */
 const ROAD=[];
-const isRoad=s=>ROAD.includes(s);
+const isRoad=s=>ROAD.includes(s)||(!!s&&s!==QUEUED&&!CORE.includes(s)&&!isAlloc(s));
 function registerRoad(name){
-  if(TRIP_STATUSES.includes(name)||name===QUEUED)return name;
-  ROAD.push(name);TRIP_STATUSES.splice(TRIP_STATUSES.indexOf('Offloaded'),0,name);
-  if(typeof ALL_STATUSES!=='undefined'&&!ALL_STATUSES.includes(name))ALL_STATUSES.splice(ALL_STATUSES.indexOf('Offloaded'),0,name);
-  TRIP_LABEL[name]=name+' — on the road';TRIP_SHORT[name]=name;TRIP_COLOR[name]='blue';
-  return name;
+  if(!name||name===QUEUED||CORE.includes(name)||isAlloc(name))return name;
+  if(!ROAD.includes(name))ROAD.push(name);
+  TRIP_LABEL[name]=name;TRIP_SHORT[name]=name;TRIP_COLOR[name]='blue';
+  syncStatusList();return name;
 }
+/* a status met on a truck that is not in the lists any more (removed, or renamed elsewhere) still gets its name and colour */
+function statusKnown(x){
+  if(!x||TRIP_LABEL[x])return;
+  if(/^Allocated to /.test(x)){const p=x.replace(/^Allocated to /,'');TRIP_LABEL[x]='Allocated — loading in '+p;TRIP_SHORT[x]='Alloc. '+p;TRIP_COLOR[x]='gray'}
+  else{TRIP_LABEL[x]=x;TRIP_SHORT[x]=x;TRIP_COLOR[x]='blue'}
+}
+const statusKind=x=>CORE.includes(x)?'core':BASE_ALLOC.includes(x)?'base':isAlloc(x)?'place':'road';
+const statusRemovable=x=>!CORE.includes(x)&&!BASE_ALLOC.includes(x)&&x!==QUEUED;
+/* the list offered to choose from: the saved order first; anything new slots in after its usual neighbour */
+function syncStatusList(){
+  let st={};try{st=S||{}}catch(e){}   /* S is filled by load() */
+  const places=[...new Set((st.allocPlaces||[]).map(placeStatus))].filter(x=>!BASE_ALLOC.includes(x));
+  const roads=[...new Set(st.roadStatuses||[])].filter(x=>x&&x!==QUEUED&&!CORE.includes(x)&&!isAlloc(x));
+  const def=[...BASE_ALLOC,...places,'WD','In Transit',...roads,'Offloaded'];
+  const ord=(st.statusOrder||[]).filter((x,i,a)=>def.includes(x)&&a.indexOf(x)===i);
+  let list=def;
+  if(ord.length){
+    list=ord.slice();
+    def.forEach((x,di)=>{if(list.includes(x))return;let at=0;for(let j=di-1;j>=0;j--){const k=list.indexOf(def[j]);if(k>=0){at=k+1;break}}list.splice(at,0,x)});
+  }
+  TRIP_STATUSES.length=0;TRIP_STATUSES.push(...list);
+  ALL_STATUSES.length=0;ALL_STATUSES.push(QUEUED,...list);
+}
+/* rebuild from the saved lists — at start-up and whenever the shared settings arrive */
+function loadStatusRegistry(){
+  ALLOC.length=0;ALLOC.push(...BASE_ALLOC);ROAD.length=0;
+  [...CORE,...BASE_ALLOC].forEach(k=>{TRIP_LABEL[k]=DEF_LABEL[k];TRIP_SHORT[k]=DEF_SHORT[k]});
+  if(!Array.isArray(S.statusNames))S.statusNames=[];
+  if(!Array.isArray(S.allocPlaces))S.allocPlaces=[];if(!Array.isArray(S.roadStatuses))S.roadStatuses=[];if(!Array.isArray(S.statusOrder))S.statusOrder=[];
+  S.allocPlaces.forEach(registerPlace);S.roadStatuses.forEach(registerRoad);syncStatusList();
+  /* display names (✎ on a built-in or loading-depot status): shown everywhere, the status itself is unchanged */
+  S.statusNames=S.statusNames.filter(x=>x&&x.k&&x.n&&x.k!==QUEUED);
+  S.statusNames.forEach(x=>{statusKnown(x.k);TRIP_LABEL[x.k]=x.n;TRIP_SHORT[x.k]=x.n});
+}
+const statusAlias=k=>((S.statusNames||[]).find(x=>x.k===k)||{}).n||'';
+/* counters and chips: the list order, then any status trucks still carry that is no longer in the list */
+const statusKeys=c=>[...TRIP_STATUSES,...Object.keys(c).filter(x=>x!==QUEUED&&!TRIP_STATUSES.includes(x))].filter(x=>c[x]);
 const rank=s=>s===QUEUED?-1:isAlloc(s)?0:isRoad(s)?2:['WD','In Transit','Offloaded'].indexOf(s)+1;
 /* when each stage was entered, and how long each leg took */
 function legs(t){
@@ -774,9 +845,8 @@ let S;
 function load(){
   ['fg_orders_trial_v1','fg_orders_v2'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});   /* fresh start — old trial stores are discarded */
   try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):sample()}catch(e){S=sample()} const d=sample();if(!S.ui)S.ui=d.ui;if(S.ui.q)Object.keys(S.ui.q).forEach(k=>{if(isAutofilledEmail(S.ui.q[k]))S.ui.q[k]=''});Object.keys(d.ui).forEach(k=>{if(S.ui[k]===undefined)S.ui[k]=d.ui[k]});if(!S.capacities)S.capacities={};if(!S.compliance)S.compliance=d.compliance;S.ui.invModal=null;S.ui.docModal=null;S.ui.nomModal=null;if(!S.ui.range)S.ui.range={mode:'month',from:'',to:''};if(!S.ui.q)S.ui.q={};delete S.fleet;
-  if(!Array.isArray(S.allocPlaces))S.allocPlaces=[];S.allocPlaces.forEach(registerPlace);
+  loadStatusRegistry();
   if(!Array.isArray(S.deletedOrders))S.deletedOrders=[];purgeDeleted();
-  if(!Array.isArray(S.roadStatuses))S.roadStatuses=[];S.roadStatuses.forEach(registerRoad);
   S.orders=(S.orders||[]).map(normOrder);
   S.role='Operations';
   try{autoAssignApproved()}catch(e){console.warn('[Orders] auto-assign',e)}}   /* Finance opens only with its PIN, never from a saved page */
@@ -789,6 +859,7 @@ function normOrder(o){
     t.history=asArr(t.history).map(h=>({...h,to:MIG[h.to]||h.to}));
     if(t.removedHistory)t.removedHistory=asArr(t.removedHistory);
     if(!t.history.length)t.history.push({to:t.status,at:o.receivedAt||now(),by:'Operations'});
+    statusKnown(t.status);t.history.forEach(h=>statusKnown(h.to));
     if(!t.doc)t.doc={step:0,history:[]};
     t.doc.history=asArr(t.doc.history);if(!t.doc.step)t.doc.step=0;
     if(!t.doc.history.length)t.doc.history.push({step:t.doc.step||0,at:(t.history[t.history.length-1]||{}).at||now(),by:'Operations'});
@@ -817,7 +888,7 @@ const cloudOn=()=>!!(FB.user&&CLOUD.ready&&typeof firebase!=='undefined');
 /* shared mode: offload reports are filled in FleetGuard and arrive here; on this browser alone (demo) they are filled here */
 const fgReports=()=>cloudOn();
 const cloudErr=e=>{CLOUD.err=(e&&e.message)||String(e);console.error('[Orders] Firebase write failed',e);toast('⚠ Not saved to the shared list: '+CLOUD.err)};
-function settingsDoc(){purgeDeleted();return {deletedOrders:asArr(S.deletedOrders),compliance:Object.entries(S.compliance||{}).map(([client,c])=>({client,contractRef:c.contractRef||'',signedAt:c.signedAt||'',plates:asArr(c.plates)})),capOverride:S.capOverride||{},allocPlaces:S.allocPlaces||[],roadStatuses:S.roadStatuses||[],removedClients:S.removedClients||[]}}
+function settingsDoc(){purgeDeleted();return {deletedOrders:asArr(S.deletedOrders),compliance:Object.entries(S.compliance||{}).map(([client,c])=>({client,contractRef:c.contractRef||'',signedAt:c.signedAt||'',plates:asArr(c.plates)})),capOverride:S.capOverride||{},allocPlaces:S.allocPlaces||[],roadStatuses:S.roadStatuses||[],statusOrder:S.statusOrder||[],statusNames:S.statusNames||[],removedClients:S.removedClients||[]}}
 function cloudPush(){
   if(!cloudOn())return;
   const db=firebase.database(),seen=new Set();
@@ -854,7 +925,8 @@ function applyCloudSettings(v){
   if(v&&Object.keys(v).length){
     const comp={};asArr(v.compliance).forEach(c=>{if(c&&c.client)comp[c.client]={contractRef:c.contractRef||'',signedAt:c.signedAt||'',plates:asArr(c.plates)}});
     S.compliance=comp;S.capOverride=v.capOverride||{};S.removedClients=asArr(v.removedClients);S.deletedOrders=asArr(v.deletedOrders).filter(d=>d&&d.order).map(d=>({...d,order:normOrder(d.order)}));purgeDeleted();
-    S.allocPlaces=asArr(v.allocPlaces);S.allocPlaces.forEach(registerPlace);S.roadStatuses=asArr(v.roadStatuses);S.roadStatuses.forEach(registerRoad);
+    S.allocPlaces=asArr(v.allocPlaces);S.roadStatuses=asArr(v.roadStatuses);S.statusOrder=asArr(v.statusOrder);S.statusNames=asArr(v.statusNames);loadStatusRegistry();
+    S.orders.forEach(o=>o.trips.forEach(t=>{statusKnown(t.status);(t.history||[]).forEach(h=>statusKnown(h.to))}));
   }
   /* nothing shared yet: leave setSent empty so this browser's lists are written as the starting shared ones */
   CLOUD.setSent=v&&Object.keys(v).length?JSON.stringify(settingsDoc()):'';CLOUD.gotSettings=true;cloudMaybeReady();safeRender();
@@ -1396,7 +1468,7 @@ const NOM_STAGES=['received','nominated','approved'];
    3 on another order and close to offloading (on the road, In Transit, WD) · 4 on another order at an early stage
    (Allocated, Queued, or only nominated elsewhere). A busy truck goes to 3 or 4 even with a document notice.
    Inside a section: the soonest free first; trucks with no driver (cannot be ticked) last. */
-const NOM_SEC={1:'Free — documents in order',2:'Free — documents need attention',3:'Offloading soon — finishing another order',4:'Further away — other orders first'};
+const NOM_SEC={0:'Suggested',1:'Free — documents in order',2:'Free — documents need attention',3:'Offloading soon — finishing another order',4:'Further away — other orders first'};
 function nomSecOf(f,o){
   const e=engagements(f.plate).filter(x=>x.o.id!==o.id);
   if(!e.length)return {s:fleetIssues(f,o.product).length?2:1,k:0};
@@ -1405,10 +1477,58 @@ function nomSecOf(f,o){
   if(!more.length&&r>=1)return {s:3,k:r};
   return {s:4,k:more.length?(more.some(x=>x.kind==='trip')?-1:-2)-more.length/100:(r??0)};
 }
+/* ===== Suggested trucks (Nov 2026) =====
+   Opening the nomination of an order with nothing ticked yet ticks a suggestion, once per order; "↻ Suggest" rebuilds it.
+   Priority: 1 free with documents in order → 2 free with a document notice → 3 trucks on another order, the soonest free
+   first (on the road / In Transit, WD, Allocated, then queued or only nominated elsewhere).
+   Volume: each group is used only as far as it brings the total CLOSER to the requested volume — above or below, whichever
+   is nearer (a tie covers the order). Never suggested: no driver, no capacity, rejected for this order, not on the client's list. */
+function pickClosest(caps,need){
+  const STEP=500,maxC=Math.max(0,...caps),lim=Math.max(need,0)+maxC;
+  const best=new Map([[0,{sum:0,idx:[]}]]);
+  caps.forEach((c,i)=>{if(!(c>0))return;const add=[];
+    best.forEach(v=>{const ns=v.sum+c;if(ns>lim)return;add.push({sum:ns,idx:[...v.idx,i]})});
+    add.forEach(v=>{const k=Math.round(v.sum/STEP),cur=best.get(k);if(!cur||v.idx.length<cur.idx.length||(v.idx.length===cur.idx.length&&Math.abs(need-v.sum)<Math.abs(need-cur.sum)))best.set(k,v)})});
+  let pick={sum:0,idx:[]},bd=Math.abs(need);
+  best.forEach(v=>{const d=Math.abs(need-v.sum);if(d<bd||(d===bd&&v.sum>pick.sum)||(d===bd&&v.sum===pick.sum&&v.idx.length<pick.idx.length)){bd=d;pick=v}});
+  return pick.idx;
+}
+function suggestNominees(o){
+  const FLc=fleet().filter(f=>isCompliant(o.client,f.plate)&&!(o.rejected||[]).some(x=>samePlate(x,f.plate))&&!o.nominees.some(n=>samePlate(n.plate,f.plate)));
+  const tiers=[[],[],[]];
+  FLc.forEach(f=>{if(hardBlock(fleetIssues(f,o.product)))return;const cap=capFor(f,o.product);if(!cap)return;
+    const x=nomSecOf(f,o);tiers[x.s===1?0:x.s===2?1:2].push({f,cap,s:x.s,k:x.k})});
+  tiers.forEach(t=>t.sort((a,b)=>(a.s-b.s)||(b.k-a.k)||String(a.f.plate).localeCompare(String(b.f.plate))));
+  let need=(+o.volumeL||0)-nomCap(o),n=0,sum=0;
+  tiers.forEach(t=>{if(!t.length)return;
+    pickClosest(t.map(x=>x.cap),need).forEach(i=>{const {f,cap}=t[i],anchor=queueAnchor(f.plate,o.id);
+      o.nominees.push({...f,capacityL:cap,status:'proposed',snapAt:now(),nonCompliant:false,suggested:true,queuedBehind:anchor?{oid:anchor.oid,orderNo:anchor.orderNo,client:anchor.client}:null});
+      need-=cap;sum+=cap;n++})});
+  return {n,sum};
+}
+const sugDiff=o=>{const d=nomCap(o)-(+o.volumeL||0);return d===0?'exact':(d>0?'+':'−')+fmt(Math.abs(d))+' L'};
+function autoSuggest(o){
+  if(o.stage!=='received'||o.nominees.length||o.suggestedAt||S.role!=='Operations'||FB.state!=='live'||!(+o.volumeL>0))return;
+  if(!fleet().some(f=>isCompliant(o.client,f.plate)))return;   /* nothing to choose from yet — try again next time */
+  const r=suggestNominees(o);o.suggestedAt=now();
+  if(r.n){log(o,`Suggested ${r.n} truck${r.n===1?'':'s'} — ${fmt(r.sum)} L for ${fmt(o.volumeL)} L (${sugDiff(o)})`);toast(`Suggested ${r.n} truck${r.n===1?'':'s'} — ${fmt(r.sum)} L for ${fmt(o.volumeL)} L`)}
+  save();
+}
+async function suggestAgain(oid){
+  const o=byId(oid);if(!o||o.stage!=='received'||S.role!=='Operations')return;
+  if(FB.state!=='live'){toast('The live fleet is not loaded yet');return}
+  if(o.nominees.length&&!await ask({title:'Suggest again?',msg:`The ${o.nominees.length} truck${o.nominees.length===1?'':'s'} ticked now ${o.nominees.length===1?'is':'are'} replaced by a new suggestion for ${fmt(o.volumeL)} L.`,ok:'↻ Suggest'})){openNom(oid);return}
+  o.nominees=[];const r=suggestNominees(o);o.suggestedAt=now();
+  if(r.n)log(o,`Suggested ${r.n} truck${r.n===1?'':'s'} — ${fmt(r.sum)} L for ${fmt(o.volumeL)} L (${sugDiff(o)})`);
+  toast(r.n?`Suggested ${r.n} truck${r.n===1?'':'s'} — ${fmt(r.sum)} L for ${fmt(o.volumeL)} L`:'No truck can be suggested — none is free, complete and on the client\'s list');
+  render();if(S.ui.nomModal!==oid)openNom(oid);
+}
+/* heading of the Suggested section: how close the ticked suggestion is to the request */
+function nomSugTitle(o){const sg=o.nominees.filter(n=>n.suggested),v=sg.reduce((a,n)=>a+(n.capacityL||0),0);return `Suggested — ${fmt(v)} L${o.nominees.length===sg.length?` for ${fmt(o.volumeL)} L (${sugDiff(o)})`:''} · untick to remove`}
 function nomSections(o,list){
-  const g={1:[],2:[],3:[],4:[]};
-  list.forEach(f=>{const x=nomSecOf(f,o);g[x.s].push({f,k:x.k,nd:f.driver?0:1})});
-  return [1,2,3,4].filter(n=>g[n].length).map(n=>({s:n,list:g[n].sort((a,b)=>(a.nd-b.nd)||(b.k-a.k)||String(a.f.plate).localeCompare(String(b.f.plate))).map(x=>x.f)}));
+  const g={0:[],1:[],2:[],3:[],4:[]},sug=new Set(o.nominees.filter(n=>n.suggested).map(n=>n.plate));
+  list.forEach(f=>{if(sug.has(f.plate)){g[0].push({f,k:0,nd:0});return}const x=nomSecOf(f,o);g[x.s].push({f,k:x.k,nd:f.driver?0:1})});   /* 0 = the suggestion, still ticked */
+  return [0,1,2,3,4].filter(n=>g[n].length).map(n=>({s:n,list:g[n].sort((a,b)=>(a.nd-b.nd)||(b.k-a.k)||String(a.f.plate).localeCompare(String(b.f.plate))).map(x=>x.f)}));
 }
 function renderNomination(){
   const host=document.getElementById('nomBody');
@@ -1449,6 +1569,7 @@ function openNom(oid){
   const o=byId(oid);
   if(!o||!NOM_STAGES.includes(o.stage)){S.ui.nomModal=null;closeModal();return}
   S.ui.nomModal=oid;
+  autoSuggest(o);   /* a new order starts with the best match already ticked */
   if(NOMQ.oid!==oid)NOMQ={oid,q:'',open:false,focus:false};
   const FL=fleet();
   const busy=busyPlates();
@@ -1469,13 +1590,13 @@ function openNom(oid){
     <div class="card nom-left">
       <div class="row between"><h3>${esc(o.client)} compliant fleet</h3>${liveBadge()}</div>
       <div class="row between" style="margin-top:6px"><span class="muted">${free.length} available of ${FLc.length} approved by ${esc(o.client)}${C.contractRef?` · contract ${esc(C.contractRef)}`:''}</span>
-        <span class="row"><button class="ic-btn nom-q-btn ${NOMQ.open?'on':''}" onclick="T.nomSearch()" title="Search by driver name or plate" aria-label="Search trucks by driver name or plate" aria-expanded="${NOMQ.open?'true':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button class="btn sm" onclick="T.toggleAllFleet()">${showAll?'Only compliant':'＋ Other trucks'}</button></span></div>
+        <span class="row"><button class="ic-btn nom-q-btn ${NOMQ.open?'on':''}" onclick="T.nomSearch()" title="Search by driver name or plate" aria-label="Search trucks by driver name or plate" aria-expanded="${NOMQ.open?'true':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>${o.stage==='received'&&S.role==='Operations'?`<button class="btn sm" onclick="T.suggestAgain('${o.id}')" title="Tick the trucks that best match ${fmt(o.volumeL)} L — free trucks first">↻ Suggest</button>`:''}<button class="btn sm" onclick="T.toggleAllFleet()">${showAll?'Only compliant':'＋ Other trucks'}</button></span></div>
       ${NOMQ.open?`<form class="nom-q" onsubmit="return false" autocomplete="off"><input type="search" id="nomQ" name="nomq-${Date.now()}" value="${esc(NOMQ.q)}" placeholder="Search driver name or plate…" autocomplete="off" data-lpignore="true" data-1p-ignore="true" oninput="T.nomSearchInput(this.value)" onblur="T.nomSearchBlur()" onkeydown="if(event.key==='Escape'){event.preventDefault();event.stopPropagation();T.nomSearch()}"><button type="button" class="nom-q-x" title="Close search" aria-label="Close search" onclick="T.nomSearch()">✕</button></form><div class="tiny nom-q-info" id="nomQInfo"></div>`:''}
       ${FLc.length===0&&!showAll?`<div class="alert warn" style="margin-top:10px">${esc(o.client)} has no compliant trucks yet — add them under <b>Compliant fleet</b>, or press <b>＋ Other trucks</b>.</div>`:''}
       ${liveHint()}
       <hr class="div" style="margin:14px 0">
       <div class="tbl nom-fleet"><table><thead><tr><th></th><th>Truck / trailer</th><th>Driver</th><th>${esc(o.product)} capacity</th></tr></thead><tbody>
-      ${nomSections(o,SHOW).map(g=>`<tr class="nom-sec s${g.s}" data-sec="${g.s}"><td colspan="4"><span class="nom-sec-t">${g.s} · ${NOM_SEC[g.s]}</span><span class="nom-sec-n">${g.list.length}</span></td></tr>`+g.list.map(f=>{
+      ${nomSections(o,SHOW).map(g=>`<tr class="nom-sec s${g.s}" data-sec="${g.s}"><td colspan="4"><span class="nom-sec-t">${g.s?g.s+' · '+NOM_SEC[g.s]:'★ '+esc(nomSugTitle(o))}</span><span class="nom-sec-n">${g.list.length}</span></td></tr>`+g.list.map(f=>{
         const anchor=inList.has(f.plate)?null:queueAnchor(f.plate,o.id);
         const dis=false;
         const nc=!isCompliant(o.client,f.plate);
@@ -1722,7 +1843,6 @@ function copyTpl(){navigator.clipboard&&navigator.clipboard.writeText(document.g
 function csvTpl(id){const o=byId(id);const rows=[['S/N','Truck','Trailer','Driver','Licence','Passport','Capacity (L)'],...o.nominees.filter(n=>n.status!=='rejected').map((n,i)=>[i+1,n.plate,n.trailer,n.driver,n.licence,n.passport,n.capacityL])];const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=`nomination-${o.clientOrderNo}.csv`;a.click()}
 
 /* ---- 3 assign & track ---- */
-const ALL_STATUSES=[QUEUED,...TRIP_STATUSES];
 function tripCounts(o){const c={};ALL_STATUSES.forEach(x=>c[x]=0);o.trips.forEach(t=>c[t.status]=(c[t.status]||0)+1);return c}
 function renderAssign(){
   const cands=S.orders.filter(o=>['approved','assigned','completed','invoiced'].includes(o.stage)&&(o.trips.length||o.stage==='approved')).filter(orderInRange).filter(x=>matchQ(x,'assign'));
@@ -1744,7 +1864,7 @@ function renderAssign(){
       <hr class="div" style="margin:14px 0 10px">
       ${o.stage==='approved'
         ? `<div class="row between"><span class="muted">Not assigned yet</span><span class="btn sm primary">Assign ${o.nominees.length} truck${o.nominees.length>1?'s':''} →</span></div>`
-        : `<div class="row" style="gap:6px">${TRIP_STATUSES.filter(x=>c[x]).map(x=>`<span class="chip ${TRIP_COLOR[x]}" title="${TRIP_LABEL[x]}">${c[x]} ${TRIP_SHORT[x]}</span>`).join('')}</div>
+        : `<div class="row" style="gap:6px">${statusKeys(c).map(x=>`<span class="chip ${TRIP_COLOR[x]||'blue'}" title="${esc(TRIP_LABEL[x]||x)}">${c[x]} ${esc(TRIP_SHORT[x]||x)}</span>`).join('')}</div>
            <div class="row between" style="margin-top:10px"><span class="tiny">${esc(o.depot)} → ${esc(o.destination)}</span><span class="tiny">${c.Offloaded}/${n} offloaded${c[QUEUED]?` · <span style="color:var(--purple)">${c[QUEUED]} queued</span>`:''}${o.trips.some(t=>t.status!=='Offloaded'&&nextOrders(t.plate,o.id).length)?` · <span style="color:var(--purple)">${o.trips.filter(t=>t.status!=='Offloaded'&&nextOrders(t.plate,o.id).length).length} with next order</span>`:''}${o.trips.some(t=>t.amendment)?` · <span style="color:var(--amber)">✎ ${o.trips.filter(t=>t.amendment).length} amendment${o.trips.filter(t=>t.amendment).length>1?'s':''} pending</span>`:''}</span></div>`}
     </div>`};
   const block=(title,list)=>list.length?`<div class="section"><h4>${title} · ${list.length}</h4><div class="grid g3">${list.map(card).join('')}</div></div>`:'';
@@ -1754,6 +1874,7 @@ function renderAssign(){
 }
 /* ---- one order, opened as a modal with its trucks ---- */
 function openAssign(id){
+  stMenuClose();
   const o=byId(id);
   if(o.stage==='approved'){
     modal(`<div class="modal-h"><span class="client ${esc(o.client)}" ${clientStyle(o.client)}>${esc(o.client)}</span><h3 class="mono">${esc(o.clientOrderNo)}</h3>${stageChip(o)}<button class="x" onclick="T.closeModal()">×</button></div>
@@ -1768,7 +1889,7 @@ function openAssign(id){
   <div class="modal-b">
     <div class="row between" style="flex-wrap:wrap;gap:10px">
       <span class="muted">${esc(o.product)} · requested ${fmt(o.volumeL)} L · <b class="to-load" title="Volume to load — set from the approved trucks; it can differ from the request">to load ${fmt(loadVol(o))} L</b>${ops&&o.stage!=='invoiced'?`<button class="ic-btn" title="Change the volume to load" onclick="T.editLoadVol('${o.id}')">✎</button>`:''} · ${esc(o.depot)} → ${esc(o.destination)}</span>
-      <div class="row" style="gap:6px">${TRIP_STATUSES.filter(x=>c[x]).map(x=>`<span class="chip ${TRIP_COLOR[x]}" title="${TRIP_LABEL[x]}">${c[x]} ${TRIP_SHORT[x]}</span>`).join('')}</div>
+      <div class="row" style="gap:6px">${statusKeys(c).map(x=>`<span class="chip ${TRIP_COLOR[x]||'blue'}" title="${esc(TRIP_LABEL[x]||x)}">${c[x]} ${esc(TRIP_SHORT[x]||x)}</span>`).join('')}</div>
     </div>
     <div class="section"><h4>Trucks · ${o.trips.length}</h4>
       <div class="trucklist">
@@ -1781,7 +1902,7 @@ function openAssign(id){
           <div class="tr-doc">${t.status===QUEUED?`<span class="tiny" style="color:var(--purple)">⏳ after ${esc((t.queuedBehind||{}).orderNo||'previous order')}</span>`:t.status==='Offloaded'?(t.report?`${isDepotRep(t)?`<span class="chip green" title="Depot details${t.report.filledBy?' · filled by '+esc(t.report.filledBy):''} — the original is still at the depot">depot doc ✓</span>`:`<span class="chip blue" title="Original document filed — AA ${esc(t.report.aaNo)}${t.report.filledBy?' · filled by '+esc(t.report.filledBy):''}">org doc ✓</span>`}${isDepotRep(t)?`<button class="ic-btn" title="View the depot details (read only)" onclick="T.fromAssign('${o.id}','${t.id}')">👁</button>`:S.role==='Operations'?`<button class="ic-btn" title="Correct the offload report" onclick="T.fromAssign('${o.id}','${t.id}')">✎</button>`:''}${t.nextOrder?` <span class="chip purple" title="After offloading, this truck went on to ${esc(t.nextOrder.orderNo)}">→ ${esc(t.nextOrder.orderNo)}</span>`:''}`:fgReports()?`<span class="chip amber" title="FleetGuard fills the offload report — it appears here as soon as it is sent">Waiting for FleetGuard report</span>`:`<button class="btn sm primary ops" onclick="T.fromAssign('${o.id}','${t.id}')">Fill report</button>`):`<span class="tiny">${L.open?'since '+dur(L[rank(t.status)===0?'toLoad':rank(t.status)===1?'waitDocs':'inTransit']||0):''}${t.releasedFrom?` · <span style="color:var(--purple)">after ${esc(t.releasedFrom.orderNo)}</span>`:''}</span> ${nextChip(o,t)}`}</div>
           <div class="tr-sel">${t.status===QUEUED
             ? `${tripChip(t)}`
-            : ops ? `<span class="st-box ${undoBlock(o,t)?'':'has-x'}"><select onchange="T.setTripStatus('${o.id}','${t.id}',this.value)" ondblclick="T.openPlace('${o.id}','${t.id}')" ${t.amendment?'disabled title="Amendment pending — wait for the client\'s answer"':'title="Double-click to add a status that is not in the list"'}>${TRIP_STATUSES.map(x=>`<option value="${esc(x)}" ${t.status===x?'selected':''}>${esc(TRIP_LABEL[x])}</option>`).join('')}<option value="__place">＋ Add status…</option></select>${undoBlock(o,t)?'':`<button class="st-x" title="Remove this status — back to ${esc(TRIP_SHORT[t.history[t.history.length-2].to]||t.history[t.history.length-2].to)}" onclick="T.undoStatus('${o.id}','${t.id}')">×</button>`}</span>`
+            : ops ? `<span class="st-box ${undoBlock(o,t)?'':'has-x'}"><button type="button" class="st-btn" aria-haspopup="listbox" onclick="T.stMenu(this,'${o.id}','${t.id}')" ${t.amendment?'disabled title="Amendment pending — wait for the client\'s answer"':'title="Change the status"'}>${esc(TRIP_LABEL[t.status]||t.status)}</button>${undoBlock(o,t)?'':`<button class="st-x" title="Remove this status — back to ${esc(TRIP_SHORT[t.history[t.history.length-2].to]||t.history[t.history.length-2].to)}" onclick="T.undoStatus('${o.id}','${t.id}')">×</button>`}</span>`
             : tripChip(t)}${ops&&t.status!=='Offloaded'&&!t.amendment?`<button class="ic-btn amend-ic" onclick="T.openAmend('${o.id}','${t.id}')" title="Amend — replace this truck (or its trailer/driver). The client must approve the amendment first.">✎</button>`:''}</div>
         </div>
         ${t.amendment?`<div class="amend-line ${t.amendment.status}"><span class="chip amber">Amendment ${t.amendment.status==='sent'?'sent — awaiting '+esc(o.client):'not sent yet'}</span>
@@ -1808,7 +1929,7 @@ function openAssign(id){
       </div>
       ${c[QUEUED]?`<div class="alert info" style="margin-top:12px">⏳ <b>${c[QUEUED]} queued</b> — start automatically when their current order offloads. Can't wait? <b>✎ Amend</b>.</div>`:''}
       ${o.trips.some(t=>t.amendment)?`<div class="alert warn" style="margin-top:12px"><div class="row between" style="flex-wrap:wrap;gap:8px"><span>✎ <b>${o.trips.filter(t=>t.amendment).length} amendment${o.trips.filter(t=>t.amendment).length>1?'s':''}</b> — send the Excel to ${esc(o.client)}, then record the answer. Retained = new truck · Cancelled = replaced.</span>${ops?`<span class="row" style="gap:6px"><button class="btn sm" onclick="T.amendXlsx('${o.id}')">⬇ Amendment Excel</button>${o.trips.some(t=>t.amendment&&t.amendment.status!=='sent')?`<button class="btn sm primary" onclick="T.amendSend('${o.id}')">Mark request sent →</button>`:''}</span>`:''}</div></div>`:''}
-      <p class="tiny" style="margin-top:10px">▸ dates · WD = loaded, waiting for documents · Offloaded opens the report</p>
+      <p class="tiny" style="margin-top:10px">▸ dates · ${esc(TRIP_SHORT.WD)} = loaded, waiting for documents · ${esc(TRIP_SHORT.Offloaded)} opens the report</p>
     </div>
   </div>
   <div class="modal-f"><button class="btn" onclick="T.closeModal()">Close</button><button class="btn" onclick="T.closeModal();T.openOrder('${o.id}')">Order details</button><button class="btn primary" onclick="T.closeModal();T.go('docs')">Documentation →</button></div>`);
@@ -1848,31 +1969,142 @@ function confirmLoaded(oid,tid,to){
 }
 /* "＋ Add status…" (or double-click the status box): type a status that does not exist yet — e.g. "At border Rusumo".
    It is saved, offered in every truck's list from then on, and counts as ON THE ROAD (see registerRoad). */
+function stListHtml(){
+  return TRIP_STATUSES.map(x=>{const k=statusKind(x);
+    const al=k!=='road'&&statusAlias(x);
+    return `<div class="st-row" data-st="${esc(x)}"><span class="st-drag" title="Drag to arrange" aria-label="Drag to arrange">⋮⋮</span><span class="st-name">${esc(TRIP_LABEL[x]||x)}${al?`<small class="st-orig" title="Original name">${esc(DEF_SHORT[x]||x)}</small>`:''}</span><button type="button" class="ic-btn st-edit" onclick="T.placeEdit(this.parentNode.dataset.st)" title="Rename “${esc(TRIP_SHORT[x]||x)}”" aria-label="Rename ${esc(TRIP_SHORT[x]||x)}">✎</button></div>`}).join('');
+}
+let PLACE_EDIT=null;
 function openPlace(oid,tid){
   const o=byId(oid),t=o.trips.find(x=>x.id===tid);
   if(S.role!=='Operations'||!t||t.amendment||t.status===QUEUED)return;
-  modal(`<div class="modal-h"><h3>Add status — ${esc(t.plate)}</h3><button class="x" onclick="T.closeModal();T.openAssign('${oid}')">×</button></div>
-  <div class="modal-b"><p class="muted" style="margin-bottom:12px">Type a status that is not in the list yet. It is saved, appears in every truck's list from now on, and counts as <b>on the road</b> — like In Transit, between WD and Offloaded.</p>
-  <div class="form"><div class="full"><label>New status</label><input id="f_place" list="placeList" autocomplete="off" maxlength="40" placeholder="e.g. At border Rusumo" onkeydown="if(event.key==='Enter')T.savePlace('${oid}','${tid}')"><datalist id="placeList">${TRIP_STATUSES.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
-  <div class="full" id="f_place_err" style="display:none;color:var(--red);font-size:12px"></div></div></div>
-  <div class="modal-f"><button class="btn" onclick="T.closeModal();T.openAssign('${oid}')">Cancel</button><button class="btn primary" onclick="T.savePlace('${oid}','${tid}')">Save &amp; apply</button></div>`);
+  stMenuClose();PLACE_EDIT=null;
+  modal(`<div class="modal-h"><h3>Statuses — ${esc(t.plate)}</h3><button class="x" onclick="T.closeModal();T.openAssign('${oid}')">×</button></div>
+  <div class="modal-b"><p class="muted" style="margin-bottom:12px">Type a new status to add it and apply it to ${esc(t.plate)}. Press <b>✎</b> to rename any status. Drag <b>⋮⋮</b> to arrange the list — the order is shared with everyone.</p>
+  <div class="form"><div class="full"><label id="f_place_lab">New status</label><input id="f_place" autocomplete="off" maxlength="40" placeholder="e.g. At border Rusumo" onkeydown="if(event.key==='Enter')T.savePlace('${oid}','${tid}')"></div>
+  <div class="full" id="f_place_err" style="display:none;color:var(--red);font-size:12px"></div></div>
+  <div class="st-list" id="stList">${stListHtml()}</div></div>
+  <div class="modal-f"><button class="btn" onclick="T.closeModal();T.openAssign('${oid}')">Close</button><button class="btn" id="f_place_cancel" style="display:none" onclick="T.placeEdit(null)">Cancel rename</button><button class="btn primary" id="f_place_btn" onclick="T.savePlace('${oid}','${tid}')">Add &amp; apply</button></div>`);
+  stDragInit();
   setTimeout(()=>{const i=document.getElementById('f_place');if(i)i.focus()},30);
+}
+/* click a status you added → the box holds its name: saving RENAMES it (never a second status) */
+function placeEdit(name){
+  PLACE_EDIT=name&&TRIP_STATUSES.includes(name)?name:null;
+  const i=document.getElementById('f_place'),l=document.getElementById('f_place_lab'),b=document.getElementById('f_place_btn'),c=document.getElementById('f_place_cancel'),e=document.getElementById('f_place_err');
+  if(!i)return;
+  i.value=PLACE_EDIT?(statusKind(PLACE_EDIT)==='road'?PLACE_EDIT:statusAlias(PLACE_EDIT)||(statusKind(PLACE_EDIT)==='core'?PLACE_EDIT:TRIP_LABEL[PLACE_EDIT]||PLACE_EDIT)):'';if(l)l.textContent=PLACE_EDIT?`Rename “${TRIP_SHORT[PLACE_EDIT]||PLACE_EDIT}”`:'New status';
+  if(b)b.innerHTML=PLACE_EDIT?'Save name':'Add &amp; apply';if(c)c.style.display=PLACE_EDIT?'':'none';if(e)e.style.display='none';
+  document.querySelectorAll('#stList .st-row').forEach(r=>r.classList.toggle('sel',!!PLACE_EDIT&&r.dataset.st===PLACE_EDIT));
+  i.focus();if(PLACE_EDIT)i.select();
+}
+const statusClean=v=>{const p=String(v||'').replace(/\s+/g,' ').trim();return p?p.charAt(0).toUpperCase()+p.slice(1):''};
+/* every name a truck could carry: the lists, plus anything still on a truck or in a timeline */
+function statusNamesInUse(){const out=new Set([QUEUED,...TRIP_STATUSES,...ALLOC,...ROAD]);S.orders.forEach(o=>o.trips.forEach(t=>{out.add(t.status);(t.history||[]).forEach(h=>out.add(h.to))}));return [...out].filter(Boolean)}
+function statusClash(name,except){const k=name.toLowerCase();return statusNamesInUse().find(x=>x!==except&&(x.toLowerCase()===k||String(TRIP_LABEL[x]||'').toLowerCase()===k||String(TRIP_SHORT[x]||'').toLowerCase()===k))}
+function renameStatus(old,name){
+  S.roadStatuses=(S.roadStatuses||[]).map(x=>x===old?name:x);S.statusOrder=(S.statusOrder||[]).map(x=>x===old?name:x);
+  let n=0;
+  S.orders.forEach(o=>{let hit=false;o.trips.forEach(t=>{
+    if(t.status===old){t.status=name;hit=true;n++}
+    (t.history||[]).forEach(h=>{if(h.to===old){h.to=name;hit=true}});(t.removedHistory||[]).forEach(h=>{if(h.to===old){h.to=name;hit=true}});
+  });if(hit)log(o,`Status “${old}” renamed “${name}”`)});
+  loadStatusRegistry();return n;
 }
 function savePlace(oid,tid){
   const o=byId(oid),t=o.trips.find(x=>x.id===tid),i=document.getElementById('f_place'),err=document.getElementById('f_place_err');
   const fail=m=>{err.style.display='block';err.textContent=m};
   const p=(i.value||'').replace(/\s+/g,' ').trim();
-  if(!p)return fail('Type the new status.');
+  if(!p)return fail(PLACE_EDIT?'Type the new name.':'Type the new status.');
   if(p.length>40)return fail('Keep it under 40 characters.');
   if(/^__/.test(p))return fail('Choose another name.');
+  if(PLACE_EDIT){
+    const old=PLACE_EDIT,name=statusClean(p);
+    if(statusKind(old)!=='road'){
+      /* built-in / loading depot: a display name. Typing the original wording back removes it. */
+      if([TRIP_LABEL[old],TRIP_SHORT[old]].some(x=>String(x||'').toLowerCase()===name.toLowerCase())){placeEdit(null);return}   /* unchanged */
+      const clash=statusClash(name,old);if(clash)return fail(`“${TRIP_SHORT[clash]||clash}” already exists — choose another name.`);
+      const back=[old,DEF_LABEL[old],DEF_SHORT[old],'Allocated — loading in '+old.replace(/^Allocated to /,''),'Alloc. '+old.replace(/^Allocated to /,'')].filter(Boolean).some(x=>x.toLowerCase()===name.toLowerCase());
+      const was=TRIP_SHORT[old]||old;
+      S.statusNames=(S.statusNames||[]).filter(x=>x.k!==old);if(!back)S.statusNames.push({k:old,n:name});
+      loadStatusRegistry();save();
+      toast(back?`“${was}” is back to its original name`:`“${was}” renamed “${name}”`);render();openPlace(oid,tid);return;
+    }
+    if(name===old){placeEdit(null);return}
+    if(/^allocated to /i.test(name))return fail('Names starting with “Allocated to” belong to the loading depots.');
+    const clash=statusClash(name,old);if(clash)return fail(`“${clash}” already exists — choose another name.`);
+    const n=renameStatus(old,name);
+    toast(`“${old}” renamed “${name}”${n?` — ${n} truck${n===1?'':'s'} updated`:''}`);render();openPlace(oid,tid);return;
+  }
   /* an existing status, typed by its name or its long label, is used as it is — never added twice */
   const k=p.toLowerCase();
-  let st=[QUEUED,...TRIP_STATUSES].find(s=>s.toLowerCase()===k||String(TRIP_LABEL[s]||'').toLowerCase()===k||String(TRIP_SHORT[s]||'').toLowerCase()===k);
+  let st=[QUEUED,...TRIP_STATUSES].find(x=>x.toLowerCase()===k||String(TRIP_LABEL[x]||'').toLowerCase()===k||String(TRIP_SHORT[x]||'').toLowerCase()===k);
   if(st===QUEUED)return fail('Queued is set by the system — choose another name.');
-  if(!st){const name=p.charAt(0).toUpperCase()+p.slice(1);S.roadStatuses.push(name);st=registerRoad(name);toast(`“${name}” added as a status`)}
+  if(!st){
+    const name=statusClean(p);
+    if(/^allocated to /i.test(name))return fail('Names starting with “Allocated to” come from the loading depot typed on the order.');
+    S.roadStatuses.push(name);st=registerRoad(name);toast(`“${name}” added as a status`);
+  }
   closeModal();
   if(st===t.status){render();openAssign(oid);return}
-  setTripStatus(oid,tid,st);   /* asks for litres loaded first when the truck has none yet, like WD and In Transit */
+  setTripStatus(oid,tid,st);   /* asks for the loading date first when the truck has none yet, like WD and In Transit */
+}
+/* ✕ in the dropdown: an added status leaves the list. Trucks on it keep it until their next change; timelines keep the name. */
+async function removeStatus(name,oid){
+  if(S.role!=='Operations'||!statusRemovable(name)||!TRIP_STATUSES.includes(name))return;
+  const on=S.orders.reduce((a,o)=>a+o.trips.filter(t=>t.status===name).length,0);
+  if(!await ask({title:`Remove “${TRIP_SHORT[name]||name}” from the list?`,msg:`It can no longer be chosen.${on?` ${on} truck${on===1?' is':'s are'} on it now and keep${on===1?'s':''} it until the next status change.`:''} Past timelines keep the name.`,ok:'Remove',danger:true})){if(oid)openAssign(oid);return}
+  if(isAlloc(name))S.allocPlaces=(S.allocPlaces||[]).filter(x=>placeStatus(x).toLowerCase()!==name.toLowerCase());
+  else S.roadStatuses=(S.roadStatuses||[]).filter(x=>x!==name);
+  S.statusOrder=(S.statusOrder||[]).filter(x=>x!==name);
+  loadStatusRegistry();save();toast(`“${TRIP_SHORT[name]||name}” removed from the list`);render();if(oid)openAssign(oid);
+}
+/* drag ⋮⋮ (mouse or finger) to arrange the list; the new order is saved for everyone */
+function stDragInit(){
+  const L=document.getElementById('stList');if(!L)return;let drag=null;
+  L.addEventListener('pointerdown',e=>{const h=e.target.closest&&e.target.closest('.st-drag');if(!h)return;e.preventDefault();drag=h.parentNode;drag.classList.add('dragging');try{h.setPointerCapture(e.pointerId)}catch(x){}});
+  L.addEventListener('pointermove',e=>{if(!drag)return;e.preventDefault();
+    const rows=[...L.querySelectorAll('.st-row')].filter(r=>r!==drag);let before=null;
+    for(const r of rows){const b=r.getBoundingClientRect();if(e.clientY<b.top+b.height/2){before=r;break}}
+    if(before){if(drag.nextSibling!==before)L.insertBefore(drag,before)}else if(L.lastElementChild!==drag)L.appendChild(drag)});
+  const end=()=>{if(!drag)return;drag.classList.remove('dragging');drag=null;stOrderSave()};
+  L.addEventListener('pointerup',end);L.addEventListener('pointercancel',end);
+}
+function stOrderSave(){
+  const names=[...document.querySelectorAll('#stList .st-row')].map(r=>r.dataset.st).filter(x=>TRIP_STATUSES.includes(x));
+  if(names.length!==TRIP_STATUSES.length||names.join('|')===TRIP_STATUSES.join('|'))return;
+  S.statusOrder=names;syncStatusList();save();toast('Status order saved');
+}
+/* the status dropdown of a truck: every status of the list; an added one carries ✕ (remove from the list) */
+let ST_MENU=null;
+function stMenuOut(e){const m=document.getElementById('stMenu');if(m&&!m.contains(e.target)&&!(ST_MENU&&ST_MENU.btn&&ST_MENU.btn.contains(e.target)))stMenuClose()}
+function stMenuScroll(e){const x=e.target;if(x&&x.closest&&x.closest('#stMenu'))return;stMenuClose()}
+function stMenuKey(e){if(e.key==='Escape'&&ST_MENU){e.preventDefault();e.stopPropagation();const b=ST_MENU.btn;stMenuClose();try{b.focus()}catch(x){}}}
+function stMenuClose(){
+  const m=document.getElementById('stMenu');if(m)m.remove();
+  if(ST_MENU){document.removeEventListener('mousedown',stMenuOut,true);window.removeEventListener('resize',stMenuClose);document.removeEventListener('scroll',stMenuScroll,true);document.removeEventListener('keydown',stMenuKey,true)}
+  ST_MENU=null;
+}
+function stMenu(btn,oid,tid){
+  if(ST_MENU&&ST_MENU.tid===tid){stMenuClose();return}
+  stMenuClose();
+  const o=byId(oid),t=o&&o.trips.find(x=>x.id===tid);if(!t||S.role!=='Operations'||t.amendment)return;
+  const m=document.createElement('div');m.id='stMenu';m.className='st-menu';m.setAttribute('role','listbox');
+  m.innerHTML=(TRIP_STATUSES.includes(t.status)?'':`<div class="stm-row cur gone"><span class="stm-l">${esc(TRIP_LABEL[t.status]||t.status)}<small>removed from the list</small></span></div>`)
+    +TRIP_STATUSES.map(x=>`<div class="stm-row ${x===t.status?'cur':''}" role="option" aria-selected="${x===t.status?'true':'false'}"><button type="button" class="stm-l" data-st="${esc(x)}">${esc(TRIP_LABEL[x]||x)}</button>${statusRemovable(x)?`<button type="button" class="stm-x" data-rm="${esc(x)}" title="Remove “${esc(TRIP_SHORT[x]||x)}” from the list" aria-label="Remove ${esc(TRIP_SHORT[x]||x)} from the list">✕</button>`:''}</div>`).join('')
+    +'<div class="stm-row add"><button type="button" class="stm-l" data-add="1">＋ Add, rename or arrange statuses…</button></div>';
+  m.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(!b)return;
+    if(b.dataset.rm){const n=b.dataset.rm;stMenuClose();removeStatus(n,oid);return}
+    if(b.dataset.add){stMenuClose();openPlace(oid,tid);return}
+    if(b.dataset.st){const n=b.dataset.st;stMenuClose();setTripStatus(oid,tid,n)}});
+  document.body.appendChild(m);
+  const r=btn.getBoundingClientRect();m.style.minWidth=Math.max(r.width,250)+'px';
+  const below=window.innerHeight-r.bottom-12,above=r.top-12,down=below>=Math.min(m.offsetHeight,260)||below>=above;
+  m.style.maxHeight=Math.max(160,down?below:above)+'px';
+  m.style.left=Math.max(8,Math.min(r.left,window.innerWidth-m.offsetWidth-8))+'px';
+  m.style.top=(down?r.bottom+4:Math.max(8,r.top-4-m.offsetHeight))+'px';
+  ST_MENU={tid,btn};
+  setTimeout(()=>{if(!ST_MENU)return;document.addEventListener('mousedown',stMenuOut,true);window.addEventListener('resize',stMenuClose);document.addEventListener('scroll',stMenuScroll,true);document.addEventListener('keydown',stMenuKey,true)},0);
 }
 /* × beside the status box: undo the LAST change. The undone line moves to t.removedHistory and stays in the timeline, struck through;
    timings and counts read t.history only, so they ignore it. */
@@ -2124,7 +2356,7 @@ function docRows(o,trips,pick){
       <td>${t.report?`${fmt(t.report.offloadedL)} L<div class="tiny">short ${fmt(shortOf(t.report))} L · ${tempsOf(t.report)}</div>`:'—'}</td>
       <td>${t.report?`<span class="mono" style="font-size:11.5px">${esc(t.report.depotInvoiceRef)}</span><div class="tiny">${t.report.depotInvoiceUrl?`📎 <a href="${esc(t.report.depotInvoiceUrl)}" target="_blank" rel="noopener">photo</a>`:t.report.depotInvoiceFile?'📎 '+esc(t.report.depotInvoiceFile):'no file'}${t.report.filledBy&&t.report.source==='FleetGuard'?` · by ${esc(t.report.filledBy)}`:''}</div>`:'—'}</td>
       <td class="doc-st">${t.report?(t.doc.step<DOC_RECV?`<div class="doc-now"><span class="chip amber" title="As set in FleetGuard">${holderTxt(t)}</span><span class="stuck">${stuckDays(t)} day${stuckDays(t)===1?'':'s'}</span></div>${isDepotRep(t)?'<div class="tiny" style="margin-top:6px">FleetGuard files the original when it is in hand</div>':`<button class="btn sm primary doc-recv" onclick="T.setDoc('${o.id}','${t.id}',${DOC_RECV})">Received at office</button>`}`:`<div class="doc-now"><span class="chip green">Received at office</span></div><div class="tiny" style="margin-top:4px">${t.doc.receivedBy?'by '+esc(t.doc.receivedBy)+' · ':''}${fmtD(t.doc.history[t.doc.history.length-1].at)}${t.invoice.status!=='invoiced'?` · <a href="#" onclick="event.preventDefault();T.undoReceived('${o.id}','${t.id}')">undo</a>`:''}</div>`):'<span class="tiny">fill the report first</span>'}</td>
-      <td class="doc-act">${t.report?isDepotRep(t)?`<button class="ic-btn" title="View the depot details (read only — FleetGuard completes them with the original)" onclick="T.openReport('${o.id}','${t.id}')">👁</button>`:`<button class="ic-btn" title="Correct the offload report or replace the photo" onclick="T.openReport('${o.id}','${t.id}')">✎</button>`:fgReports()?`<span class="chip amber" title="FleetGuard fills it — it appears here when sent">waiting for FleetGuard</span>`:`<button class="btn sm primary ops" onclick="T.openReport('${o.id}','${t.id}')">Fill report</button>`}</td></tr>`).join('');
+      <td class="doc-act">${chaseBtn(o,t)}${t.report?isDepotRep(t)?`<button class="ic-btn" title="View the depot details (read only — FleetGuard completes them with the original)" onclick="T.openReport('${o.id}','${t.id}')">👁</button>`:`<button class="ic-btn" title="Correct the offload report or replace the photo" onclick="T.openReport('${o.id}','${t.id}')">✎</button>`:fgReports()?`<span class="chip amber" title="FleetGuard fills it — it appears here when sent">waiting for FleetGuard</span>`:`<button class="btn sm primary ops" onclick="T.openReport('${o.id}','${t.id}')">Fill report</button>`}</td></tr>`).join('');
 }
 function openDocs(bucket,oid){
   if(bucket&&!DOC_BUCKETS[bucket]){const tmp=bucket;bucket=oid;oid=tmp}   /* tolerate old (oid,bucket) order */
@@ -2160,7 +2392,39 @@ function setDoc(oid,tid,step,name){const o=byId(oid),t=o.trips.find(x=>x.id===ti
   if(!name){receiveOne(oid,tid);return}   /* "Received at office" needs the receiver's name */
   applyDoc(o,t,step,name);if(step===DOC_RECV)toast(`${t.plate}: original received by ${name} — ready to invoice`);render();
   const M=S.ui.docModal;if(M)openDocs(M.bucket,M.oid)}
-function applyDoc(o,t,step,name){t.doc.step=step;t.doc.receivedBy=step===DOC_RECV?name:null;t.doc.history.push(step===DOC_RECV?{step,at:now(),by:who(),receivedBy:name}:{step,at:now(),by:who()});log(o,`${t.plate} original document: ${DOC_STEPS[step]}${step===DOC_RECV?' — received by '+name:''}`)}
+/* ===== Chase document (Nov 2026) =====
+   Operations or Finance press it on a truck whose original is not yet received at the office. It writes
+   fleetguard/docChases/<order>__<truck>; FleetGuard rings and shows a pop-up on whatever page its users are on.
+   A truck can be chased again after 30 minutes; the chase clears by itself when the original is received. */
+const CHASE_WAIT=30*60000;
+const CHASE_TXT={report:'offload report still to fill',depot:'original document still at the depot',inhand:'original in hand — not yet received at the office'};
+const chaseWhat=t=>!t.report?'report':isDepotRep(t)?'depot':'inhand';
+const chaseable=t=>t.status==='Offloaded'&&t.doc&&t.doc.step!==DOC_RECV&&!isInvoiced(t);
+function chaseBtn(o,t){
+  if(!chaseable(t))return '';
+  const c=t.chase;
+  return `<button class="ic-btn chase-b ${c?'chased':''}" onclick="T.chaseDoc('${o.id}','${t.id}')" title="${c?`Chased ${c.count>1?c.count+' times, last ':''}${agoTxt(c.at)} by ${esc(c.by||'')} — it can be chased again after 30 minutes`:'Chase the document — rings FleetGuard: '+CHASE_TXT[chaseWhat(t)]}" aria-label="${c?'Document chased':'Chase the document'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button>`;
+}
+function chaseBack(){const M=S.ui.docModal;if(M)openDocs(M.bucket,M.oid);else if(S.ui.invModal)openInvoice(S.ui.invModal)}
+async function chaseDoc(oid,tid){
+  const o=byId(oid),t=o&&o.trips.find(x=>x.id===tid);if(!t)return;
+  if(!chaseable(t)){toast('Nothing to chase — the document is already received');return}
+  if(!cloudOn()){toast('Chasing needs the shared connection to FleetGuard');return}
+  const c=t.chase,left=c?CHASE_WAIT-(Date.now()-new Date(c.at).getTime()):0;
+  if(left>0){toast(`${t.plate} was chased ${agoTxt(c.at)} — you can chase again in ${Math.ceil(left/60000)} min`);return}
+  const what=chaseWhat(t),count=((c&&c.count)||0)+1,at=now();
+  const rec={orderId:oid,tripId:tid,plate:t.plate,driver:t.driver||'',orderNo:o.clientOrderNo,client:o.client,product:o.product,what,at,by:who(),count};
+  try{await firebase.database().ref('fleetguard/docChases/'+oid+'__'+tid).set(rec)}catch(e){toast('Could not notify FleetGuard: '+((e&&e.message)||e));return}
+  t.chase={at,by:who(),count};
+  log(o,`${t.plate} document chased — ${CHASE_TXT[what]}${count>1?` (chased ${count} times)`:''}`);
+  toast(`FleetGuard notified — ${t.plate}`);render();chaseBack();
+}
+/* the original arrived: the chase is over */
+function clearChase(o,t){
+  if(!t.chase)return;t.chase=null;
+  try{if(cloudOn())firebase.database().ref('fleetguard/docChases/'+o.id+'__'+t.id).remove().catch(()=>{})}catch(e){}
+}
+function applyDoc(o,t,step,name){t.doc.step=step;if(step===DOC_RECV)clearChase(o,t);t.doc.receivedBy=step===DOC_RECV?name:null;t.doc.history.push(step===DOC_RECV?{step,at:now(),by:who(),receivedBy:name}:{step,at:now(),by:who()});log(o,`${t.plate} original document: ${DOC_STEPS[step]}${step===DOC_RECV?' — received by '+name:''}`)}
 /* back to where FleetGuard last said it was */
 async function undoReceived(oid,tid){const o=byId(oid),t=o&&o.trips.find(x=>x.id===tid);if(!t||t.doc.step!==DOC_RECV)return;if(t.invoice.status==='invoiced'){toast('Already invoiced');return}
   if(!await ask({title:'Undo Received at office',msg:`${t.plate}: the original goes back to "${t.doc.holder==='inhand'?'In hand':'At depot'}" and stops being ready to invoice.`,ok:'Undo'}))return;
@@ -2286,7 +2550,7 @@ function invMonthOf(t){return t.invoice.status==='invoiced'?(t.invoice.month||''
 function invState(t){return t.invoice.status==='invoiced'?'invoiced':invoiceable(t)?'ready':'blocked'}
 function invRows(o,trips,m){
   const fin=S.role==='Finance';
-  return trips.map(t=>`<tr><td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver||'')}</div>${nextChip(o,t)}${t.releasedFrom?`<span class="chip gray" title="Started after ${esc(t.releasedFrom.orderNo)}">after ${esc(t.releasedFrom.orderNo)}</span>`:''}</td><td class="mono">${t.report?esc(t.report.aaNo):'—'}</td><td>${t.report?fmtD(t.report.offloadDate):'—'}</td><td>${t.report?fmt(t.report.offloadedL)+' L':'—'}</td><td>${!t.report?'<span class="chip red">no report</span>':t.doc.step===DOC_RECV?'<span class="chip green">Received</span>':`<span class="chip amber">${DOC_STEPS[t.doc.step]}</span> <span class="stuck">${stuckDays(t)}d</span>`}</td><td>${t.invoice.status==='invoiced'?`<span class="chip green">Invoiced</span><div class="tiny">${esc(t.invoice.ref||'')} · ${fmtD(t.invoice.at)}</div>`:invoiceable(t)?'<span class="chip blue">Ready</span>':'<span class="chip gray">Blocked</span>'}</td><td style="text-align:right;white-space:nowrap">${fin&&t.invoice.status==='pending'&&invoiceable(t)?`<button class="btn sm primary" onclick="T.invoiceOne('${o.id}','${t.id}','${m}')">Mark invoiced</button>`:''}${fin&&t.invoice.status==='invoiced'?`<button class="btn sm" onclick="T.uninvoice('${o.id}','${t.id}')">Undo</button>`:''}${!fin&&t.invoice.status==='pending'&&!invoiceable(t)?`<button class="btn sm" onclick="T.focusTrip('${o.id}','${t.id}')">Chase document →</button>`:''}</td></tr>`).join('');
+  return trips.map(t=>`<tr><td class="mono"><b>${esc(t.plate)}</b><div class="tiny">${esc(t.driver||'')}</div>${nextChip(o,t)}${t.releasedFrom?`<span class="chip gray" title="Started after ${esc(t.releasedFrom.orderNo)}">after ${esc(t.releasedFrom.orderNo)}</span>`:''}</td><td class="mono">${t.report?esc(t.report.aaNo):'—'}</td><td>${t.report?fmtD(t.report.offloadDate):'—'}</td><td>${t.report?fmt(t.report.offloadedL)+' L':'—'}</td><td>${!t.report?'<span class="chip red">no report</span>':t.doc.step===DOC_RECV?'<span class="chip green">Received</span>':`<span class="chip amber">${DOC_STEPS[t.doc.step]}</span> <span class="stuck">${stuckDays(t)}d</span>`}</td><td>${t.invoice.status==='invoiced'?`<span class="chip green">Invoiced</span><div class="tiny">${esc(t.invoice.ref||'')} · ${fmtD(t.invoice.at)}</div>`:invoiceable(t)?'<span class="chip blue">Ready</span>':'<span class="chip gray">Blocked</span>'}</td><td style="text-align:right;white-space:nowrap">${fin&&t.invoice.status==='pending'&&invoiceable(t)?`<button class="btn sm primary" onclick="T.invoiceOne('${o.id}','${t.id}','${m}')">Mark invoiced</button>`:''}${fin&&t.invoice.status==='invoiced'?`<button class="btn sm" onclick="T.uninvoice('${o.id}','${t.id}')">Undo</button>`:''}${t.invoice.status==='pending'&&!invoiceable(t)?chaseBtn(o,t):''}</td></tr>`).join('');
 }
 function renderInvoice(){
   const all=S.orders.filter(o=>matchQ(o,'invoice')).flatMap(o=>o.trips.filter(t=>t.status==='Offloaded'&&tripInRange(t)).map(t=>({o,t})));
@@ -2480,8 +2744,8 @@ function enterDemo(){
 function exitDemo(){DEMO=false;try{sessionStorage.removeItem('fg_demo')}catch(e){}location.reload()}
 
 window.T={
-  go,focus,focusTrip,closeModal,
-  setRole,openFleetGuard,fmtD,setDateFmt,
+  go,focus,focusTrip,closeModal,chaseDoc,
+  setRole,openFleetGuard,stMenu,placeEdit,suggestAgain,fmtD,setDateFmt,
   setF:(k,v)=>{S.ui[k]=v;render()},clearF:()=>{S.ui.view='active';S.ui.fClient='all';S.ui.fStatus='all';render()},openOrder,openNewOrder,createOrder,deleteOrder,delCheck,confirmDeleteOrder,openDeleted,restoreOrder,
   nomOrder:id=>{S.ui.nomOrder=id;render()},setCap,exportXlsx,downloadXlsx,signInBox,fbSignIn,openCompliance,setCompliant,saveCompliance,openDrawer,closeDrawer,addCompliant,newClient,setContract,openNom,closeNom,closeSub,setQ,setRange:m=>{S.ui.range.mode=m;render()},setRangeDates:(f,t)=>{if(f!==null)S.ui.range.from=f;if(t!==null)S.ui.range.to=t;render()},toggleAllFleet:()=>{S.ui.showAllFleet=!S.ui.showAllFleet;render()},nomSearch,nomSearchInput,nomSearchBlur:()=>{NOMQ.focus=false},toggleNominee,removeNominee,sendNomination,reopenNomination,answer,approveNomination,showTemplate,copyTpl,csvTpl,
   assignOrder:id=>{S.ui.assignOrder=id;render()},assign,openAssign,setTripStatus,confirmLoaded,fromAssign,toggleTrip,openAmend,amendPick,amendCancel,amendSend,amendAnswer,amendXlsx,setAView:v=>{S.ui.aView=v;render()},

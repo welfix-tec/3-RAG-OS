@@ -1607,15 +1607,15 @@
             function opsStageChip(o) { const s = OPS_STAGE[o.stage] || [o.stage || '—', '#6b7280']; return `<span class="ops-chip" style="color:${s[1]};border-color:${s[1]}55;background:${s[1]}14">${esc(s[0])}</span>`; }
             /* an offloaded truck reads by its original document: received at the office, on its way (in hand), or still at the depot */
             function opsStatusTxt(o, t) {
-                if (t.status !== 'Offloaded') return String(t.status || '—').replace(/^Allocated to /, 'Alloc. ');
-                if (opsRepStage(o, t).stage === 'none') return 'Offloaded';
+                if (t.status !== 'Offloaded') return opsStName(t.status);
+                if (opsRepStage(o, t).stage === 'none') return opsStName('Offloaded');
                 const h = opsHolder(o, t);
                 return h === 'received' ? 'Document received' : h === 'inhand' ? 'Sent to office' : 'Waiting for original doc';
             }
             function opsStatusChip(o, t) {
                 if (t.status !== 'Offloaded') return opsTripChip(t);
                 const tx = opsStatusTxt(o, t), c = tx === 'Document received' ? '#15803d' : tx === 'Sent to office' ? '#2563eb' : tx === 'Waiting for original doc' ? '#d97706' : '#0f766e';
-                return `<span class="ops-chip" style="color:${c};border-color:${c}55;background:${c}14" title="${tx === 'Offloaded' ? 'Offloaded — report not filled yet' : tx === 'Waiting for original doc' ? 'Offloaded — the original is still at the depot' : tx === 'Sent to office' ? 'Offloaded — the original is in hand, on its way to the office' : 'Offloaded — the original was received at the office'}">${esc(tx)}</span>`;
+                return `<span class="ops-chip" style="color:${c};border-color:${c}55;background:${c}14" title="${opsRepStage(o, t).stage === 'none' ? 'Offloaded — report not filled yet' : tx === 'Waiting for original doc' ? 'Offloaded — the original is still at the depot' : tx === 'Sent to office' ? 'Offloaded — the original is in hand, on its way to the office' : 'Offloaded — the original was received at the office'}">${esc(tx)}</span>`;
             }
             /* depots typed on earlier reports, plus the order destinations — offered as suggestions */
             function opsOffloadDepots() {
@@ -1624,9 +1624,105 @@
                 Object.values(offloadReports || {}).forEach(r => all.push(r && r.offloadDepot));
                 return [...new Set(all.filter(Boolean).map(x => String(x).trim()))].sort();
             }
+            /* ===== Document chased (Nov 2026) =====
+               The Orders page writes fleetguard/docChases/<order>__<truck> when somebody presses "Chase document".
+               Every signed-in FleetGuard user gets a chime and a pop-up, on whatever page they are; each user closes their
+               own (kept per account in this browser), so somebody who opens FleetGuard later still sees it once.
+               A chase whose original was received, or whose truck/order is gone, is ignored. */
+            let docChases = {}, _lastChaseJson = '', _chaseRung = {}, _chaseCtx = null, _chaseWaitClick = false;
+            const CHASE_WHAT = { report: 'Offload report still to fill', depot: 'Original document still at the depot', inhand: 'Original in hand — not yet received at the office' };
+            function chaseAgo(iso) { const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)); return isNaN(m) ? '' : m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; }
+            function chaseSeenKey() { const u = window.auth && window.auth.currentUser; return 'fg_chase_seen_' + ((u && u.uid) || 'anon'); }
+            function chaseSeen() { try { return JSON.parse(localStorage.getItem(chaseSeenKey()) || '{}') || {}; } catch (e) { return {}; } }
+            function chaseMarkSeen(keys) {
+                const seen = chaseSeen(); keys.forEach(k => { const c = docChases[k]; if (c) seen[k] = c.at; });
+                Object.keys(seen).forEach(k => { if (!docChases[k]) delete seen[k]; });   // forget chases that are over
+                try { localStorage.setItem(chaseSeenKey(), JSON.stringify(seen)); } catch (e) { /* storage unavailable */ }
+            }
+            /* every chase still open: the truck is on its order and its original is not received yet */
+            function chaseOpen() {
+                return Object.entries(docChases || {}).map(([k, c]) => {
+                    if (!c || !c.orderId || !c.tripId) return null;
+                    const o = opsOrders.find(x => x.id === c.orderId), t = o && opsArr(o.trips).find(x => x.id === c.tripId);
+                    if (!t || t.status !== 'Offloaded' || opsDocStep(t) === 2) return null;
+                    return { k, c, o, t };
+                }).filter(Boolean).sort((a, b) => String(b.c.at).localeCompare(String(a.c.at)));
+            }
+            const chaseUnseen = () => { const seen = chaseSeen(); return chaseOpen().filter(x => !seen[x.k] || String(seen[x.k]) < String(x.c.at)); };
+            function chaseChime() {
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+                    _chaseCtx = _chaseCtx || new AC();
+                    const play = () => { const t0 = _chaseCtx.currentTime; [[880, 0], [1175, .2]].forEach(([f, d]) => {
+                        const osc = _chaseCtx.createOscillator(), g = _chaseCtx.createGain(); osc.type = 'sine'; osc.frequency.value = f;
+                        g.gain.setValueAtTime(.0001, t0 + d); g.gain.exponentialRampToValueAtTime(.3, t0 + d + .02); g.gain.exponentialRampToValueAtTime(.0001, t0 + d + .42);
+                        osc.connect(g); g.connect(_chaseCtx.destination); osc.start(t0 + d); osc.stop(t0 + d + .45); }); };
+                    if (_chaseCtx.state === 'running') { play(); return; }
+                    /* browsers hold sound until the page has been clicked once: ring at that first click while the pop-up is still open */
+                    if (_chaseWaitClick) return; _chaseWaitClick = true;
+                    const once = () => { _chaseWaitClick = false; document.removeEventListener('pointerdown', once, true);
+                        _chaseCtx.resume().then(() => { if (document.getElementById('chasePop')) play(); }).catch(() => {}); };
+                    document.addEventListener('pointerdown', once, true);
+                    _chaseCtx.resume().then(() => { if (_chaseCtx.state === 'running' && _chaseWaitClick) { _chaseWaitClick = false; document.removeEventListener('pointerdown', once, true); play(); } }).catch(() => {});
+                } catch (e) { /* sound must never break the page */ }
+            }
+            function chaseClosePop(markSeen) {
+                const p = document.getElementById('chasePop'); if (!p) return;
+                if (markSeen) chaseMarkSeen([...p.querySelectorAll('[data-chase]')].map(x => x.dataset.chase));
+                p.remove(); document.removeEventListener('keydown', chaseKey, true);
+            }
+            function chaseKey(e) { if (e.key === 'Escape' && document.getElementById('chasePop')) { e.preventDefault(); e.stopPropagation(); chaseClosePop(true); } }
+            /* the arrow: this chase is answered — go to Orders and open its order */
+            function openChasedOrder(k) {
+                const c = docChases[k]; chaseMarkSeen([k]); chaseClosePop(false);
+                if (!c) return;
+                try { _modalStack = []; closeModal(); } catch (e) { /* no window open */ }
+                showPage('orders');
+                setTimeout(() => { if (opsOrders.some(x => x.id === c.orderId)) openOpsOrder(c.orderId); else showToast('This order is no longer on the list.'); }, 80);
+            }
+            const CHASE_TONE = { report: 'red', depot: 'amber', inhand: 'blue' };
+            function chaseShowPop(list) {
+                chaseClosePop(false);
+                const bell = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+                const arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>';
+                const p = document.createElement('div'); p.id = 'chasePop'; p.className = 'chase-ov'; p.setAttribute('role', 'alertdialog'); p.setAttribute('aria-modal', 'true'); p.setAttribute('aria-labelledby', 'chaseTitle');
+                p.innerHTML = `<div class="chase-box">
+                    <div class="chase-h">
+                        <div class="chase-bell">${bell}</div>
+                        <div class="chase-ht"><div class="chase-kick">Orders page · action needed</div><div class="chase-t" id="chaseTitle">${list.length === 1 ? 'A document is being chased' : list.length + ' documents are being chased'}</div></div>
+                        <button type="button" class="chase-x" aria-label="Close" title="Close" onclick="App.chaseClosePop(true)">✕</button>
+                    </div>
+                    <div class="chase-list">${list.map(x => `<div class="chase-row tone-${CHASE_TONE[x.c.what] || 'amber'}" data-chase="${escAttr(x.k)}">
+                        <div class="chase-main">
+                            <div class="chase-top"><span class="chase-plate">${esc(x.t.plate)}</span><span class="chase-drv">${esc(x.t.driver || x.c.driver || '')}</span></div>
+                            <div class="chase-ord">Order <b>${esc(x.o.clientOrderNo)}</b> · <span class="chase-client">${esc(x.o.client)}</span> · ${esc(x.o.product || '')}</div>
+                            <span class="chase-pill"><i></i>${esc(CHASE_WHAT[x.c.what] || 'Document not yet received at the office')}</span>
+                            <div class="chase-by">Chased by ${esc(x.c.by || 'the Orders page')}<span class="chase-dot"></span>${esc(chaseAgo(x.c.at))}${x.c.count > 1 ? `<span class="chase-count">${Number(x.c.count)}× chased</span>` : ''}</div>
+                        </div>
+                        <button type="button" class="chase-go" onclick="App.openChasedOrder('${escAttr(x.k)}')" title="Open order ${escAttr(x.o.clientOrderNo)}" aria-label="Open order ${escAttr(x.o.clientOrderNo)}">${arrow}</button>
+                    </div>`).join('')}</div>
+                    <div class="chase-f"><span>Fill the report or the original from the order window.</span><button type="button" class="chase-close" onclick="App.chaseClosePop(true)">Close</button></div>
+                </div>`;
+                document.body.appendChild(p);
+                document.addEventListener('keydown', chaseKey, true);
+                const first = p.querySelector('.chase-go'); if (first) try { first.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+            }
+            /* called on every snapshot: pop up for what this user has not closed yet; ring once per chase */
+            function chaseCheck() {
+                const unseen = chaseUnseen();
+                const open = document.getElementById('chasePop');
+                if (!unseen.length) { if (open) chaseClosePop(false); return; }
+                const fresh = unseen.filter(x => _chaseRung[x.k] !== x.c.at);
+                if (!fresh.length && open) return;
+                chaseShowPop(unseen);
+                if (fresh.length) { fresh.forEach(x => { _chaseRung[x.k] = x.c.at; }); chaseChime(); }
+            }
+            /* a status shows under the name Operations gave it on the Orders page (Statuses → ✎), if any */
+            let opsStatusNames = {};
+            const opsStName = s => opsStatusNames[s] || String(s || '—').replace(/^Allocated to /, 'Alloc. ');
             function opsTripChip(t) {
                 const c = t.status === 'Offloaded' ? '#15803d' : t.status === 'Queued' ? '#7c3aed' : t.status === 'WD' ? '#d97706' : /^Allocated/.test(t.status || '') ? '#6b7280' : '#2563eb';
-                return `<span class="ops-chip" style="color:${c};border-color:${c}55;background:${c}14">${esc(String(t.status || '—').replace(/^Allocated to /, 'Alloc. '))}</span>`;
+                return `<span class="ops-chip" style="color:${c};border-color:${c}55;background:${c}14">${esc(opsStName(t.status))}</span>`;
             }
             /* every offloaded truck still without a report; `sent` once FleetGuard filed it and the Orders page has not taken it in yet */
             function opsPendingReports() {
@@ -1915,12 +2011,16 @@
                 let attnChanged = attnJson !== _lastAttnJson;
                 if (attnChanged) { _lastAttnJson = attnJson; attentionRequests = data.attentionRequests || {}; }
                 financePinRec = (data.financePin && data.financePin.hash) ? data.financePin : null;
+                const chaseJson = JSON.stringify(data.docChases || {});
+                const chaseChanged = chaseJson !== _lastChaseJson;
+                if (chaseChanged) { _lastChaseJson = chaseJson; docChases = data.docChases || {}; attnChanged = true; }   // same redraw path as the attention list
                 try { updateFinancePinUI(); } catch (e) { /* settings page not drawn yet */ }
                 // Orders from the Orders page (view only) and the offload reports sent from here
-                const opsJson = JSON.stringify([data.opsOrders || {}, data.offloadReports || {}]);
+                const opsJson = JSON.stringify([data.opsOrders || {}, data.offloadReports || {}, (data.opsSettings && data.opsSettings.statusNames) || []]);
                 if (opsJson !== _lastOpsJson) {
                     _lastOpsJson = opsJson;
                     opsOrders = opsArr(data.opsOrders);
+                    opsStatusNames = {}; opsArr(data.opsSettings && data.opsSettings.statusNames).forEach(x => { if (x && x.k && x.n) opsStatusNames[x.k] = x.n; });
                     offloadReports = data.offloadReports || {};
                     attnChanged = true;   // same redraw path as the attention list
                     const n = opsToFill().filter(x => x.kind !== 'original').length;
@@ -1930,6 +2030,7 @@
                     }
                     _opsToFillSeen = n;
                 }
+                if (chaseChanged || attnChanged) { try { chaseCheck(); } catch (e) { console.warn('[Chase]', e); } }
                 FB_COLLECTIONS.forEach(n => {
                     const remoteVal = data[n];
                     let normalised;
@@ -3297,6 +3398,16 @@ function _afterLoad() {
                         });
                     }
                 });
+                // Documents the Orders page is chasing — listed until the original is received at the office.
+                try { chaseOpen().forEach(x => {
+                    alerts.push({
+                        groupKey: 'docchase', groupLabel: 'Documents chased', groupIcon: '🔔',
+                        id: `docchase:${x.k}`, urgency: 0,
+                        title: `${esc(x.t.plate)} — document chased`,
+                        desc: `${esc(x.o.clientOrderNo)} · ${esc(x.o.client)} · ${esc(CHASE_WHAT[x.c.what] || '')} · by ${esc(x.c.by || '')}`,
+                        action: `App.openChasedOrder('${escAttr(x.k)}')`
+                    });
+                }); } catch (e) { /* never break the alert list */ }
                 // Offloaded trucks of the Orders page waiting for their offload report (filled here, under Orders).
                 opsToFill().forEach(x => {
                     alerts.push({
@@ -18343,7 +18454,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 setTruckSubTab,
                 renderTrailerMetrics, renderTrailerCards, openTrailerModal,
                 addTrailerForm, createTrailerFromForm, deleteTrailer, updateTrailerStatus,
-                renderOpsOrders, setOpsQuery, setOpsStage, openOpsOrder, openOffloadReportForm, ofrMode, ofrCalc, submitOffloadReport,
+                renderOpsOrders, setOpsQuery, setOpsStage, openOpsOrder, openOffloadReportForm, ofrMode, ofrCalc, submitOffloadReport, chaseClosePop, openChasedOrder,
                 addDocToTrailer, updateTrailerDocExpiry, removeDocFromTrailer,
                 addTrailerIssue, removeTrailerIssue,
                 handleTrailerFileUpload, renameTrailerAttachment, deleteTrailerAttachment, previewTrailerAttachment,
