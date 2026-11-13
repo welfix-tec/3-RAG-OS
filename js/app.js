@@ -12892,17 +12892,222 @@ function _afterLoad() {
                 return { target: '', category: cat.name, note: 'No plate or driver name found — choose' };
             }
 
-            function importTargetOptionsHtml() {
-                const opt = (type, item) => `<option value="${type}:${escAttr(String(item._idx))}">${esc(importTargetLabel(type, item))}</option>`;
+            // ── "Goes to" with a search box (Nov 2026) ──
+            // The list holds every truck, trailer and driver; the search box at its top narrows it as you type.
+            // Plates and names match without spaces or dashes, so "rad801" finds RAD 801 E.
+            let biPicker = null;
+            function biTargetLabel(value) { const t = importFindTarget(value); return t ? importTargetLabel(t.type, t.item) : ''; }
+            function biPickerHint(type, item) {
+                if (type === 'driver') return item.license_plate ? String(item.license_plate).toUpperCase() : '';
+                if (type === 'truck') { const d = getDriverForTruckPlate(item.plate); return d ? driverDisplayName(d) : ''; }
+                const k = normalizePlate(item.id), tr = k ? (trucks || []).find(x => normalizePlate(x.trailer) === k) : null;
+                return tr ? String(tr.plate || '').toUpperCase() : '';
+            }
+            function biPickerGroups() {
                 const byLabel = type => (a, b) => importTargetLabel(type, a).localeCompare(importTargetLabel(type, b));
-                return `<option value="">— Choose / skip —</option>`
-                    + `<optgroup label="Trucks">${(trucks || []).slice().sort(byLabel('truck')).map(t => opt('truck', t)).join('')}</optgroup>`
-                    + `<optgroup label="Trailers">${(trailers || []).slice().sort(byLabel('trailer')).map(t => opt('trailer', t)).join('')}</optgroup>`
-                    + `<optgroup label="Drivers">${(drivers || []).slice().sort(byLabel('driver')).map(d => opt('driver', d)).join('')}</optgroup>`;
+                return [['truck', '🚛 Trucks', trucks], ['trailer', '🚚 Trailers', trailers], ['driver', '👤 Drivers', drivers]].map(([type, title, list]) => ({
+                    title,
+                    items: (list || []).slice().sort(byLabel(type)).map(item => {
+                        const text = importTargetLabel(type, item);
+                        return { value: `${type}:${item._idx}`, text, hint: biPickerHint(type, item), key: normalizePlate(text) };
+                    })
+                }));
+            }
+            function openBiPicker(i, anchor) {
+                const st = bulkAttachmentImportState, row = st && st.rows[i];
+                if (biPicker && biPicker.i === i) { closeBiPicker(); return; }
+                closeBiPicker();
+                if (!row || !anchor || st.running || row.status === 'uploading' || row.status === 'toolarge') return;
+                const pop = document.createElement('div');
+                pop.id = 'biPicker';
+                pop.className = 'bi-picker';
+                pop.innerHTML = `<div class="bi-picker-search"><span aria-hidden="true">🔍</span><input type="text" id="biPickerInput" placeholder="Type a plate, trailer or driver name" autocomplete="off" spellcheck="false" aria-label="Search where ${escAttr(row.file.name)} goes" aria-controls="biPickerList"></div><div class="bi-picker-list" id="biPickerList" role="listbox" aria-label="Trucks, trailers and drivers"></div>`;
+                document.body.appendChild(pop);
+                biPicker = { i, anchor, pop, active: -1, groups: biPickerGroups() };
+                pop.addEventListener('click', e => { const o = e.target.closest('.bi-picker-opt'); if (o) chooseBiPicker(o.dataset.v); });
+                const input = pop.querySelector('input');
+                input.addEventListener('input', () => renderBiPickerList(input.value));
+                renderBiPickerList('');
+                positionBiPicker();
+                document.addEventListener('keydown', biPickerKey, true);
+                document.addEventListener('mousedown', biPickerOutside, true);
+                document.addEventListener('scroll', biPickerScroll, true);
+                window.addEventListener('resize', closeBiPicker);
+                input.focus();
+            }
+            function renderBiPickerList(q) {
+                if (!biPicker) return;
+                const list = biPicker.pop.querySelector('.bi-picker-list');
+                const k = normalizePlate(q);
+                const st = bulkAttachmentImportState, cur = ((st && st.rows[biPicker.i]) || {}).target || '';
+                const opt = (o, extra) => `<div class="bi-picker-opt${o.value === cur ? ' current' : ''}${extra || ''}" role="option" data-v="${escAttr(o.value)}" aria-selected="false"><span>${esc(o.text)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : ''}</div>`;
+                let html = k ? '' : opt({ value: '', text: '— Choose / skip —', hint: '' }, ' skip');
+                let count = 0;
+                biPicker.groups.forEach(g => {
+                    const hits = k ? g.items.filter(o => o.key.includes(k)) : g.items;
+                    if (!hits.length) return;
+                    count += hits.length;
+                    html += `<div class="bi-picker-group" role="presentation">${g.title}</div>` + hits.map(o => opt(o)).join('');
+                });
+                if (k && !count) html = `<div class="bi-picker-none">No truck, trailer or driver matches “${esc(String(q).trim())}”</div>`;
+                list.innerHTML = html;
+                const opts = [...list.querySelectorAll('.bi-picker-opt')];
+                setBiPickerActive(k ? 0 : opts.findIndex(o => o.classList.contains('current')));
+            }
+            function setBiPickerActive(n) {
+                if (!biPicker) return;
+                const opts = [...biPicker.pop.querySelectorAll('.bi-picker-opt')];
+                biPicker.active = opts.length && n >= 0 ? Math.min(opts.length - 1, n) : (opts.length && n === -2 ? 0 : -1);
+                opts.forEach((o, j) => { o.classList.toggle('active', j === biPicker.active); o.setAttribute('aria-selected', j === biPicker.active ? 'true' : 'false'); });
+                if (biPicker.active >= 0) opts[biPicker.active].scrollIntoView({ block: 'nearest' });
+            }
+            function chooseBiPicker(value) {
+                if (!biPicker) return;
+                const i = biPicker.i;
+                closeBiPicker();
+                setBulkAttachmentRow(i, 'target', value);
+                const f = document.querySelector(`.bi-target[data-bi="${i}"]`);
+                if (f) f.focus({ preventScroll: true });
+            }
+            function closeBiPicker() {
+                if (!biPicker) return;
+                biPicker.pop.remove();
+                biPicker = null;
+                document.removeEventListener('keydown', biPickerKey, true);
+                document.removeEventListener('mousedown', biPickerOutside, true);
+                document.removeEventListener('scroll', biPickerScroll, true);
+                window.removeEventListener('resize', closeBiPicker);
+            }
+            // Esc closes the list only — never the import window behind it.
+            function biPickerKey(e) {
+                if (!biPicker) return;
+                if (e.key === 'Escape') {
+                    e.preventDefault(); e.stopImmediatePropagation();
+                    const i = biPicker.i;
+                    closeBiPicker();
+                    const f = document.querySelector(`.bi-target[data-bi="${i}"]`);
+                    if (f) f.focus({ preventScroll: true });
+                    return;
+                }
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const a = biPicker.active;
+                    setBiPickerActive(e.key === 'ArrowDown' ? (a < 0 ? -2 : a + 1) : Math.max(0, a - 1));
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    const o = biPicker.pop.querySelectorAll('.bi-picker-opt')[biPicker.active];
+                    if (o) { e.preventDefault(); chooseBiPicker(o.dataset.v); }
+                    return;
+                }
+                if (e.key === 'Tab') closeBiPicker();
+            }
+            function biPickerOutside(e) {
+                if (biPicker && !biPicker.pop.contains(e.target) && !(biPicker.anchor && biPicker.anchor.contains(e.target))) closeBiPicker();
+            }
+            function biPickerScroll(e) {
+                if (biPicker && !(e.target instanceof Node && biPicker.pop.contains(e.target))) positionBiPicker();
+            }
+            function positionBiPicker() {
+                if (!biPicker) return;
+                let a = biPicker.anchor;
+                if (!a || !a.isConnected) {
+                    a = document.querySelector(`.bi-target[data-bi="${biPicker.i}"]`);
+                    if (!a || a.disabled) { closeBiPicker(); return; }
+                    biPicker.anchor = a;
+                }
+                const r = a.getBoundingClientRect(), pop = biPicker.pop, vw = window.innerWidth, vh = window.innerHeight;
+                const w = Math.min(Math.max(r.width, 300), vw - 16);
+                pop.style.width = w + 'px';
+                pop.style.left = Math.max(8, Math.min(r.left, vw - w - 8)) + 'px';
+                const below = vh - r.bottom - 12, above = r.top - 12;
+                if (below >= 240 || below >= above) {
+                    pop.style.top = (r.bottom + 4) + 'px'; pop.style.bottom = 'auto'; pop.style.maxHeight = Math.max(120, Math.min(340, below)) + 'px';
+                } else {
+                    pop.style.top = 'auto'; pop.style.bottom = (vh - r.top + 4) + 'px'; pop.style.maxHeight = Math.max(120, Math.min(340, above)) + 'px';
+                }
+            }
+
+            // ── Pause, percentage, and uploading on after the window is closed (Nov 2026) ──
+            function biBeforeUnload(e) { e.preventDefault(); e.returnValue = ''; return ''; }
+            // The percentage counts the whole batch by file size, across pauses. Google reports no progress inside one file,
+            // so it moves as each file finishes.
+            function biBatchStats(st) {
+                const batch = (st.batch || []).filter(r => st.rows.includes(r));
+                const size = r => Math.max(1, (r.file && r.file.size) || 1);
+                const total = batch.reduce((a, r) => a + size(r), 0) || 1;
+                const settled = batch.filter(r => r.batchState);
+                return {
+                    n: batch.length, settled: settled.length,
+                    uploaded: batch.filter(r => r.batchState === 'done').length,
+                    pct: Math.floor(100 * settled.reduce((a, r) => a + size(r), 0) / total)
+                };
+            }
+            function setBiProgress(text) {
+                const st = bulkAttachmentImportState;
+                if (st) st.progressText = text;
+                const el = document.getElementById('bulkAttachmentProgress');
+                if (el) el.textContent = text;
+                biUpdateFloat();
+            }
+            // While files upload with the import window closed, a small bar shows how far it is.
+            function biUpdateFloat() {
+                const st = bulkAttachmentImportState;
+                const overlay = document.getElementById('modalOverlay');
+                const windowOpen = !!document.getElementById('bulkAttachmentTable') && !!overlay && overlay.classList.contains('open');
+                let el = document.getElementById('biFloat');
+                if (!(st && st.running && !windowOpen)) { if (el) el.remove(); return; }
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'biFloat'; el.className = 'bi-float'; el.setAttribute('role', 'status');
+                    document.body.appendChild(el);
+                }
+                const html = `<span class="bi-float-text">⬆ ${esc(st.progressText || 'Uploading…')}</span>${st.pauseRequested ? '' : '<button type="button" class="btn btn-xs bi-pause-btn" onclick="App.pauseBulkAttachmentImport()">⏸ Pause</button>'}<button type="button" class="btn btn-ghost btn-xs" onclick="App.openBulkAttachmentImportModal()">Open</button>`;
+                if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
+            }
+            function pauseBulkAttachmentImport() {
+                const st = bulkAttachmentImportState;
+                if (!st || !st.running || st.pauseRequested) return;
+                st.pauseRequested = true;
+                const s = biBatchStats(st);
+                setBiProgress(`Pausing after this file… · ${s.settled} of ${s.n} done (${s.pct}%)`);
+                renderBulkAttachmentTable();
+            }
+            // The one button: Upload / Continue when idle, Pause while uploading.
+            function bulkAttachmentGo() {
+                const st = bulkAttachmentImportState;
+                if (st && st.running) pauseBulkAttachmentImport();
+                else processBulkAttachmentImport();
+            }
+            // An uploaded file was changed and uploaded again: take the earlier copy off the record it went to, and put back
+            // what that copy had replaced there (unless a newer file of that type has arrived since).
+            function undoImportedAttachment(prev, changed) {
+                const t = prev && importFindTarget(prev.target);
+                if (!t) return;
+                const { type, item } = t;
+                if (!Array.isArray(item.files)) item.files = [];
+                item.files = item.files.filter(f => !(f && f.id === prev.recordId));
+                const u = prev.undo;
+                if (u && !item.files.some(f => isSameCategoryAttachment(f, prev.category))) {
+                    (u.removedFiles || []).forEach(f => { if (f && !item.files.some(x => x && x.id === f.id)) item.files.push(f); });
+                    const e = u.expiry;
+                    if (e && e.field) {
+                        if (item[e.field] === e.set) { if (e.old === undefined) delete item[e.field]; else item[e.field] = e.old; }
+                    } else if (e && e.docType && Array.isArray(item.documents)) {
+                        const doc = item.documents.find(d => String(d.type || '').trim().toLowerCase() === String(e.docType).toLowerCase());
+                        if (doc && doc.expiryDate === e.set) {
+                            if (e.existed) doc.expiryDate = e.old;
+                            else item.documents = item.documents.filter(d => d !== doc);
+                        }
+                    }
+                }
+                if (changed) changed.add(type === 'driver' ? 'drivers' : type === 'trailer' ? 'trailers' : 'trucks');
             }
 
             function openBulkAttachmentImportModal() {
-                bulkAttachmentImportState = { rows: [], skipped: [], running: false };
+                // Nov 2026: an import still uploading, paused, or with files left is shown as it is, not started afresh.
+                const prevImport = bulkAttachmentImportState;
+                if (!(prevImport && (prevImport.running || prevImport.rows.some(r => r.status !== 'done')))) bulkAttachmentImportState = { rows: [], skipped: [], running: false };
                 openModal(`
             <div class="modal-header"><h3>Import attachments</h3><div class="modal-close" onclick="App.closeModal()">✕</div></div>
             <div class="modal-body">
@@ -12935,13 +13140,14 @@ function _afterLoad() {
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-primary btn-sm" id="bulkAttachmentGo" onclick="App.processBulkAttachmentImport()" disabled>Upload</button>
+                <button class="btn btn-primary btn-sm" id="bulkAttachmentGo" onclick="App.bulkAttachmentGo()" disabled>Upload</button>
                 <button class="btn btn-ghost btn-sm" id="bulkAttachmentClear" onclick="App.clearBulkAttachmentImport()">Clear list</button>
                 <button class="btn btn-ghost btn-sm" onclick="App.closeModal()">Close</button>
             </div>`);
                 const box = document.getElementById('modalBox');
                 if (box) box.classList.add('modal-wide');
                 renderBulkAttachmentTable();
+                biUpdateFloat();
             }
 
             // Reads a dropped folder all the way down (dataTransfer.files alone gives the folder, not its files).
@@ -13001,6 +13207,7 @@ function _afterLoad() {
             }
             function clearBulkAttachmentImport() {
                 if (bulkAttachmentImportState && bulkAttachmentImportState.running) return;
+                closeBiPicker();
                 const prev = bulkAttachmentImportState || {};
                 bulkAttachmentImportState = { rows: [], skipped: [], running: false, sameExpiry: !!prev.sameExpiry, sameExpiryDate: prev.sameExpiryDate || '' };
                 const p = document.getElementById('bulkAttachmentProgress');
@@ -13022,18 +13229,34 @@ function _afterLoad() {
             function removeBulkAttachmentRow(i) {
                 const st = bulkAttachmentImportState;
                 if (!st || st.running || !st.rows[i] || st.rows[i].status === 'uploading') return;
+                closeBiPicker();
                 st.rows.splice(i, 1);
                 renderBulkAttachmentTable();
             }
             function setBulkAttachmentRow(i, field, value) {
                 const st = bulkAttachmentImportState;
-                if (!st || st.running || !st.rows[i]) return;
-                st.rows[i][field] = value;
+                const row = st && st.rows[i];
+                if (!row || st.running || row.status === 'uploading' || row.status === 'toolarge') return;
+                if ((row[field] || '') === (value || '')) return;
+                // Nov 2026: an uploaded file can still be changed. It is then uploaded again as a new file, and the
+                // earlier copy is taken off the record it went to (see undoImportedAttachment).
+                if (row.status === 'done') {
+                    row.prev = row.prev || { target: row.target, recordId: row.recordId, category: row.category, expiry: row.expiry || '', undo: row.undo || null, upload: row.upload };
+                    row.status = 'ready';
+                    row.message = '';
+                }
+                row[field] = value;
                 if (field === 'target') {
-                    st.rows[i].note = '';
+                    row.note = '';
                     // A licence moved onto a truck makes no sense; keep the document list right for the new home.
                     const t = importFindTarget(value);
-                    if (t && !docCategoryOptions(t.type).includes(st.rows[i].category)) st.rows[i].category = 'Other';
+                    if (t && !docCategoryOptions(t.type).includes(row.category)) row.category = 'Other';
+                }
+                // changed back to exactly what was uploaded: nothing to upload again
+                const p = row.prev;
+                if (p && row.status === 'ready' && row.target === p.target && row.category === p.category && (row.expiry || '') === p.expiry) {
+                    row.status = 'done';
+                    row.prev = null;
                 }
                 renderBulkAttachmentTable();
             }
@@ -13054,18 +13277,27 @@ function _afterLoad() {
                     const failed = st.rows.filter(r => r.status === 'failed' || r.status === 'toolarge').length;
                     if (done) parts.push(`<span style="color:var(--green)">${done} uploaded</span>`);
                     if (failed) parts.push(`<span style="color:var(--red)">${failed} failed</span>`);
+                    const changedN = st.rows.filter(r => r.prev && r.status === 'ready').length;
+                    if (changedN) parts.push(`<span style="color:var(--red)">${changedN} changed — will upload again</span>`);
                     if (st.skipped.length) parts.push(`${st.skipped.length} skipped (not a PDF or image)`);
                     summaryEl.innerHTML = parts.join(' · ');
                 }
                 if (goBtn) {
-                    goBtn.disabled = st.running || !ready.length;
-                    goBtn.textContent = st.running ? 'Uploading…' : `Upload ${ready.length || ''} file${ready.length === 1 ? '' : 's'}`.replace('  ', ' ');
+                    // red Upload / Continue while idle, blue Pause while uploading
+                    const n = ready.length, files = `${n || ''} file${n === 1 ? '' : 's'}`.trim();
+                    goBtn.className = st.running ? 'btn btn-sm bi-pause-btn' : 'btn btn-primary btn-sm';
+                    goBtn.disabled = st.running ? !!st.pauseRequested : !n;
+                    goBtn.textContent = st.running ? (st.pauseRequested ? 'Pausing after this file…' : '⏸ Pause')
+                        : (st.paused && n ? `Continue (${files})` : `Upload ${files}`);
                 }
+                const clearBtn = document.getElementById('bulkAttachmentClear');
+                if (clearBtn) clearBtn.disabled = !!st.running;
+                const progEl = document.getElementById('bulkAttachmentProgress');
+                if (progEl && typeof st.progressText === 'string' && progEl.textContent !== st.progressText) progEl.textContent = st.progressText;
                 const sameCb = document.getElementById('bulkSameExpiryOn'), sameDt = document.getElementById('bulkSameExpiryDate');
                 if (sameCb) { sameCb.checked = !!st.sameExpiry; sameCb.disabled = !!st.running; }
                 if (sameDt) { if (document.activeElement !== sameDt) sameDt.value = st.sameExpiryDate || ''; sameDt.disabled = !!st.running; }
                 if (!st.rows.length) { host.innerHTML = ''; return; }
-                const targetOpts = importTargetOptionsHtml();
                 // Oct 2026: redrawing the table must not jump back to the first file — keep where the user was.
                 const oldWrap = host.querySelector('.bulk-import-table-wrap'), mBody = host.closest('.modal-body');
                 const keepTop = oldWrap ? oldWrap.scrollTop : 0, keepBody = mBody ? mBody.scrollTop : 0;
@@ -13073,11 +13305,12 @@ function _afterLoad() {
                     if (r.status === 'done') return `<span style="color:var(--green)">✓ Uploaded</span>`;
                     if (r.status === 'uploading') return `<span style="color:var(--accent)">Uploading…</span>`;
                     if (r.status === 'failed' || r.status === 'toolarge') return `<span style="color:var(--red)" title="${escAttr(r.message || '')}">✕ ${esc(r.message || 'Failed')}</span>`;
+                    if (r.prev && r.status === 'ready') return `<span style="color:var(--red)">${r.target ? 'Changed — will upload again' : 'Changed — choose where it goes'}</span>`;
                     if (!r.target) return `<span style="color:var(--amber)">${esc(r.note || 'Choose where it goes')}</span>`;
                     if (r.message) return `<span style="color:var(--amber)" title="${escAttr(r.message)}">Last try failed: ${esc(r.message)} — will retry</span>`;
                     return `<span style="color:var(--text3)">${esc(r.note || 'Ready')}</span>`;
                 };
-                const locked = r => st.running || r.status === 'done' || r.status === 'uploading' || r.status === 'toolarge';
+                const locked = r => st.running || r.status === 'uploading' || r.status === 'toolarge';
                 host.innerHTML = `<div class="bulk-import-table-wrap"><table class="bulk-import-table">
                     <thead><tr><th>File</th><th>Goes to</th><th>Document</th><th>Expiry</th><th>Status</th><th class="bi-x-col" aria-label="Remove"></th></tr></thead>
                     <tbody>${st.rows.map((r, i) => {
@@ -13085,9 +13318,9 @@ function _afterLoad() {
                         const cats = docCategoryOptions(t ? t.type : 'truck');
                         if (r.category && !cats.includes(r.category)) cats.splice(cats.length - 1, 0, r.category);
                         const dirs = r.path.includes('/') ? r.path.slice(0, r.path.lastIndexOf('/') + 1) : '';
-                        return `<tr class="${!r.target && r.status === 'ready' ? 'needs' : ''}">
+                        return `<tr class="${!r.target && r.status === 'ready' ? 'needs' : ''}${r.prev && r.status === 'ready' ? ' changed' : ''}">
                             <td class="bi-file"><div class="bi-name" title="${escAttr(r.path)}">${esc(r.file.name)}</div>${dirs ? `<div class="bi-path">${esc(dirs)}</div>` : ''}</td>
-                            <td><select data-bi="${i}" data-field="target" ${locked(r) ? 'disabled' : ''}>${targetOpts}</select></td>
+                            <td><button type="button" class="bi-target${r.target ? '' : ' empty'}" data-bi="${i}" data-field="target" ${locked(r) ? 'disabled' : ''} onclick="App.openBiPicker(${i}, this)" aria-haspopup="listbox" title="Choose where this file goes — type to search"><span class="bi-target-txt">${esc(biTargetLabel(r.target) || '— Choose / skip —')}</span><span class="bi-target-ico" aria-hidden="true">🔍</span></button></td>
                             <td><select data-bi="${i}" data-field="category" ${locked(r) ? 'disabled' : ''}>${cats.map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
                             <td><input type="date" data-bi="${i}" data-field="expiry" value="${escAttr(r.expiry || '')}" ${locked(r) || (st.sameExpiry && st.sameExpiryDate && r.status !== 'done') ? 'disabled' : ''} ${st.sameExpiry && st.sameExpiryDate && r.status !== 'done' ? 'title="Same expiry date for all is on"' : ''}></td>
                             <td class="bi-status">${statusCell(r)}</td>
@@ -13097,8 +13330,7 @@ function _afterLoad() {
                 const newWrap = host.querySelector('.bulk-import-table-wrap');
                 if (newWrap && keepTop) newWrap.scrollTop = keepTop;
                 if (mBody && keepBody) mBody.scrollTop = keepBody;
-                host.querySelectorAll('select[data-field="target"]').forEach(sel => { sel.value = st.rows[+sel.dataset.bi].target || ''; });
-                host.querySelectorAll('[data-bi]').forEach(el => {
+                host.querySelectorAll('select[data-bi], input[data-bi]').forEach(el => {
                     el.addEventListener('change', () => setBulkAttachmentRow(+el.dataset.bi, el.dataset.field, el.value));
                 });
             }
@@ -13124,6 +13356,8 @@ function _afterLoad() {
                 };
                 let replaced = 0;
                 if (!Array.isArray(item.files)) item.files = [];
+                // Nov 2026: remember what this upload replaces, so moving the file elsewhere later can put it back.
+                const undo = { recordId: record.id, removedFiles: item.files.filter(f => f && f.id !== record.id && !(batchIds && batchIds.has(f.id)) && isSameCategoryAttachment(f, category)), expiry: null };
                 const before = item.files.length, hadSelf = item.files.some(f => f && f.id === record.id);
                 // a file attached earlier in this same import never replaces another one from it
                 item.files = item.files.filter(f => f && f.id !== record.id && ((batchIds && batchIds.has(f.id)) || !isSameCategoryAttachment(f, category)));
@@ -13132,15 +13366,18 @@ function _afterLoad() {
                 if (batchIds) batchIds.add(record.id);
                 if (row.expiry && category !== 'Other') {
                     if (type === 'driver') {
-                        if (/licen/i.test(category)) item.licenseExpiry = row.expiry;
-                        else if (/passport/i.test(category)) item.passportExpiry = row.expiry;
+                        const field = /licen/i.test(category) ? 'licenseExpiry' : /passport/i.test(category) ? 'passportExpiry' : '';
+                        if (field) { undo.expiry = { field, old: item[field], set: row.expiry }; item[field] = row.expiry; }
                     } else {
                         if (!Array.isArray(item.documents)) item.documents = [];
                         const doc = item.documents.find(d => String(d.type || '').trim().toLowerCase() === category.toLowerCase());
+                        undo.expiry = { docType: category, existed: !!doc, old: doc ? doc.expiryDate : undefined, set: row.expiry };
                         if (doc) doc.expiryDate = row.expiry;
                         else item.documents.push({ type: category, expiryDate: row.expiry });
                     }
                 }
+                // attaching the same record again (after a live refresh) keeps the first note of what it replaced
+                if (row && (!row.undo || row.undo.recordId !== record.id)) row.undo = undo;
                 return replaced;
             }
 
@@ -13194,13 +13431,18 @@ function _afterLoad() {
             async function processBulkAttachmentImport() {
                 const st = bulkAttachmentImportState;
                 if (!st || st.running) return;
+                closeBiPicker();
                 const todo = st.rows.filter(r => r.status === 'ready' && r.target);
                 if (!todo.length) { showToast('Nothing to upload — choose where each file goes first'); return; }
-                const progressEl = document.getElementById('bulkAttachmentProgress');
-                st.running = true;
+                // a batch runs across pauses; a new one starts once the last has finished
+                if (!st.paused || !Array.isArray(st.batch)) st.batch = [];
+                todo.forEach(r => { r.batchState = ''; if (!st.batch.includes(r)) st.batch.push(r); });
+                st.running = true; st.paused = false; st.pauseRequested = false;
+                window.addEventListener('beforeunload', biBeforeUnload);
+                st.floatTimer = setInterval(biUpdateFloat, 1000);
                 renderBulkAttachmentTable();
                 const changed = new Set(), batchIds = new Set(st.rows.filter(r => r.status === 'done' && r.recordId).map(r => r.recordId));
-                let ok = 0, failed = 0, replaced = 0, sinceSave = 0;
+                let ok = 0, failed = 0, replaced = 0, moved = 0, sinceSave = 0, paused = false;
                 let saveFailed = false;
                 const save = () => {
                     if (!changed.size) return true;
@@ -13211,11 +13453,15 @@ function _afterLoad() {
                 };
                 try {
                     for (let i = 0; i < todo.length; i++) {
+                        // Pause: the file being uploaded finishes, then it stops here
+                        if (st.pauseRequested) { paused = true; break; }
                         const row = todo[i];
-                        const t = importFindTarget(row.target);
                         if (i) await new Promise(r => setTimeout(r, 700)); // pace the calls: Google throttles bursts with 404s
-                        if (progressEl) progressEl.textContent = `Uploading ${i + 1} of ${todo.length}: ${row.file.name}`;
-                        if (!t) { row.status = 'failed'; row.message = 'That record no longer exists'; failed++; renderBulkAttachmentTable(); continue; }
+                        if (st.pauseRequested) { paused = true; break; }
+                        const t = importFindTarget(row.target);
+                        const s = biBatchStats(st);
+                        setBiProgress(`Uploading ${s.settled + 1} of ${s.n} · ${s.pct}% — ${row.file.name}`);
+                        if (!t) { row.status = 'failed'; row.message = 'That record no longer exists'; row.batchState = 'failed'; failed++; renderBulkAttachmentTable(); continue; }
                         row.status = 'uploading';
                         renderBulkAttachmentTable();
                         try {
@@ -13231,38 +13477,49 @@ function _afterLoad() {
                                 mimeType: row.file.type || (isPdfFile(row.file) ? 'application/pdf' : 'image/jpeg'),
                                 folder: `fleetguard/attachments/${t.type}/${t.item._idx}`
                             });
-                            row.upload = upload;
                             const tNow = importFindTarget(row.target);
                             if (!tNow) throw new Error('That record no longer exists');
+                            row.upload = upload;
+                            // changed after an earlier upload: the earlier copy comes off where it went, then this one goes on
+                            if (row.prev) { undoImportedAttachment(row.prev, changed); row.prev = null; row.recordId = null; row.undo = null; moved++; }
                             replaced += applyImportedAttachment(tNow, row, upload, batchIds);
                             changed.add(tNow.type === 'driver' ? 'drivers' : tNow.type === 'trailer' ? 'trailers' : 'trucks');
                             row.status = 'done';
                             row.message = '';
+                            row.batchState = 'done';
                             ok++;
                             save(); // every file is saved as soon as it is attached
                         } catch (err) {
                             row.status = 'failed';
                             row.message = (err && err.message) || 'Upload failed';
+                            row.batchState = 'failed';
                             failed++;
                         }
                         renderBulkAttachmentTable();
                     }
                 } finally {
-                    if (ok) logAudit('import', 'attachments', '', `${ok} attachment(s) imported${failed ? `, ${failed} failed` : ''}`);
+                    clearInterval(st.floatTimer); st.floatTimer = null;
+                    window.removeEventListener('beforeunload', biBeforeUnload);
+                    if (ok) logAudit('import', 'attachments', '', `${ok} attachment(s) imported${moved ? ` (${moved} uploaded again after a change)` : ''}${failed ? `, ${failed} failed` : ''}${paused ? ' — paused' : ''}`);
                     const repaired = verifyImportedAttachments(st.rows, batchIds, changed);
                     if (repaired) console.warn(`[Import] ${repaired} uploaded file(s) were missing from their record — attached again`);
                     if (!save() || saveFailed) keepPendingAttachments(st.rows);
                     st.running = false;
+                    st.pauseRequested = false;
+                    st.paused = paused && todo.some(r => r.status === 'ready' && st.rows.includes(r));
                     renderBulkAttachmentTable();
                     try { refreshAllViews(); } catch (e) { /* ignore */ }
                     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
                 }
-                const msg = `${ok} uploaded${replaced ? ` (${replaced} older file${replaced === 1 ? '' : 's'} replaced)` : ''}${failed ? ` · ${failed} failed — fix and press Upload again` : ''}`;
-                if (progressEl) progressEl.textContent = msg;
+                const s = biBatchStats(st);
+                const msg = st.paused
+                    ? `Paused · ${s.uploaded} of ${s.n} uploaded (${s.pct}%)${failed ? ` · ${failed} failed` : ''} — change anything you need, then press Continue`
+                    : `${s.uploaded} uploaded${moved ? ` (${moved} uploaded again after a change)` : ''}${replaced ? ` (${replaced} older file${replaced === 1 ? '' : 's'} replaced)` : ''}${failed ? ` · ${failed} failed — fix and press Upload again` : ''}`;
+                setBiProgress(msg);
                 // Failed rows can be tried again as they are.
                 st.rows.forEach(r => { if (r.status === 'failed') r.status = 'ready'; });
                 renderBulkAttachmentTable();
-                showToast(`Import finished: ${msg}`, 5000);
+                showToast(st.paused ? `Upload paused — ${s.uploaded} of ${s.n} uploaded. Press Continue in Import attachments when ready` : `Import finished: ${msg}`, 5000);
             }
 
             function downloadImportTemplate() {
@@ -18423,7 +18680,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 getDriverForTruckPlate,
                 handleSettingsFileUpload,
                 openImportUpdatesModal, downloadImportTemplate, processImportUpdates,
-                openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport,
+                openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport, bulkAttachmentGo, pauseBulkAttachmentImport, openBiPicker, closeBiPicker, setBulkAttachmentRow,
                 exportDriverData, exportTruckData,
                 exportAllData, importAllData, resetAllData,
                 handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, openAttachBundle, closeAttachBundle, runAttachBundle, setAttachBundleRow, setAttachBundleGroup, toggleSettingsLock, restoreFromBackup,
