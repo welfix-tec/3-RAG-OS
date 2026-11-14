@@ -2503,6 +2503,7 @@ function _afterLoad() {
                     document.getElementById('modalBox').classList.remove('modal-wide');
                     document.getElementById('modalOverlay').classList.remove('open');
                     document.body.style.overflow = '';
+                    fdAfterModalClosed();
                 }
             }
             // Re-render the CURRENT modal view in place (does not grow the back-stack).
@@ -5141,7 +5142,7 @@ function _afterLoad() {
                 const doc = !builtin && key ? d.documents.find(x => x.id === key) : null;
                 if (key && !builtin && !doc) { showToast('Document not found'); return; }
                 const typeNames = (Array.isArray(settings.docTypes) ? settings.docTypes : []).map(t => t.name).filter(Boolean);
-                ['Medical Certificate', 'Defensive Driving Certificate', 'ID Card'].forEach(n => { if (!typeNames.includes(n)) typeNames.push(n); });
+                ['Medical Certificate', 'DDC Certificate', 'ID Card'].forEach(n => { if (!typeNames.includes(n)) typeNames.push(n); });
                 const currentType = doc ? (doc.type || '') : '';
                 const typeIsKnown = !currentType || typeNames.includes(currentType);
                 const fileOptions = [{ value: '', label: '— none —' }, ...(d.files || []).map(f => ({ value: f.id, label: `${f.name || 'Attachment'} (${fmtD(f.uploadedAt) || ''})` }))];
@@ -12642,6 +12643,307 @@ function _afterLoad() {
                 }
             }
 
+            // ── Download documents from a page (V2.03, Nov 2026) ──
+            // The ⬇ in the Drivers, Trucks and Trailers toolbars opens a drawer from the left:
+            //   1 which documents, 2 who has them (tick to download as one ZIP), 3 who is missing them.
+            let docDrawer = null;
+            const docDrawerMemory = {};
+            const FD_MAX_BYTES = 350 * 1024 * 1024; // the ZIP is built in memory; past this it is cut into more than one download
+            const FD_TITLES = { driver: 'Drivers', truck: 'Trucks', trailer: 'Trailers' };
+            function fdCanon(group, name) {
+                const s = String(name || '').trim();
+                if (!s) return '';
+                if (/^other$/i.test(s)) return 'Other';
+                if (group === 'driver') {
+                    if (/^ddc|defensive/i.test(s)) return 'DDC Certificate';
+                    if (/licen[cs]e|permis/i.test(s)) return 'Driving Licence';
+                    if (/passport|passeport|laissez/i.test(s)) return 'Passport';
+                    if (/national.?id|^id.?card$|indangamuntu/i.test(s)) return 'National ID';
+                    if (/^medical/i.test(s)) return 'Medical';
+                }
+                return canonicalDocName(s);
+            }
+            // What a stored file is: its own document type, else the document it is linked to, else what its name says.
+            function fdFileType(group, item, file) {
+                const cat = fdCanon(group, file.category || file.docType);
+                if (cat && cat !== 'Other') return cat;
+                const docs = group === 'driver' ? getDriverDocList(item) : (Array.isArray(item.documents) ? item.documents : []);
+                const linked = docs.find(d => d && d.fileId && d.fileId === file.id);
+                if (linked && linked.type) return fdCanon(group, linked.type);
+                if (cat) return 'Other'; // filed as Other on purpose
+                const text = `${file.name || ''} ${file.originalName || ''}`;
+                const guess = detectDocCategory(text);
+                if (guess.name && (group === 'driver' || !guess.driverOnly)) return fdCanon(group, guess.name);
+                if (group === 'driver') {
+                    const n = ' ' + String(file.name || '').replace(/\.[a-z0-9]+$/i, '') + ' ';
+                    if (/[\s_-]DL[\s_-]/i.test(n)) return 'Driving Licence';
+                    if (/[\s_-]PP[\s_-]/i.test(n)) return 'Passport';
+                }
+                return 'Other';
+            }
+            function fdBuild(group) {
+                const list = group === 'driver' ? drivers : group === 'trailer' ? trailers : trucks;
+                const items = (list || []).filter(Boolean).map(item => {
+                    const byType = {}, expiry = {};
+                    (Array.isArray(item.files) ? item.files : []).forEach(f => { if (!f) return; const t = fdFileType(group, item, f); (byType[t] = byType[t] || []).push(f); });
+                    (group === 'driver' ? getDriverDocList(item) : (Array.isArray(item.documents) ? item.documents : [])).forEach(d => {
+                        if (!d || !d.expiryDate || !d.type) return;
+                        const t = fdCanon(group, d.type);
+                        if (!expiry[t] || String(d.expiryDate) > expiry[t]) expiry[t] = String(d.expiryDate);
+                    });
+                    const status = group === 'driver' ? String(item.status || '') : String(item.status || 'Active');
+                    // listed last: suspended and offline drivers; trucks and trailers in the yard
+                    const last = group === 'driver' ? /offline|suspend|inactive/i.test(status) : /^in.?yard$/i.test(status);
+                    return { key: String(item._idx), item, label: importTargetLabel(group, item) || '(no name)', status, last, byType, expiry };
+                }).sort((a, b) => (a.last - b.last) || a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }));
+                const types = [];
+                const add = t => { if (t && t !== 'Other' && !types.some(x => x.toLowerCase() === t.toLowerCase())) types.push(t); };
+                (group === 'driver' ? DRIVER_DOC_TYPES : vehicleDocTypeNames()).forEach(n => add(fdCanon(group, n)));
+                items.forEach(it => { Object.keys(it.byType).forEach(add); Object.keys(it.expiry).forEach(add); });
+                types.push('Other');
+                return { items, types };
+            }
+            function fdMatches(st, it) {
+                const out = [];
+                st.model.types.forEach(t => { if (st.types.has(t)) (it.byType[t] || []).forEach(f => out.push({ t, f, k: `${it.key}|${f.id || 'i' + (it.item.files || []).indexOf(f)}` })); });
+                return out;
+            }
+            // the ✕ on a file's small tag leaves that one file out of the download
+            function fdActive(st, it) { return fdMatches(st, it).filter(m => !st.skip.has(m.k)); }
+            function fdHave(st) { return st.model.items.filter(it => fdMatches(st, it).length); }
+            function fdMissing(st) {
+                const ticked = st.model.types.filter(t => st.types.has(t) && t !== 'Other');
+                return st.model.items.map(it => ({ it, miss: ticked.filter(t => !(it.byType[t] || []).length) })).filter(x => x.miss.length);
+            }
+            function fdVisible(st) {
+                const q = normalizePlate(st.q);
+                return fdHave(st).filter(it => !q || normalizePlate(it.label).includes(q));
+            }
+            function openDocDrawer(group) {
+                if (!FD_TITLES[group]) return;
+                closeDocDrawer();
+                const model = fdBuild(group), mem = docDrawerMemory[group] || {};
+                const st = docDrawer = { group, model, types: new Set((mem.types || []).filter(t => model.types.includes(t))), sel: new Set(mem.sel || []), skip: new Set(mem.skip || []), q: '', running: false, cancel: false, errors: {}, result: '', progress: '', missOpen: mem.missOpen === undefined ? null : mem.missOpen };
+                const overlay = document.createElement('div');
+                overlay.id = 'fdOverlay';
+                overlay.className = 'fd-overlay';
+                overlay.innerHTML = `<aside class="fd-drawer" role="dialog" aria-modal="true" aria-label="Download ${FD_TITLES[group].toLowerCase()} documents">
+                    <div class="fd-head"><div><div class="fd-title">⬇ Download documents</div><div class="fd-sub">${FD_TITLES[group]}</div></div><button type="button" class="fd-close" onclick="App.closeDocDrawer()" aria-label="Close">✕</button></div>
+                    <div class="fd-body">
+                        <div class="fd-sec"><div class="fd-sec-h"><span>1 · Which documents</span></div><div id="fdTypes" class="fd-types"></div></div>
+                        <div class="fd-sec"><div class="fd-sec-h"><span id="fdWhoTitle">2 · Who</span></div>
+                            <div class="fd-who-tools" id="fdWhoTools"><label class="fd-all"><input type="checkbox" id="fdAll" onchange="App.fdSelectAll(this.checked)"> Select all</label><input type="search" id="fdSearch" placeholder="Search name or plate" autocomplete="off" oninput="App.fdSearch(this.value)" aria-label="Search the list"></div>
+                            <div id="fdWho"></div></div>
+                        <div class="fd-sec" id="fdMissSec"></div>
+                    </div>
+                    <div class="fd-foot"><div id="fdResult" class="fd-result" hidden></div><div class="fd-foot-row"><span id="fdProgress" class="fd-progress" role="status"></span><button type="button" class="btn btn-ghost btn-sm" id="fdCancel" onclick="App.fdCancel()">Close</button><button type="button" class="btn btn-primary btn-sm" id="fdGo" onclick="App.fdRun()" disabled>Download</button></div></div>
+                </aside>`;
+                overlay.addEventListener('mousedown', e => { if (e.target === overlay && docDrawer && !docDrawer.running) closeDocDrawer(); });
+                document.body.appendChild(overlay);
+                document.body.style.overflow = 'hidden';
+                document.addEventListener('keydown', fdKey, true);
+                requestAnimationFrame(() => overlay.classList.add('open'));
+                fdRender();
+                const first = overlay.querySelector('#fdTypes input');
+                if (first) first.focus({ preventScroll: true });
+                if (mem.scroll) overlay.querySelector('.fd-body').scrollTop = mem.scroll;
+            }
+            function closeDocDrawer() {
+                const st = docDrawer, overlay = document.getElementById('fdOverlay');
+                if (st) {
+                    st.cancel = true;
+                    const body = overlay && overlay.querySelector('.fd-body');
+                    docDrawerMemory[st.group] = { types: [...st.types], sel: [...st.sel], skip: [...st.skip], missOpen: st.missOpen, scroll: body ? body.scrollTop : 0 };
+                }
+                docDrawer = null;
+                document.removeEventListener('keydown', fdKey, true);
+                if (overlay) overlay.remove();
+                const modal = document.getElementById('modalOverlay');
+                if (!(modal && modal.classList.contains('open'))) document.body.style.overflow = '';
+            }
+            function fdKey(e) {
+                if (e.key !== 'Escape' || !docDrawer) return;
+                if (document.querySelector('.confirm-overlay')) return; // the question on top answers Esc itself
+                e.preventDefault(); e.stopImmediatePropagation();
+                if (!docDrawer.running) closeDocDrawer();
+            }
+            function fdRender() {
+                const st = docDrawer;
+                if (!st || !document.getElementById('fdOverlay')) return;
+                const dis = st.running ? 'disabled' : '';
+                const typesEl = document.getElementById('fdTypes');
+                typesEl.innerHTML = st.model.types.map((t, i) => {
+                    const n = st.model.items.reduce((a, it) => a + (it.byType[t] || []).length, 0);
+                    return `<label class="fd-type${st.types.has(t) ? ' on' : ''}${n ? '' : ' none'}"><input type="checkbox" ${st.types.has(t) ? 'checked' : ''} ${dis} onchange="App.fdToggleType(${i},this.checked)"> ${esc(t)} <small>${n}</small></label>`;
+                }).join('');
+                const have = fdHave(st), vis = fdVisible(st);
+                // a tick only counts while its owner still has a file of the ticked documents
+                const keys = new Set(have.map(it => it.key));
+                [...st.sel].forEach(k => { if (!keys.has(k)) st.sel.delete(k); });
+                const picked = have.filter(it => st.sel.has(it.key));
+                const nFiles = picked.reduce((a, it) => a + fdActive(st, it).length, 0);
+                document.getElementById('fdWhoTitle').textContent = st.types.size ? `2 · Who — ${have.length} of ${st.model.items.length} have ${st.types.size === 1 ? 'it' : 'at least one'}` : '2 · Who';
+                document.getElementById('fdWhoTools').style.display = have.length ? '' : 'none';
+                const all = document.getElementById('fdAll');
+                all.checked = !!vis.length && vis.every(it => st.sel.has(it.key));
+                all.disabled = st.running || !vis.length;
+                const who = document.getElementById('fdWho');
+                if (!st.types.size) who.innerHTML = '<div class="fd-empty">Tick a document above to see who has it.</div>';
+                else if (!have.length) who.innerHTML = `<div class="fd-empty">No ${FD_TITLES[st.group].toLowerCase().replace(/s$/, '')} has a file of this kind.</div>`;
+                else if (!vis.length) who.innerHTML = '<div class="fd-empty">Nothing matches the search.</div>';
+                else who.innerHTML = vis.map(it => {
+                    const all = fdMatches(st, it), m = all.filter(x => !st.skip.has(x.k));
+                    // each file as a small tag with ✕ (shown when there is more than one to choose between)
+                    const seen = {};
+                    const tags = st.types.size > 1 || all.length > 1 ? `<span class="fd-files">${all.map((x, j) => {
+                        seen[x.t] = (seen[x.t] || 0) + 1;
+                        const lab = x.t + (seen[x.t] > 1 ? ` (${seen[x.t]})` : ''), off = st.skip.has(x.k);
+                        return `<span class="fd-file${off ? ' off' : ''}"><span>${esc(lab)}</span><button type="button" ${dis} onclick="App.fdToggleFile('${escAttr(it.key)}',${j});event.preventDefault();event.stopPropagation()" title="${off ? 'Put back' : 'Leave out'} ${escAttr(lab)}" aria-label="${off ? 'Put back' : 'Leave out'} ${escAttr(lab)} of ${escAttr(it.label)}">${off ? '+' : '✕'}</button></span>`;
+                    }).join('')}</span>` : '';
+                    const worst = [...new Set(m.map(x => x.t))].map(t => it.expiry[t] ? docStatus({ expiryDate: it.expiry[t] }) : '').reduce((a, s) => s === 'expired' || a === 'expired' ? 'expired' : (s === 'expiring' || a === 'expiring' ? 'expiring' : a), '');
+                    const dates = st.types.size === 1 && it.expiry[[...st.types][0]] ? fmtD(it.expiry[[...st.types][0]]) : '';
+                    const err = st.errors[it.key];
+                    return `<label class="fd-row${it.last ? ' last' : ''}"><input type="checkbox" ${st.sel.has(it.key) ? 'checked' : ''} ${dis} onchange="App.fdToggleItem('${escAttr(it.key)}',this.checked)">
+                        <span class="fd-name">${esc(it.label)}${it.status ? `<small>${esc(it.status)}</small>` : ''}${tags}${err ? `<small class="fd-err">${esc(err)}</small>` : ''}</span>
+                        <span class="fd-meta">${worst === 'expired' ? '<span class="fd-chip expired">Expired</span>' : worst === 'expiring' ? '<span class="fd-chip expiring">Expiring</span>' : ''}${dates ? `<span class="fd-date">${esc(dates)}</span>` : ''}<span class="fd-count">${m.length} file${m.length === 1 ? '' : 's'}</span></span></label>`;
+                }).join('');
+                // 3 · who is missing it
+                const miss = fdMissing(st), sec = document.getElementById('fdMissSec');
+                const tickedReal = st.model.types.filter(t => st.types.has(t) && t !== 'Other');
+                if (!tickedReal.length) sec.innerHTML = '';
+                else {
+                    const open = st.missOpen === null ? miss.length <= 8 : st.missOpen;
+                    const what = tickedReal.length === 1 ? tickedReal[0] : 'a ticked document';
+                    sec.innerHTML = `<div class="fd-sec-h"><button type="button" class="fd-fold" onclick="App.fdToggleMissing()" aria-expanded="${open}"><span aria-hidden="true">${open ? '▾' : '▸'}</span> 3 · Missing ${esc(what)} — ${miss.length}</button>${miss.length ? '<button type="button" class="btn btn-ghost btn-xs" onclick="App.fdCopyMissing()">Copy list</button>' : ''}</div>`
+                        + (!miss.length ? '<div class="fd-empty">Nobody is missing it.</div>' : !open ? '' : `<div class="fd-miss-note">No file of this kind is attached. Click one to open it and upload.</div>` + miss.map(({ it, miss: types }) => {
+                            const noted = types.filter(t => it.expiry[t]);
+                            return `<button type="button" class="fd-miss${it.last ? ' last' : ''}" ${dis} onclick="App.fdOpenRecord('${escAttr(it.key)}')"><span class="fd-name">${esc(it.label)}${it.status ? `<small>${esc(it.status)}</small>` : ''}</span><span class="fd-meta">${tickedReal.length > 1 ? `<span class="fd-misslist">${esc(types.join(', '))}</span>` : ''}${noted.length ? `<span class="fd-date" title="An expiry date is recorded, but no file is attached">date on record, no file${tickedReal.length > 1 ? ' (' + esc(noted.join(', ')) + ')' : ''}</span>` : ''}</span></button>`;
+                        }).join(''));
+                }
+                const go = document.getElementById('fdGo'), cancel = document.getElementById('fdCancel'), res = document.getElementById('fdResult');
+                go.disabled = st.running || !nFiles;
+                go.textContent = st.running ? 'Downloading…' : nFiles ? `Download ${nFiles} file${nFiles === 1 ? '' : 's'}` : 'Download';
+                cancel.textContent = st.running ? 'Cancel' : 'Close';
+                res.hidden = !st.result; res.innerHTML = st.result || '';
+                document.getElementById('fdProgress').textContent = st.progress || (!st.running && picked.length ? `${picked.length} selected` : '');
+                const search = document.getElementById('fdSearch');
+                if (search) search.disabled = false;
+            }
+            function fdToggleType(i, on) { const st = docDrawer, t = st && st.model.types[i]; if (!t || st.running) return; if (on) st.types.add(t); else st.types.delete(t); st.result = ''; st.errors = {}; fdRender(); }
+            function fdToggleItem(key, on) { const st = docDrawer; if (!st || st.running) return; if (on) st.sel.add(String(key)); else st.sel.delete(String(key)); fdRender(); }
+            function fdToggleFile(key, j) {
+                const st = docDrawer; if (!st || st.running) return;
+                const it = st.model.items.find(x => x.key === String(key)), m = it && fdMatches(st, it)[j];
+                if (!m) return;
+                if (st.skip.has(m.k)) st.skip.delete(m.k); else st.skip.add(m.k);
+                fdRender();
+            }
+            function fdSelectAll(on) { const st = docDrawer; if (!st || st.running) return; fdVisible(st).forEach(it => { if (on) st.sel.add(it.key); else st.sel.delete(it.key); }); fdRender(); }
+            function fdSearch(q) { const st = docDrawer; if (!st) return; st.q = q || ''; fdRender(); }
+            function fdToggleMissing() { const st = docDrawer; if (!st) return; const open = st.missOpen === null ? fdMissing(st).length <= 8 : st.missOpen; st.missOpen = !open; fdRender(); }
+            function fdCopyMissing() {
+                const st = docDrawer; if (!st) return;
+                const ticked = st.model.types.filter(t => st.types.has(t) && t !== 'Other');
+                const lines = fdMissing(st).map(({ it, miss }) => `${it.label}${ticked.length > 1 ? ' — ' + miss.join(', ') : ''}`);
+                const text = `${FD_TITLES[st.group]} missing ${ticked.join(', ')} (${lines.length})\n` + lines.join('\n');
+                const done = () => showToast(`${lines.length} name${lines.length === 1 ? '' : 's'} copied`);
+                const fallback = () => { const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { showToast('Could not copy the list'); } ta.remove(); };
+                if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+            }
+            // A missing one: open its window so the file can be uploaded. Closing that window comes back to the drawer as it was.
+            let fdReturnTo = '';
+            function fdAfterModalClosed() {
+                if (!fdReturnTo) return;
+                setTimeout(() => {
+                    const g = fdReturnTo, modal = document.getElementById('modalOverlay');
+                    if (!g || (modal && modal.classList.contains('open'))) return; // another window opened in its place: wait for that one
+                    fdReturnTo = '';
+                    const page = getActivePage();
+                    if ((g === 'driver' && page === 'drivers') || (g !== 'driver' && page === 'trucks')) openDocDrawer(g);
+                }, 60);
+            }
+            function fdOpenRecord(key) {
+                const st = docDrawer; if (!st || st.running) return;
+                const group = st.group, it = st.model.items.find(x => x.key === String(key));
+                if (!it) return;
+                closeDocDrawer();
+                if (group === 'driver') openDriverModal(it.item._idx);
+                else if (group === 'trailer') openTrailerModal(it.item._idx);
+                else openTruckModal(it.item._idx);
+                fdReturnTo = group;
+            }
+            function fdCancel() { const st = docDrawer; if (!st) return; if (st.running) { st.cancel = true; st.progress = 'Cancelling after this file…'; fdRender(); } else closeDocDrawer(); }
+            async function fdRun() {
+                const st = docDrawer;
+                if (!st || st.running) return;
+                const todo = [];
+                fdHave(st).filter(it => st.sel.has(it.key)).forEach(it => fdActive(st, it).forEach(m => todo.push({ it, t: m.t, f: m.f })));
+                if (!todo.length) return;
+                if (typeof JSZip === 'undefined') { showToast('The ZIP tool did not load — check the internet connection and reload'); return; }
+                if (todo.length > 150 && !(await confirmDialog(`${todo.length} files will be fetched from Google Drive one at a time. This can take ${Math.ceil(todo.length * 3 / 60)} minutes or more, and the page must stay open.`, { title: 'Large download', okLabel: 'Download' }))) return;
+                if (docDrawer !== st) return;
+                const set = (text) => { st.progress = text; const el = document.getElementById('fdProgress'); if (el && docDrawer === st) el.textContent = text; };
+                st.running = true; st.cancel = false; st.errors = {}; st.result = '';
+                fdRender();
+                const ticked = st.model.types.filter(t => st.types.has(t));
+                const multi = ticked.length > 1;
+                const stamp = String(fmtD(formatDate()) || formatDate()).replace(/[\\/.:\s]+/g, '-');
+                const folder = bundleSafeName(`${FD_TITLES[st.group]} ${multi ? 'documents' : ticked[0]} ${stamp}`);
+                const zip = new JSZip(), root = zip.folder(folder), taken = {};
+                const doneFiles = new Set();
+                let ok = 0, bytes = 0, cut = false;
+                for (let i = 0; i < todo.length && !st.cancel; i++) {
+                    if (bytes > FD_MAX_BYTES) { cut = true; break; }
+                    const { it, t, f } = todo[i];
+                    set(`Fetching ${i + 1} of ${todo.length} · ${Math.floor(100 * i / todo.length)}% — ${it.label}`);
+                    try {
+                        const url = resolveDriveUrl(f.data || f.storageUrl || '') || f.data || '';
+                        const driveId = f.driveId || extractDriveFileId(url);
+                        let base64 = '';
+                        if (driveId) base64 = await fetchDriveFileBase64(driveId);
+                        else if (String(url).startsWith('data:')) base64 = dataUrlToBase64(url);
+                        else throw new Error('this file is not stored on Drive');
+                        // named after its owner and what it is: "Jean Bosco Passport.jpg"
+                        const ext = /\.([a-z0-9]{2,5})$/i.exec(String(f.name || ''));
+                        const named = t === 'Other' ? f : Object.assign({}, f, { name: `${it.label} ${t}${ext ? ext[0] : ''}` });
+                        const dirKey = multi ? t : '';
+                        const dir = multi ? root.folder(bundleSafeName(t) || 'Other') : root;
+                        dir.file(bundleFileName({ owner: it.label, file: named }, taken[dirKey] || (taken[dirKey] = new Set()), base64), base64, { base64: true });
+                        ok++; bytes += base64.length * 0.75; doneFiles.add(f);
+                    } catch (err) {
+                        const msg = `${multi ? t + ': ' : ''}${(err && err.message) || 'could not be fetched'}`;
+                        st.errors[it.key] = st.errors[it.key] ? `${st.errors[it.key]}; ${msg}` : msg;
+                    }
+                }
+                if (docDrawer !== st) return; // the drawer was closed: nothing is downloaded
+                try {
+                    if (st.cancel) { st.result = '<b>Cancelled.</b> Nothing was downloaded.'; st.errors = {}; return; }
+                    if (ok) {
+                        set('Building the ZIP…');
+                        const blob = await zip.generateAsync({ type: 'blob' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = `${folder}.zip`;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+                        logAudit('download', 'attachments', folder, `${ok} of ${todo.length} document(s) downloaded as ${folder}.zip (${ticked.join(', ')})`);
+                        saveAll(['auditTrail']);
+                    }
+                    // what failed, or was not reached, stays ticked to try again
+                    const left = new Set(todo.filter(x => !doneFiles.has(x.f)).map(x => x.it.key));
+                    st.sel = left;
+                    const failed = Object.keys(st.errors).length;
+                    st.result = `<b>${ok} of ${todo.length} downloaded</b>${ok ? ` as ${esc(folder)}.zip` : ''}.`
+                        + (failed ? ` ${failed} could not be fetched and ${failed === 1 ? 'stays' : 'stay'} ticked to try again.` : '')
+                        + (cut ? ' The download was getting too large for one ZIP — press Download again for the rest.' : '');
+                } catch (err) {
+                    st.result = `<b>The ZIP could not be built:</b> ${esc((err && err.message) || err)}`;
+                } finally {
+                    st.running = false; st.progress = '';
+                    if (docDrawer === st) fdRender();
+                }
+            }
+
             function downloadAttachment(entityType, idx, fileId) {
                 const target = entityType === 'driver'
                     ? drivers.find(x => String(x._idx) === String(idx))
@@ -12763,11 +13065,13 @@ function _afterLoad() {
                 { re: /yellow.?card|carte.?jaune/i, name: 'Yellow Card' },
                 { re: /inspect|contr[oô]le|technique/i, name: 'Inspection' },
                 { re: /regist|carte.?grise|log.?book/i, name: 'Registration' },
+                // DDC = defensive driving certificate; it is checked before "driving" so it is not read as a licence
+                { re: /(^|[^a-z])ddc([^a-z]|$)|defensive/i, name: 'DDC Certificate', driverOnly: true },
                 { re: /licen[cs]e|permis|driving/i, name: 'Driving Licence', driverOnly: true },
                 { re: /passport|passeport|laissez/i, name: 'Passport', driverOnly: true },
                 { re: /national.?id|indangamuntu|\bnid\b/i, name: 'National ID', driverOnly: true }
             ];
-            const DRIVER_DOC_TYPES = ['Driving Licence', 'Passport', 'National ID', 'Contract', 'Medical'];
+            const DRIVER_DOC_TYPES = ['Driving Licence', 'Passport', 'DDC Certificate', 'National ID', 'Contract', 'Medical'];
             const DRIVE_UPLOAD_MAX_BYTES = 35 * 1024 * 1024; // the Apps Script takes ~50 MB of base64 = ~35 MB of file
 
             function vehicleDocTypeNames() {
@@ -13074,10 +13378,32 @@ function _afterLoad() {
                 renderBulkAttachmentTable();
             }
             // The one button: Upload / Continue when idle, Pause while uploading.
-            function bulkAttachmentGo() {
+            async function bulkAttachmentGo() {
                 const st = bulkAttachmentImportState;
-                if (st && st.running) pauseBulkAttachmentImport();
-                else processBulkAttachmentImport();
+                if (st && st.running) { pauseBulkAttachmentImport(); return; }
+                if (!st || st.asking) return;
+                // Nov 2026: a file filed as "Other" is easy to lose track of — ask before it is uploaded that way.
+                const others = st.rows.filter(r => r.status === 'ready' && r.target && /^other$/i.test(r.category || '') && !r.otherOk);
+                if (others.length) {
+                    closeBiPicker();
+                    st.asking = true;
+                    const names = others.slice(0, 6).map(r => '• ' + r.file.name).join('\n') + (others.length > 6 ? `\n… and ${others.length - 6} more` : '');
+                    let yes = false;
+                    try {
+                        yes = await confirmDialog(`${others.length === 1 ? 'This file is' : `These ${others.length} files are`} set to the document "Other":\n${names}\n\nUpload as "Other", or go back and choose the right document in the Document column?`, { title: 'Upload as "Other"?', okLabel: 'Upload as "Other"', cancelLabel: 'Go back and change' });
+                    } finally { st.asking = false; }
+                    if (bulkAttachmentImportState !== st || st.running) return;
+                    if (!yes) {
+                        st.otherFlag = true;
+                        renderBulkAttachmentTable();
+                        const first = document.querySelector('.bulk-import-table tr.other-ask');
+                        if (first) first.scrollIntoView({ block: 'center' });
+                        return;
+                    }
+                    others.forEach(r => { r.otherOk = true; });
+                }
+                st.otherFlag = false;
+                processBulkAttachmentImport();
             }
             // An uploaded file was changed and uploaded again: take the earlier copy off the record it went to, and put back
             // what that copy had replaced there (unless a newer file of that type has arrived since).
@@ -13129,11 +13455,18 @@ function _afterLoad() {
                     <input type="file" id="bulkAttachmentFolderInput" webkitdirectory directory multiple style="display:none" onchange="App.handleBulkAttachmentImportFiles(this.files);this.value=''">
                     <div class="bi-summary-row">
                         <div id="bulkAttachmentSummary" style="font-size:12px;color:var(--text3)"></div>
+                        <div class="bi-same-group">
+                        <label class="bi-same-exp bi-same-doc" title="Give every file in the list this document. Each row can still be changed afterwards.">
+                            <input type="checkbox" id="bulkSameDocOn" onchange="App.setBulkSameDoc(this.checked, document.getElementById('bulkSameDocName').value)">
+                            Same document for all
+                            <select id="bulkSameDocName" onchange="App.setBulkSameDoc(true, this.value)" aria-label="Document for all files">${bulkSameDocOptionsHtml()}</select>
+                        </label>
                         <label class="bi-same-exp" title="Give every file in the list this expiry date">
                             <input type="checkbox" id="bulkSameExpiryOn" onchange="App.setBulkSameExpiry(this.checked, document.getElementById('bulkSameExpiryDate').value)">
                             Same expiry date for all
                             <input type="date" id="bulkSameExpiryDate" onchange="App.setBulkSameExpiry(true, this.value)" aria-label="Expiry date for all files">
                         </label>
+                        </div>
                     </div>
                     <div id="bulkAttachmentTable"></div>
                     <div id="bulkAttachmentProgress" style="font-size:13px;color:var(--text);min-height:20px"></div>
@@ -13196,7 +13529,7 @@ function _afterLoad() {
                     st.rows.push({
                         file, path,
                         target: route.target,
-                        category: route.category || 'Other',
+                        category: bulkSameDocFor(st, route.target) || route.category || 'Other',
                         expiry: (st.sameExpiry && st.sameExpiryDate) || extractDateFromFileName(base) || '',
                         note: route.note,
                         status: file.size > DRIVE_UPLOAD_MAX_BYTES ? 'toolarge' : 'ready',
@@ -13209,7 +13542,7 @@ function _afterLoad() {
                 if (bulkAttachmentImportState && bulkAttachmentImportState.running) return;
                 closeBiPicker();
                 const prev = bulkAttachmentImportState || {};
-                bulkAttachmentImportState = { rows: [], skipped: [], running: false, sameExpiry: !!prev.sameExpiry, sameExpiryDate: prev.sameExpiryDate || '' };
+                bulkAttachmentImportState = { rows: [], skipped: [], running: false, sameExpiry: !!prev.sameExpiry, sameExpiryDate: prev.sameExpiryDate || '', sameDoc: !!prev.sameDoc, sameDocName: prev.sameDocName || '' };
                 const p = document.getElementById('bulkAttachmentProgress');
                 if (p) p.textContent = '';
                 renderBulkAttachmentTable();
@@ -13224,6 +13557,34 @@ function _afterLoad() {
                 if (cb) cb.checked = st.sameExpiry;
                 if (st.sameExpiry && st.sameExpiryDate) st.rows.forEach(r => { if (r.status !== 'done' && r.status !== 'uploading') r.expiry = st.sameExpiryDate; });
                 renderBulkAttachmentTable();
+            }
+            // Nov 2026: one document for every file in the list. It only fills the rows in — each row's Document can still
+            // be changed afterwards (unlike the expiry date, nothing is locked). Uploaded rows are left alone.
+            function bulkSameDocOptionsHtml() {
+                const vehicle = vehicleDocTypeNames(), driver = DRIVER_DOC_TYPES.filter(n => !vehicle.some(v => v.toLowerCase() === n.toLowerCase()));
+                const opt = n => `<option value="${escAttr(n)}">${esc(n)}</option>`;
+                return `<option value="">Choose…</option><optgroup label="Drivers">${driver.map(opt).join('')}</optgroup><optgroup label="Trucks and trailers">${vehicle.map(opt).join('')}</optgroup><option value="Other">Other</option>`;
+            }
+            // the chosen document, when it suits where the file goes (a passport is not put on a truck)
+            function bulkSameDocFor(st, target) {
+                if (!st || !st.sameDoc || !st.sameDocName) return '';
+                const t = importFindTarget(target);
+                return !t || docCategoryOptions(t.type).includes(st.sameDocName) ? st.sameDocName : '';
+            }
+            function setBulkSameDoc(on, name) {
+                const st = bulkAttachmentImportState;
+                if (!st || st.running) return;
+                st.sameDoc = !!on;
+                st.sameDocName = name || '';
+                let skipped = 0;
+                if (st.sameDoc && st.sameDocName) st.rows.forEach(r => {
+                    if (r.status !== 'ready') return;
+                    const doc = bulkSameDocFor(st, r.target);
+                    if (!doc) { skipped++; return; }
+                    if (r.category !== doc) { r.category = doc; r.otherOk = false; }
+                });
+                renderBulkAttachmentTable();
+                if (skipped) showToast(`${skipped} file${skipped === 1 ? ' was' : 's were'} left as ${skipped === 1 ? 'it is' : 'they are'} — "${st.sameDocName}" does not apply to where ${skipped === 1 ? 'it goes' : 'they go'}`, 4500);
             }
             // The red ✕: take a file off the list before it is uploaded.
             function removeBulkAttachmentRow(i) {
@@ -13246,6 +13607,7 @@ function _afterLoad() {
                     row.message = '';
                 }
                 row[field] = value;
+                if (field === 'category') row.otherOk = false;
                 if (field === 'target') {
                     row.note = '';
                     // A licence moved onto a truck makes no sense; keep the document list right for the new home.
@@ -13294,6 +13656,9 @@ function _afterLoad() {
                 if (clearBtn) clearBtn.disabled = !!st.running;
                 const progEl = document.getElementById('bulkAttachmentProgress');
                 if (progEl && typeof st.progressText === 'string' && progEl.textContent !== st.progressText) progEl.textContent = st.progressText;
+                const docCb = document.getElementById('bulkSameDocOn'), docSel = document.getElementById('bulkSameDocName');
+                if (docCb) { docCb.checked = !!st.sameDoc; docCb.disabled = !!st.running; }
+                if (docSel) { if (document.activeElement !== docSel) docSel.value = st.sameDocName || ''; docSel.disabled = !!st.running; }
                 const sameCb = document.getElementById('bulkSameExpiryOn'), sameDt = document.getElementById('bulkSameExpiryDate');
                 if (sameCb) { sameCb.checked = !!st.sameExpiry; sameCb.disabled = !!st.running; }
                 if (sameDt) { if (document.activeElement !== sameDt) sameDt.value = st.sameExpiryDate || ''; sameDt.disabled = !!st.running; }
@@ -13318,7 +13683,7 @@ function _afterLoad() {
                         const cats = docCategoryOptions(t ? t.type : 'truck');
                         if (r.category && !cats.includes(r.category)) cats.splice(cats.length - 1, 0, r.category);
                         const dirs = r.path.includes('/') ? r.path.slice(0, r.path.lastIndexOf('/') + 1) : '';
-                        return `<tr class="${!r.target && r.status === 'ready' ? 'needs' : ''}${r.prev && r.status === 'ready' ? ' changed' : ''}">
+                        return `<tr class="${!r.target && r.status === 'ready' ? 'needs' : ''}${r.prev && r.status === 'ready' ? ' changed' : ''}${st.otherFlag && r.status === 'ready' && r.target && /^other$/i.test(r.category || '') && !r.otherOk ? ' other-ask' : ''}">
                             <td class="bi-file"><div class="bi-name" title="${escAttr(r.path)}">${esc(r.file.name)}</div>${dirs ? `<div class="bi-path">${esc(dirs)}</div>` : ''}</td>
                             <td><button type="button" class="bi-target${r.target ? '' : ' empty'}" data-bi="${i}" data-field="target" ${locked(r) ? 'disabled' : ''} onclick="App.openBiPicker(${i}, this)" aria-haspopup="listbox" title="Choose where this file goes — type to search"><span class="bi-target-txt">${esc(biTargetLabel(r.target) || '— Choose / skip —')}</span><span class="bi-target-ico" aria-hidden="true">🔍</span></button></td>
                             <td><select data-bi="${i}" data-field="category" ${locked(r) ? 'disabled' : ''}>${cats.map(c => `<option ${c === r.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></td>
@@ -13368,6 +13733,13 @@ function _afterLoad() {
                     if (type === 'driver') {
                         const field = /licen/i.test(category) ? 'licenseExpiry' : /passport/i.test(category) ? 'passportExpiry' : '';
                         if (field) { undo.expiry = { field, old: item[field], set: row.expiry }; item[field] = row.expiry; }
+                        else {
+                            if (!Array.isArray(item.documents)) item.documents = [];
+                            const doc = item.documents.find(d => d && String(d.type || '').trim().toLowerCase() === category.toLowerCase());
+                            undo.expiry = { docType: category, existed: !!doc, old: doc ? doc.expiryDate : undefined, set: row.expiry };
+                            if (doc) { doc.expiryDate = row.expiry; if (!doc.fileId) doc.fileId = record.id; }
+                            else item.documents.push({ id: newLocalId('doc'), type: category, expiryDate: row.expiry, fileId: record.id });
+                        }
                     } else {
                         if (!Array.isArray(item.documents)) item.documents = [];
                         const doc = item.documents.find(d => String(d.type || '').trim().toLowerCase() === category.toLowerCase());
@@ -18680,10 +19052,10 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 getDriverForTruckPlate,
                 handleSettingsFileUpload,
                 openImportUpdatesModal, downloadImportTemplate, processImportUpdates,
-                openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport, bulkAttachmentGo, pauseBulkAttachmentImport, openBiPicker, closeBiPicker, setBulkAttachmentRow,
+                openBulkAttachmentImportModal, handleBulkAttachmentImportFiles, handleBulkAttachmentDrop, clearBulkAttachmentImport, processBulkAttachmentImport, bulkAttachmentGo, pauseBulkAttachmentImport, setBulkSameDoc, openBiPicker, closeBiPicker, setBulkAttachmentRow,
                 exportDriverData, exportTruckData,
                 exportAllData, importAllData, resetAllData,
-                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, openAttachBundle, closeAttachBundle, runAttachBundle, setAttachBundleRow, setAttachBundleGroup, toggleSettingsLock, restoreFromBackup,
+                handleAdminPin, setFinancePin, setOpsHolder, swapOpsHolder, toggleUsersAdmin, addUserAccount, setUserPage, setUserActive, setUserRole, sendUserReset, onJcDoneToggle, setBulkSameExpiry, removeBulkAttachmentRow, toggleFgDropdown, closeFgDropdown, openDocDrawer, closeDocDrawer, fdToggleType, fdToggleItem, fdToggleFile, fdSelectAll, fdSearch, fdToggleMissing, fdCopyMissing, fdOpenRecord, fdCancel, fdRun, openAttachBundle, closeAttachBundle, runAttachBundle, setAttachBundleRow, setAttachBundleGroup, toggleSettingsLock, restoreFromBackup,
                 handleDriverFileUpload, handleTruckFileUpload, deleteAttachment, previewAttachment, downloadAttachment,
                 renderReports, refreshReportsOnDataChange, switchReportCategory, toggleReportCard, onReportCheckChange, toggleAllReports, generateReport, printReport, downloadReport, quickReport,
                 setReportPeriodPreset, populateJcReportServiceFilter,

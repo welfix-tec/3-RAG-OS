@@ -64,7 +64,7 @@
             <!-- Footer Section -->
             <div style="text-align: center; margin-top: 24px;">
                 <p style="font-size: 11px; color: #565b6e; line-height: 1.6;">Authorized personnel only · 3 RAG company LTD</p>
-                <p style="font-size: 10px; color: #3d7fff; margin-top: 6px; letter-spacing: 0.05em; font-weight: 500;">FleetGuard V2.02</p>
+                <p style="font-size: 10px; color: #3d7fff; margin-top: 6px; letter-spacing: 0.05em; font-weight: 500;">FleetGuard V2.03</p>
             </div>
         </div>
     </div>
@@ -99,7 +99,7 @@
             <a class="nav-item" data-page="recyclebin"><span class="nav-icon">🗑</span> Recycle Bin<span class="nav-badge warn" id="navRecycleBadge" style="display:none">0</span></a>
             <div class="sidebar-footer">
                 <span class="update-dot"></span><span id="sidebarStatus">System ready</span>
-                <div style="font-size:9px;color:var(--text3);margin-top:4px;letter-spacing:0.04em;font-weight:600;opacity:0.85;">FleetGuard V2.02 · <span class="company-name-text">3 RAG company LTD</span></div>
+                <div style="font-size:9px;color:var(--text3);margin-top:4px;letter-spacing:0.04em;font-weight:600;opacity:0.85;">FleetGuard V2.03 · <span class="company-name-text">3 RAG company LTD</span></div>
                 <button class="btn btn-ghost btn-xs sidebar-signout" id="sidebarSignOut" onclick="App.signOutApp()" title="Sign out of this device">⎋ Sign out</button>
             </div>
         </aside>
@@ -193,6 +193,7 @@
                                 <option value="docs-expired">Expired documents</option>
                             </optgroup>
                         </select>
+                        <button type="button" class="btn btn-primary btn-sm tb-dl" onclick="App.openDocDrawer('driver')" title="Download driver documents" aria-label="Download driver documents">⬇</button>
                         <div class="view-toggle" id="driverViewToggle" role="group" aria-label="View mode">
                             <button type="button" class="view-toggle-btn active" data-view="cards" onclick="App.setDriverViewMode('cards')" title="Card view">▦ Cards</button>
                             <button type="button" class="view-toggle-btn" data-view="table" onclick="App.setDriverViewMode('table')" title="Table view">☰ Table</button>
@@ -254,6 +255,7 @@
                                 <option value="healthDesc">Sort: Health (best first)</option>
                                 <option value="nextService">Sort: Next service due</option>
                             </select>
+                            <button type="button" class="btn btn-primary btn-sm tb-dl" onclick="App.openDocDrawer('truck')" title="Download truck documents" aria-label="Download truck documents">⬇</button>
                             <select id="truckPageSize" onchange="App.onTruckFilterChange()" title="Trucks per page">
                                 <option value="12">12 / page</option>
                                 <option value="24">24 / page</option>
@@ -282,6 +284,7 @@
                                 <option value="valid">All valid</option>
                                 <option value="missing">Details missing</option>
                             </select>
+                            <button type="button" class="btn btn-primary btn-sm tb-dl" onclick="App.openDocDrawer('trailer')" title="Download trailer documents" aria-label="Download trailer documents">⬇</button>
                             <div class="toolbar-right"><button class="btn btn-primary btn-sm" onclick="App.addTrailerForm()">+
                                     Add Trailer</button></div>
                         </div>
