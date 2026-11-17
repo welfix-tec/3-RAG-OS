@@ -15131,7 +15131,8 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     const set = new Set(plateFilter.map(p => (p || '').trim().toUpperCase()));
                     list = list.filter(jc => set.has((jc.plate || '').trim().toUpperCase()));
                 }
-                return list;
+                // newest job card date first; cards of the same day by number
+                return list.slice().sort((a, b) => jcDoneDate(b).localeCompare(jcDoneDate(a)) || String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true }));
             }
 
             function aggregateTruckSpend(plate, filteredJcs) {
@@ -15298,8 +15299,16 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             }
             const REPORT_PRINT_CSS = `
                     body{font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#111;background:#fff;padding:24px;font-size:13px;margin:0}
-                    .rpt-section{border:1px solid #ddd;border-radius:8px;margin-bottom:18px;overflow:hidden;page-break-inside:avoid}
-                    .rpt-section-title{font-size:15px;font-weight:700;padding:12px 16px;background:#f0f4ff;border-bottom:1px solid #ddd;color:#1a1e28}
+                    .rpt-section{border:1px solid #ddd;border-radius:8px;margin-bottom:18px;overflow:hidden}
+                    .rpt-section-title{font-size:15px;font-weight:700;padding:12px 16px;background:#f0f4ff;border-bottom:1px solid #ddd;color:#1a1e28;page-break-after:avoid;break-after:avoid}
+                    .rpt-table thead{display:table-header-group}
+                    .rpt-table tr{page-break-inside:avoid;break-inside:avoid}
+                    .rpt-keep{page-break-inside:avoid;break-inside:avoid}
+                    .rpt-overview{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #ddd;border-radius:8px;margin-bottom:18px;overflow:hidden;background:#fafbfd;page-break-inside:avoid;break-inside:avoid}
+                    .rpt-ov-cell{padding:10px 16px;border-left:1px solid #e4e7ee}
+                    .rpt-ov-cell:first-child{border-left:none}
+                    .rpt-ov-cell .rpt-il{margin-bottom:3px}
+                    .rpt-ov-cell .rpt-iv{font-size:14px;font-weight:600;white-space:nowrap}
                     .rpt-id{font-size:11px;color:#888;font-weight:400;margin-left:8px}
                     .rpt-block{padding:12px 16px;border-bottom:1px solid #eee}
                     .rpt-block:last-child{border-bottom:none}
@@ -15310,7 +15319,11 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                     .rpt-iv{font-size:13px;font-weight:500;color:#111}
                     .rpt-table{width:100%;border-collapse:collapse;margin-top:4px;font-size:12px}
                     .rpt-table th{background:#3d7fff;color:#fff;padding:6px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase}
-                    .rpt-table td{padding:6px 10px;border-bottom:1px solid #eee}
+                    .rpt-table td{padding:6px 10px;border-bottom:1px solid #eee;vertical-align:top}
+                    .rpt-jc-summary{table-layout:fixed}
+                    .rpt-jc-summary th,.rpt-jc-summary td{padding:6px 7px;overflow-wrap:anywhere}
+                    .rpt-svc-list{margin:0;padding-left:14px;font-size:11px;line-height:1.45}
+                    .rpt-svc-list li{margin:0}
                     .rpt-table tr:nth-child(even) td{background:#f9f9f9}
                     .rpt-chip{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
                     .rpt-chip-high,.rpt-chip-expired{background:#fee;color:#c00}
@@ -15350,7 +15363,8 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             // "PDF downloaded ✓". Here every document is cut into pieces short enough to draw,
             // each piece becomes its own small PDF, and pdf-lib joins them into one file.
             const PDF_PAGE_WIDTH_PX = 733;      // A4 (210 mm) less 8 mm margins each side, at 96 dpi
-            const PDF_PIECE_MAX_PX = 6000;      // ×1.6 scale = 9,600 px canvas, far under the 32,767 px limit
+            const PDF_KEEP_WHOLE_PX = 620;      // sections up to about 60% of a page are kept on one page
+            const PDF_PIECE_MAX_PX = 10000;     // ×1.6 scale = 16,000 px canvas, under the 32,767 px limit. A new piece starts a new page, so fewer pieces = fewer part-empty pages (was 6000)
             const PDF_OPTIONS = {
                 margin: [6, 8, 8, 8],
                 image: { type: 'jpeg', quality: 0.82 },
@@ -15358,7 +15372,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 // page scrolls to its preview) comes out blank — the canvas is taken at the scrolled offset.
                 html2canvas: { scale: 1.6, backgroundColor: '#ffffff', useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
                 jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' },
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.rpt-info-cell', '.rpt-block-title', 'img'] }
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.rpt-info-cell', '.rpt-block-title', '.rpt-keep', 'img'] }
             };
             function shellOf(el) {
                 const clone = el.cloneNode(false);
@@ -15379,6 +15393,19 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 host.style.cssText = `position:fixed;left:-20000px;top:0;width:${PDF_PAGE_WIDTH_PX}px;background:#fff;visibility:hidden;pointer-events:none`;
                 host.innerHTML = `<style>${css || ''}</style><div class="pdf-root" style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#111">${html}</div>`;
                 document.body.appendChild(host);
+                // Nov 2026: a section used to be kept whole, so one too tall for the space left jumped to the next page and
+                // left the first page empty. Only short sections are kept whole now. A long one flows on; its title carries
+                // an invisible 150 px tail so that it moves to the next page unless there is room for a few rows under it.
+                host.querySelectorAll('.pdf-root .rpt-section').forEach(sec => {
+                    if (sec.getBoundingClientRect().height <= PDF_KEEP_WHOLE_PX) { sec.classList.add('rpt-keep'); return; }
+                    const title = sec.querySelector(':scope > .rpt-section-title');
+                    if (!title) return;
+                    const keep = document.createElement('div');
+                    keep.className = 'rpt-keep';
+                    keep.style.cssText = 'padding-bottom:150px;margin-bottom:-150px';
+                    title.replaceWith(keep);
+                    keep.appendChild(title);
+                });
                 const pieces = [];
                 let cur = [], curH = 0;
                 const flush = () => { if (cur.length) pieces.push(cur.join('')); cur = []; curH = 0; };
@@ -16001,7 +16028,8 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
             function _filterJobCardsByDate(items, dateFrom, dateTo) {
                 if (!dateFrom && !dateTo) return items;
                 return items.filter(item => {
-                    const d = (item.approvedAt || item.releasedAt || item.date || '').slice(0, 10);
+                    // Nov 2026: a card belongs to the period of its own date (the service date on the card), not the day it was approved
+                    const d = jcDoneDate(item);
                     if (!d) return false;
                     if (dateFrom && d < dateFrom) return false;
                     if (dateTo && d > dateTo) return false;
@@ -16020,19 +16048,20 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 if (needsJcData && !filtered.length && !types.includes('jobcard-recent-upcoming') && !types.includes('jobcard-downtime')) {
                     return '<div class="rpt-empty">No approved/released job cards in the selected period for the chosen trucks. Try widening the date range or selecting more trucks.</div>';
                 }
-                let html = `<div class="rpt-block" style="background:var(--accent-soft);border-bottom:1px solid var(--border)"><div class="rpt-info-grid"><div class="rpt-info-cell"><div class="rpt-il">Period</div><div class="rpt-iv">${periodLabel}</div></div><div class="rpt-info-cell"><div class="rpt-il">Trucks</div><div class="rpt-iv">${plates.length}</div></div><div class="rpt-info-cell"><div class="rpt-il">Job Cards</div><div class="rpt-iv">${filtered.length}</div></div></div></div>`;
+                let html = `<div class="rpt-overview"><div class="rpt-ov-cell"><div class="rpt-il">Period</div><div class="rpt-iv">${periodLabel}</div></div><div class="rpt-ov-cell"><div class="rpt-il">Trucks</div><div class="rpt-iv">${plates.length}</div></div><div class="rpt-ov-cell"><div class="rpt-il">Job cards</div><div class="rpt-iv">${filtered.length}</div></div></div>`;
 
                 if (types.includes('jobcard-summary')) {
                     const rows = filtered.map(jc => {
                         const t = jcTotals(jc);
                         const svcCount = getJcCompletedServices(jc).length;
-                        const svcList = getJcCompletedServices(jc).map(s => xmlEscape(s.name)).join(', ') || '—';
-                        return `<tr><td>${jc.id}</td><td>${formatTruckLabelFromPlate(jc.plate || '')}</td><td>${xmlEscape(jc.driver || '')}</td><td>${jcApprovalTimestamp(jc).slice(0, 10)}</td><td>${svcCount}</td><td style="max-width:200px;font-size:11px">${svcList}</td><td>${formatRwf(t.actC)}</td><td>${jc.status || '—'}</td></tr>`;
+                        const svcNames = getJcCompletedServices(jc).map(s => xmlEscape(s.name));
+                        const svcList = svcNames.length ? `<ul class="rpt-svc-list">${svcNames.map(n => `<li>${n}</li>`).join('')}</ul>` : '—';
+                        return `<tr><td>${jc.id}</td><td>${formatTruckLabelFromPlate(jc.plate || '')}</td><td>${xmlEscape(jc.driver || '')}</td><td>${esc(fmtD(jcDoneDate(jc)) || '—')}</td><td>${svcCount}</td><td>${svcList}</td><td>${formatRwf(t.actC)}</td><td>${jc.status || '—'}</td></tr>`;
                     }).join('');
                     const totalCost = filtered.reduce((s, jc) => s + jcTotals(jc).actC, 0);
                     html += `<div class="rpt-section"><div class="rpt-section-title">🧾 Job Card Summary</div><div class="rpt-block">
                     <div class="rpt-info-grid" style="margin-bottom:12px"><div class="rpt-info-cell"><div class="rpt-il">Cards</div><div class="rpt-iv">${filtered.length}</div></div><div class="rpt-info-cell"><div class="rpt-il">Fleet spend</div><div class="rpt-iv">${formatRwf(totalCost)}</div></div></div>
-                    ${rows ? `<table class="rpt-table"><thead><tr><th>ID</th><th>Truck</th><th>Driver</th><th>Date</th><th># Svc</th><th>Services</th><th>Cost</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="rpt-empty">No job cards in period</div>'}
+                    ${rows ? `<table class="rpt-table rpt-jc-summary"><colgroup><col style="width:9%"><col style="width:17%"><col style="width:16%"><col style="width:11%"><col style="width:6%"><col><col style="width:9%"><col style="width:10%"></colgroup><thead><tr><th>ID</th><th>Truck</th><th>Driver</th><th>Job card date</th><th># Svc</th><th>Services</th><th>Cost</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="rpt-empty">No job cards in period</div>'}
                     </div></div>`;
                 }
 
@@ -16048,7 +16077,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                                 const name = xmlEscape(m.name || dl?.name || 'Extra work');
                                 return `<li>${name} — ${formatRwf(m.actualCost || 0)}</li>`;
                             }).join('') || '<li>No completed work</li>';
-                            html += `<div class="rpt-block"><div style="font-weight:700;margin-bottom:8px">${jc.id} · ${formatTruckLabelFromPlate(jc.plate || '')} · ${jcApprovalTimestamp(jc).slice(0, 10)}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><div class="rpt-block-title" style="margin-bottom:6px">Requested Services</div><ul style="margin:0;padding-left:18px">${requested}</ul></div><div><div class="rpt-block-title" style="margin-bottom:6px">Final Completed Work</div><ul style="margin:0;padding-left:18px">${finalWork}</ul></div></div></div>`;
+                            html += `<div class="rpt-block"><div style="font-weight:700;margin-bottom:8px">${jc.id} · ${formatTruckLabelFromPlate(jc.plate || '')} · ${esc(fmtD(jcDoneDate(jc)) || '—')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><div class="rpt-block-title" style="margin-bottom:6px">Requested Services</div><ul style="margin:0;padding-left:18px">${requested}</ul></div><div><div class="rpt-block-title" style="margin-bottom:6px">Final Completed Work</div><ul style="margin:0;padding-left:18px">${finalWork}</ul></div></div></div>`;
                         });
                     }
                     html += `</div>`;
@@ -16120,7 +16149,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                                     `<tr><td>${xmlEscape(s.name)}</td><td>${esc(fmtD(s.date))}</td><td>${formatRwf(s.cost)}</td><td>${s.unplanned ? 'Unplanned' : 'Planned'}</td></tr>`
                                 ).join('');
                                 html += `<div style="margin-bottom:14px;padding:10px;background:var(--bg4);border-radius:8px">
-                                    <div style="font-weight:600;margin-bottom:6px">${jc.id} · ${jcApprovalTimestamp(jc).slice(0, 10)} · ${formatRwf(cost)} · ${services.length} service(s)</div>
+                                    <div style="font-weight:600;margin-bottom:6px">${jc.id} · ${esc(fmtD(jcDoneDate(jc)) || '—')} · ${formatRwf(cost)} · ${services.length} service(s)</div>
                                     <table class="rpt-table"><thead><tr><th>Service</th><th>Date</th><th>Cost</th><th>Type</th></tr></thead><tbody>${svcRows}</tbody></table>
                                 </div>`;
                             });

@@ -4167,3 +4167,16 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
 .bi-same-group { display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; justify-content: flex-end; }
 .bi-same-doc select { width: auto; max-width: 190px; padding: 5px 26px 5px 8px; font-size: 12px; background-color: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
 .bi-same-doc select:disabled { opacity: .55; }
+
+/* Nov 2026 (V2.04): job card report — services as bullets, fixed columns, rows aligned at the top */
+.rpt-print-area .rpt-table td { vertical-align: top; }
+.rpt-jc-summary { table-layout: fixed; }
+.rpt-jc-summary th, .rpt-jc-summary td { overflow-wrap: anywhere; }
+.rpt-svc-list { margin: 0; padding-left: 16px; font-size: 11.5px; line-height: 1.45; }
+.rpt-svc-list li { margin: 0; }
+.rpt-overview { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; background: var(--bg3); }
+.rpt-ov-cell { padding: 10px 16px; border-left: 1px solid var(--border); }
+.rpt-ov-cell:first-child { border-left: none; }
+.rpt-ov-cell .rpt-il { margin-bottom: 3px; }
+.rpt-ov-cell .rpt-iv { font-size: 14px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 560px) { .rpt-ov-cell .rpt-iv { white-space: normal; } }
