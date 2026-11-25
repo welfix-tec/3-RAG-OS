@@ -1102,13 +1102,14 @@
                - older record registered by the Orders page, never changed by the admin: Orders only
                - Admin role: always FleetGuard, so the administrator can never be locked out of Users */
             function userPages(u) {
-                if (!u || typeof u !== 'object') return { fleetguard: false, orders: false };
+                // Nov 2026: a third tick, "hse", for the HSE page (hse-page.html). Only an explicit tick gives it; an Admin always has it.
+                if (!u || typeof u !== 'object') return { fleetguard: false, orders: false, hse: false };
                 const p = u.pages && typeof u.pages === 'object' ? u.pages : null;
                 let r;
-                if (!p) r = { fleetguard: true, orders: false };
-                else if (u.via === 'Orders page' && !u.pagesSetAt) r = { fleetguard: false, orders: true };
-                else r = { fleetguard: p.fleetguard === true, orders: p.orders === true };
-                if (u.role === 'Admin') r.fleetguard = true;
+                if (!p) r = { fleetguard: true, orders: false, hse: false };
+                else if (u.via === 'Orders page' && !u.pagesSetAt) r = { fleetguard: false, orders: true, hse: false };
+                else r = { fleetguard: p.fleetguard === true, orders: p.orders === true, hse: p.hse === true };
+                if (u.role === 'Admin') { r.fleetguard = true; r.hse = true; }
                 return r;
             }
             function renderUsersAdmin() {
@@ -1134,20 +1135,21 @@
                     <div><label style="display:block;font-size:11px;color:var(--text3);margin:0 0 4px">Name</label><input id="uaName" type="text" placeholder="Full name" style="${inp}"></div>
                     <div><label style="display:block;font-size:11px;color:var(--text3);margin:0 0 4px">First password * (6+)</label><input id="uaPass" type="password" required minlength="6" autocomplete="new-password" style="${inp}"></div>
                     <div><label style="display:block;font-size:11px;color:var(--text3);margin:0 0 4px">Job-card role</label><select id="uaRole" style="${inp}">${USER_ROLES.map(r => `<option>${r}</option>`).join('')}</select></div>
-                    <div style="display:flex;gap:12px;align-items:center;font-size:12.5px;padding-bottom:6px"><label style="display:flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="uaFg" checked> FleetGuard</label><label style="display:flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="uaOrd"> Orders</label></div>
+                    <div style="display:flex;gap:12px;align-items:center;font-size:12.5px;padding-bottom:6px"><label style="display:flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="uaFg" checked> FleetGuard</label><label style="display:flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="uaOrd"> Orders</label><label style="display:flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="uaHse"> HSE</label></div>
                     <div><button class="btn btn-primary btn-sm" id="uaBtn" type="submit" style="width:100%">＋ Add user</button></div>
                 </form>
                 <div style="font-size:11px;color:var(--text3);margin:8px 2px 0">Give the person their first password privately; they can change it with the reset email. Accounts made directly in Firebase appear here after their first sign-in.</div>
                 <div style="overflow-x:auto;margin-top:12px"><table class="rpt-table" style="width:100%;font-size:12.5px">
-                    <thead><tr><th>User</th><th style="text-align:center">FleetGuard</th><th style="text-align:center">Orders</th><th>Job-card role</th><th style="text-align:center">Active</th><th></th></tr></thead>
+                    <thead><tr><th>User</th><th style="text-align:center">FleetGuard</th><th style="text-align:center">Orders</th><th style="text-align:center">HSE</th><th>Job-card role</th><th style="text-align:center">Active</th><th></th></tr></thead>
                     <tbody>${rows.map(u => { const p = userPages(u), self = u.uid === me, on = u.active !== false; return `<tr style="${on ? '' : 'opacity:.55'}">
                         <td><b>${esc(u.email || '(no email)')}</b>${self ? ' <span style="font-size:10.5px;color:var(--text3)">(you)</span>' : ''}${u.name ? `<div style="font-size:11px;color:var(--text3)">${esc(u.name)}</div>` : ''}</td>
                         <td style="text-align:center"><input type="checkbox" ${p.fleetguard ? 'checked' : ''} ${self ? 'disabled title="You cannot remove your own FleetGuard access"' : u.role === 'Admin' ? 'disabled title="Admins always have FleetGuard — change the role first"' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','fleetguard',this.checked)"></td>
                         <td style="text-align:center"><input type="checkbox" ${p.orders ? 'checked' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','orders',this.checked)"></td>
+                        <td style="text-align:center"><input type="checkbox" ${p.hse ? 'checked' : ''} ${u.role === 'Admin' ? 'disabled title="Admins always have the HSE page — change the role first"' : ''} onchange="App.setUserPage('${escAttr(u.uid)}','hse',this.checked)"></td>
                         <td><select style="padding:4px 26px 4px 8px;font-size:12px;min-width:118px" onchange="App.setUserRole('${escAttr(u.uid)}',this.value)">${USER_ROLES.map(r => `<option ${(u.role || 'Driver') === r ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
                         <td style="text-align:center"><input type="checkbox" ${on ? 'checked' : ''} ${self ? 'disabled title="You cannot turn off your own account"' : ''} onchange="App.setUserActive('${escAttr(u.uid)}',this.checked)"></td>
                         <td style="text-align:right">${u.email ? `<button class="btn btn-ghost btn-xs" onclick="App.sendUserReset('${escAttr(u.uid)}')" title="Send ${escAttr(u.email)} a password-reset email" aria-label="Send a password-reset email">✉</button>` : ''}</td>
-                    </tr>`; }).join('') || '<tr><td colspan="6" style="color:var(--text3)">No users yet.</td></tr>'}</tbody>
+                    </tr>`; }).join('') || '<tr><td colspan="7" style="color:var(--text3)">No users yet.</td></tr>'}</tbody>
                 </table></div>`;
             }
             function userLabel(uid) { const u = usersList && usersList[uid]; return (u && u.email) || uid; }
@@ -1162,7 +1164,7 @@
                 const me = window.auth && window.auth.currentUser ? window.auth.currentUser.uid : '';
                 if (uid === me && page === 'fleetguard' && !on) { renderUsersAdmin(); return; }
                 const p = userPages(usersList && usersList[uid]); p[page] = !!on;
-                userWrite(uid, { pages: p, pagesSetAt: Date.now(), pagesSetBy: getCurrentUserLabel() }, `${userLabel(uid)}: ${page === 'orders' ? 'Orders page' : 'FleetGuard'} ${on ? 'allowed' : 'removed'}`);
+                userWrite(uid, { pages: p, pagesSetAt: Date.now(), pagesSetBy: getCurrentUserLabel() }, `${userLabel(uid)}: ${page === 'orders' ? 'Orders page' : page === 'hse' ? 'HSE page' : 'FleetGuard'} ${on ? 'allowed' : 'removed'}`);
             }
             function setUserActive(uid, on) {
                 const me = window.auth && window.auth.currentUser ? window.auth.currentUser.uid : '';
@@ -1187,10 +1189,10 @@
                 if (!usersOpen()) { showToast('Users is locked — open it with the admin PIN'); renderUsersAdmin(); return; }
                 const g = id => document.getElementById(id);
                 const email = g('uaEmail').value.trim().toLowerCase(), name = g('uaName').value.trim(), pass = g('uaPass').value;
-                const role = g('uaRole').value, pages = { fleetguard: g('uaFg').checked, orders: g('uaOrd').checked };
+                const role = g('uaRole').value, pages = { fleetguard: g('uaFg').checked, orders: g('uaOrd').checked, hse: g('uaHse').checked };
                 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Enter a valid email'); return; }
                 if (pass.length < 6) { showToast('The first password needs at least 6 characters'); return; }
-                if (!pages.fleetguard && !pages.orders) { showToast('Tick at least one page: FleetGuard or Orders'); return; }
+                if (!pages.fleetguard && !pages.orders && !pages.hse) { showToast('Tick at least one page: FleetGuard, Orders or HSE'); return; }
                 const b = g('uaBtn'); b.disabled = true; b.textContent = 'Adding…';
                 let sec = null;
                 try {
@@ -1200,7 +1202,7 @@
                     if (name) await cred.user.updateProfile({ displayName: name }).catch(() => {});
                     await database.ref('users/' + cred.user.uid).set({ email, name, role, pages, pagesSetAt: Date.now(), pagesSetBy: getCurrentUserLabel(), active: true, createdAt: Date.now(), createdBy: getCurrentUserLabel() });
                     await sec.auth().signOut().catch(() => {});
-                    const where = [pages.fleetguard && 'FleetGuard', pages.orders && 'Orders'].filter(Boolean).join(' + ');
+                    const where = [pages.fleetguard && 'FleetGuard', pages.orders && 'Orders', pages.hse && 'HSE'].filter(Boolean).join(' + ');
                     logAudit('add-user', 'users', cred.user.uid, `Added ${email} (${where}, ${role})`); saveAll(['auditTrail']);
                     showToast(`${email} added — ${where}`);
                     usersUnlockedUntil = Date.now() + 5 * 60 * 1000;
@@ -1218,7 +1220,7 @@
             function fgAccessBlock(rec) {
                 if (!rec) return 'This account has no access yet. Ask the administrator to give it access in Settings → Users.';
                 if (rec.active === false) return 'This account has been turned off. Ask the administrator.';
-                if (!userPages(rec).fleetguard) return userPages(rec).orders ? 'This account is for the Orders page only.' : 'This account has no access yet. Ask the administrator to give it access in Settings → Users.';
+                if (!userPages(rec).fleetguard) return userPages(rec).orders ? (userPages(rec).hse ? 'This account is for the Orders and HSE pages only.' : 'This account is for the Orders page only.') : userPages(rec).hse ? 'This account is for the HSE page only.' : 'This account has no access yet. Ask the administrator to give it access in Settings → Users.';
                 return '';
             }
             let _ownAccessRef = null;
@@ -1229,6 +1231,7 @@
                 if (er) {
                     er.textContent = msg;
                     if (rec && rec.active !== false && userPages(rec).orders) { const a = document.createElement('a'); a.href = 'orders-page.html'; a.textContent = 'Go to Orders →'; a.style.cssText = 'display:block;margin-top:6px;color:#fff;font-weight:600'; er.appendChild(a); }
+                    if (rec && rec.active !== false && userPages(rec).hse) { const a = document.createElement('a'); a.href = 'hse-page.html'; a.textContent = 'Go to HSE →'; a.style.cssText = 'display:block;margin-top:6px;color:#fff;font-weight:600'; er.appendChild(a); }
                     er.style.display = 'block';
                 }
                 const ld = document.getElementById('app-loading-msg'); if (ld) ld.style.display = 'none';
@@ -2015,6 +2018,9 @@
                 const chaseChanged = chaseJson !== _lastChaseJson;
                 if (chaseChanged) { _lastChaseJson = chaseJson; docChases = data.docChases || {}; attnChanged = true; }   // same redraw path as the attention list
                 try { updateFinancePinUI(); } catch (e) { /* settings page not drawn yet */ }
+                // Records from the HSE page (view only here)
+                const hseJson = JSON.stringify(data.hse || {});
+                if (hseJson !== _lastHseJson) { _lastHseJson = hseJson; hseData = (data.hse && typeof data.hse === 'object') ? data.hse : {}; attnChanged = true; }   // same redraw path as the attention list
                 // Orders from the Orders page (view only) and the offload reports sent from here
                 const opsJson = JSON.stringify([data.opsOrders || {}, data.offloadReports || {}, (data.opsSettings && data.opsSettings.statusNames) || []]);
                 if (opsJson !== _lastOpsJson) {
@@ -3140,9 +3146,20 @@ function _afterLoad() {
             // refresh always opens the Dashboard in its default state. Genuine preferences
             // (card/table view, page size, theme) are deliberately left alone.
             const NAV_STATE_KEYS = ['fg3_active_page', 'fg3_truck_subtab', 'fg3_jc_page_tab', 'fg3_violation_subpage',
-                'fg3_hsc_subpage', 'fg3_reports_cat', 'fg3_driver_status_filter', 'fg3_driver_table_sort'];
+                'fg3_hsc_subpage', 'fg3_reports_cat', 'fg3_driver_status_filter', 'fg3_driver_table_sort', 'fg3_jc_status_filter'];
             function resetNavigationState() {
                 NAV_STATE_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+                // Nov 2026: the browser puts back what was typed or chosen in a page's search boxes and filter lists when the
+                // page is refreshed. Put every one of them back to how the page ships, on every page (Settings is left alone:
+                // its boxes are filled from the saved settings).
+                try {
+                    document.querySelectorAll('.page .toolbar input, .page .toolbar select, .page .search-wrap input, .page input[type="search"]').forEach(el => {
+                        if (el.closest('#page-settings')) return;
+                        if (el.tagName === 'SELECT') { const d = [...el.options].findIndex(o => o.defaultSelected); el.selectedIndex = d >= 0 ? d : 0; }
+                        else if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
+                        else el.value = el.defaultValue || '';
+                    });
+                } catch (e) { /* never block start-up */ }
                 try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
             }
 
@@ -3180,7 +3197,7 @@ function _afterLoad() {
                     dashboard: 'Command Dashboard', drivers: 'Driver Management',
                     trucks: 'Truck Fleet Health', jobcards: 'Garage Job Cards',
                     violations: 'Violation & Accidents',
-                    settings: 'System Settings', hscpolicy: 'HSE Policy',
+                    settings: 'System Settings', hscpolicy: 'HSE',
                     reports: 'Reports Center', orders: 'Cargo & Load Orders',
                     recyclebin: 'Recycle Bin'
                 }[page] || 'Dashboard';
@@ -4306,6 +4323,7 @@ function _afterLoad() {
                         <div class="info-cell"><div class="il">Health Status</div><div class="iv"><input type="text" value="${esc(d.healthStatus || '')}" onchange="App.updateDriverField(${idx}, 'healthStatus', this.value)" style="${dateInputStyle}"></div></div>
                     </div>
                 </div>
+                ${hseDriverSectionHtml(d)}
                 <div class="section">
                     <div class="section-title">Attachments 
                         <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="document.getElementById('driverAttachmentInput_${idx}')?.click(); event.stopPropagation()">+ Upload</button><button class="btn btn-ghost btn-xs" style="margin-left:6px" title="Download documents of the linked driver, truck and trailer" aria-label="Download documents of the linked driver, truck and trailer" onclick="App.openAttachBundle('driver',${idx});event.stopPropagation()">⬇</button>
@@ -4767,15 +4785,11 @@ function _afterLoad() {
                 ${d.accidentsList.length ? d.accidentsList.map((a, i) => `<div style="display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--border)">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                         <span style="flex:1"><span class="vtag vtag-${(a.recordType || a.type || 'accident').toLowerCase() === 'incident' ? 'medium' : 'high'}">${(a.recordType || a.type || 'accident').toLowerCase() === 'incident' ? 'Incident' : 'Accident'}</span> <b>${esc(fmtD(a.date) || '—')}</b>${a.truckPlate ? ` <span style="color:var(--text3)">· ${esc(a.truckPlate)}</span>` : ''}: ${esc(String(a.description || 'No details'))}</span>
-                        <div style="display:flex;gap:4px;flex-shrink:0">
-                            <button class="btn btn-xs btn-ghost btn-icon" onclick="App.openEditAccidentModal(${idx}, ${i})" title="Edit record">✎</button>
-                            <button class="btn btn-xs btn-ghost btn-icon" style="color:var(--red)" onclick="App.removeFromList(${idx},'accidentsList',${i})" title="Delete record">✕</button>
-                        </div>
                     </div>
                     ${a.measuresTaken ? `<div style="margin-top:4px;padding:6px 8px;background:rgba(34,201,122,0.06);border-left:2px solid var(--green);border-radius:4px;font-size:11px;color:var(--text2)"><strong>Measures Taken:</strong> ${esc(String(a.measuresTaken))}</div>` : ''}
                 </div>`).join('') : '<p style="color:var(--text3)">No accidents</p>'}
             </div>
-            ${driverSubFooter(idx, `<button class="btn btn-primary btn-sm" onclick="App.addAccidentItem(${idx})">+ Add Accident</button>`)}`);
+            ${driverSubFooter(idx, '')}`);
             }
             function openLossesDetailModal(idx) {
                 const d = drivers.find(x => x._idx === idx);
@@ -7071,7 +7085,7 @@ function _afterLoad() {
             function getApplicableHsePolicy(violationType) {
                 const t = String(violationType || '').trim().toLowerCase();
                 if (!t) return null;
-                const list = Array.isArray(hscPolicies) ? hscPolicies : [];
+                const list = hseList('policies').length ? hseList('policies') : (Array.isArray(hscPolicies) ? hscPolicies : []);
                 const linked = list.find(p => Array.isArray(p.linkedViolationTypes) && p.linkedViolationTypes.some(x => String(x).trim().toLowerCase() === t));
                 if (linked) return linked;
                 const byTitle = list.find(p => {
@@ -7673,7 +7687,7 @@ function _afterLoad() {
                             <div style="font-size:12px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Incident Register</div>
                             <div style="font-size:18px;font-family:var(--font-display);font-weight:700;color:var(--text)">Accidents &amp; Incidents</div>
                         </div>
-                        <button class="btn btn-primary btn-sm" onclick="App.openAddAccidentModal()">+ Add Record</button>
+                        <div style="display:flex;align-items:center;gap:8px"><a href="hse-page.html" target="_blank" rel="noopener" title="Open the HSE page (new tab, sign-in needed)" aria-label="Open the HSE page in a new tab" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;background:none;color:var(--text3)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a></div>
                     </div>
                     <div class="toolbar" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
                         <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="accidentSearch" placeholder="Search ID, driver, truck, location…" value="${esc(currentSearch)}" oninput="App.onAccidentSearchInput()" style="min-width:220px"></div>
@@ -7716,7 +7730,7 @@ function _afterLoad() {
                 const host = document.getElementById('accidentResults');
                 if (!host) return;
                 const visibleList = getFilteredIncidentRecords();
-                const canEdit = true;
+                const canEdit = false;   // Nov 2026: view only here — records are added, edited and deleted on the HSE page (hse-page.html)
                 host.innerHTML = visibleList.length ? visibleList.map(item => {
                     const r = item.rec, v = item.view;
                     const isIncident = v.recordType === 'incident';
@@ -7782,10 +7796,10 @@ function _afterLoad() {
                             </div>` : '<div style="font-size:12px;color:var(--text3)">No attachments uploaded.</div>'}
                         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
                             <div style="font-size:10px;color:var(--text3)">${r.createdBy ? `Recorded by ${esc(r.createdBy)}` : ''}${r.updatedAt ? ` · updated ${esc(fmtD(r.updatedAt))}` : ''}${r.closedAt ? ` · closed ${esc(fmtD(r.closedAt))}` : ''}</div>
-                            <div style="display:flex;gap:8px">
+                            ${canEdit ? `<div style="display:flex;gap:8px">
                                 <button class="btn btn-ghost btn-xs" onclick="App.openEditAccidentModal(${args})" title="Edit record">✎ Edit</button>
                                 <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="App.deleteAccidentEntry(${args})" title="Delete record">🗑 Delete</button>
-                            </div>
+                            </div>` : ''}
                         </div>
                     </div>`;
                 }).join('') : '<div class="empty-state"><div class="e-icon">🚗</div><p>No records match the current filters.</p></div>';
@@ -10566,6 +10580,252 @@ function _afterLoad() {
 
 
 
+            // ═══════════ HSE PAGE FEED (Nov 2026) — VIEW ONLY here ═══════════
+            // fleetguard/hse/<collection>/<id> is written ONLY by hse-page.html; it is read here and never changed here.
+            // It is not one of FB_COLLECTIONS, so saveAll() never writes it. The earlier hscPolicies / hscMeetings
+            // collections stay stored untouched; the HSE page copies them across ("Transfer now") and remembers what it
+            // copied under fleetguard/hse/transferred. hseLegacyKey() must match legKey() in hse-page.html.
+            let hseData = {}, _lastHseJson = '';
+            const HSE_VIEW_TABS = ['rules', 'meetings', 'trainings', 'vehicles'];
+            const HSE_TRAIN_BUILTIN = { defensive: 'Driver Defensive Training', fire: 'Fire fighting Training' };
+            function hseArr(v) { return !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean); }
+            function hseList(col) { return hseArr(hseData && hseData[col]).filter(x => typeof x === 'object'); }
+            function hseByDate(a, b) { return String(b.date || '').localeCompare(String(a.date || '')) || (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0); }
+            function hseTrainName(id) { return HSE_TRAIN_BUILTIN[id] || (((hseData && hseData.trainTypes) || {})[id] || {}).name || 'Training'; }
+            function hseLegacyKey(p, r) { return 'fg_' + p + '_' + String(r.id || r.title || '').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60); }
+            function hseLegacyWaiting() {
+                const done = (hseData && hseData.transferred) || {};
+                return (Array.isArray(hscPolicies) ? hscPolicies : []).filter(r => r && !done[hseLegacyKey('pol', r)]).length +
+                       (Array.isArray(hscMeetings) ? hscMeetings : []).filter(r => r && !done[hseLegacyKey('mtg', r)]).length;
+            }
+            // A driver is matched by the record number FleetGuard gives them (_idx), which never changes — the driver ID
+            // follows the truck plate, so it cannot be used. Names carried over from the earlier meetings match by name.
+            function hseAttended(rec, d) {
+                const nm = String(d.name || '').trim().toLowerCase();
+                return hseArr(rec.attendees).some(a => (a.idx !== undefined && a.idx !== null) ? Number(a.idx) === d._idx
+                    : (a.type !== 'staff' && !!nm && String(a.name || '').trim().toLowerCase() === nm));
+            }
+            function hseDriverHistory(d) {
+                const rows = [];
+                hseList('toolbox').forEach(m => { if (hseAttended(m, d)) rows.push({ date: m.date || '', topic: m.topic || m.title || 'Toolbox meeting', kind: 'Toolbox meeting', createdAt: m.createdAt, col: 'toolbox', id: m.id }); });
+                hseList('trainings').forEach(t => { if (hseAttended(t, d)) rows.push({ date: t.date || '', topic: hseTrainName(t.typeId) + (t.title ? ' — ' + t.title : ''), kind: 'Training', createdAt: t.createdAt, col: 'trainings', id: t.id }); });
+                return rows.sort(hseByDate);
+            }
+            function hseDriverSectionHtml(d) {
+                const rows = hseDriverHistory(d);
+                return `<details class="section hse-driver-history">
+                    <summary class="section-title" style="cursor:pointer;display:list-item;list-style-position:inside">Trainings &amp; Meetings <span style="font-weight:400;color:var(--text3)">(${rows.length})</span></summary>
+                    ${rows.length ? rows.map(r => `<div style="display:flex;gap:12px;align-items:baseline;padding:7px 2px;border-bottom:1px solid var(--border);font-size:13px">
+                        <span style="font-family:var(--font-mono);font-size:12px;color:var(--text2);white-space:nowrap">${esc(hscDateLabel(r.date))}</span>
+                        <span style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(r.topic)}</span>
+                        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);white-space:nowrap">${esc(r.kind)}</span>
+                        ${r.id ? `<button type="button" onclick="event.stopPropagation();App.openHseRecord('${r.col}','${escAttr(r.id)}',true)" title="Read this ${r.kind === 'Training' ? 'training' : 'meeting'}" aria-label="Read this ${r.kind === 'Training' ? 'training' : 'meeting'}" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;background:none;color:var(--text3);cursor:pointer;flex-shrink:0;align-self:center"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>` : ''}
+                    </div>`).join('') : '<p style="color:var(--text3);font-size:13px;margin-top:8px">No trainings or toolbox meetings recorded for this driver on the HSE page.</p>'}
+                </details>`;
+            }
+            function hseFilesHtml(files) {
+                files = hseArr(files);
+                if (!files.length) return '<p style="color:var(--text3);font-size:13px">No attachments.</p>';
+                return files.map(f => {
+                    const u = String(f.url || ''), web = /^https:\/\//i.test(u), inl = /^data:(application\/pdf|image\/)/i.test(u);
+                    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--bg2);font-size:13px">
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name || 'Attachment')}</span>
+                        ${f.kind ? `<span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">${esc(f.kind)}</span>` : ''}
+                        ${web ? `<a href="${esc(u)}" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;font-size:12px;text-decoration:none">Open</a>` : inl ? `<a href="${esc(u)}" download="${esc(f.name || 'file')}" style="color:var(--accent2);font-weight:600;font-size:12px;text-decoration:none">Download</a>` : '<span style="font-size:11px;color:var(--text3)">not uploaded</span>'}
+                    </div>`;
+                }).join('');
+            }
+            function hseCardHtml(col, r, top, title, text, meta) {
+                return `<div onclick="App.openHseRecord('${col}','${escAttr(r.id)}')" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:7px">
+                    <div style="font-size:11px;font-weight:700;color:var(--accent2)">${top}</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--text);overflow-wrap:anywhere">${esc(title)}</div>
+                    <div style="font-size:12px;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(text || '')}</div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:auto">${esc(meta)}</div>
+                </div>`;
+            }
+            // ── Look of the HSE tab (page tabs, sub-tabs, icon buttons) and of the printed forms. Added to the page once; the same
+            //    paper rules are written into the print window, so screen, print and PDF match hse-page.html.
+            let hseVehTab = 'safeToLoad';
+            const HSE_ICON = {
+                eye: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+                print: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+                download: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>'
+            };
+            const HSE_PAPER_CSS = `
+.hse-paper{background:#fff;color:#000;font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12.5px;line-height:1.35;padding:0 30px 26px;min-width:640px;text-align:left}
+.hse-paper .p-head{margin:0 -30px 14px;overflow:hidden;aspect-ratio:1414/276}
+.hse-paper .p-head img{display:block;width:100%}
+.hse-paper .p-title{text-align:center;font-size:17px;font-weight:700;margin:4px 0 14px;text-decoration:underline}
+.hse-paper .p-line{margin:7px 0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 6px}
+.hse-paper .p-fill{display:inline-block;border-bottom:1px dotted #000;padding:0 6px;font-weight:600}
+.hse-paper .p-note{font-style:italic;margin:8px 0 2px}
+.hse-paper .p-sub{font-weight:700;margin:12px 0 5px}
+.hse-paper table.p-tbl{width:100%;border-collapse:separate;border-spacing:0;border-top:1px solid #000;border-left:1px solid #000;margin-top:10px;font-size:12px}
+.hse-paper table.p-tbl.joined{margin-top:0;border-top:none}
+.hse-paper table.p-tbl tr>th,.hse-paper table.p-tbl tr>td{border:none;border-right:1px solid #000;border-bottom:1px solid #000;padding:4px 6px;color:#000;background:#fff;vertical-align:top;font-size:12px;text-transform:none;letter-spacing:0;white-space:normal;text-align:left}
+.hse-paper table.p-tbl tr>th{background:#e6e6e6;font-weight:700;text-align:center}
+.hse-paper table.p-tbl tr>td.c{text-align:center}
+.hse-paper table.p-tbl tr>td.mk{text-align:center;font-weight:700;font-size:14px;vertical-align:middle}
+.hse-paper table.p-tbl tr{break-inside:avoid;page-break-inside:avoid}
+.hse-paper table.p-tbl tr.p-sec>td{font-weight:700;background:#f1f1f1}
+.hse-paper .p-tick{display:flex;align-items:stretch;margin:16px 0 14px;border:1.5px solid #000;font-weight:700;width:fit-content;max-width:100%}
+.hse-paper .p-tick>b{display:flex;align-items:center;padding:8px 14px;background:#e6e6e6;border-right:1.5px solid #000;letter-spacing:.04em}
+.hse-paper .p-tick>span{display:inline-flex;align-items:center;gap:10px;padding:8px 18px;font-weight:600;color:#444}
+.hse-paper .p-tick>span+span{border-left:1px solid #000}
+.hse-paper .p-tick>span.on{font-weight:800;color:#000}
+.hse-paper .p-box-t{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:2px solid #000;border-radius:3px;font-size:17px;font-weight:900;line-height:1;background:#fff}
+.hse-paper .p-defects{border:1px solid #000;min-height:64px;padding:6px 8px;white-space:pre-wrap}`;
+            function hseEnsureCss() {
+                if (document.getElementById('hseViewerCss')) return;
+                const st = document.createElement('style'); st.id = 'hseViewerCss';
+                st.textContent = HSE_PAPER_CSS + `
+#page-hscpolicy .rpt-tabs{display:flex!important;gap:6px!important;padding:6px!important;background:var(--bg2)!important;border:1px solid var(--border)!important;border-radius:14px!important;overflow-x:auto;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+#page-hscpolicy .rpt-tab{flex:1 1 0;min-width:150px;display:flex!important;align-items:center;justify-content:center;gap:8px;padding:12px 14px!important;margin:0!important;border:none!important;border-radius:10px!important;background:transparent!important;color:var(--text2)!important;font-size:13.5px!important;font-weight:700!important;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s}
+#page-hscpolicy .rpt-tab:hover{background:var(--bg3)!important;color:var(--text)!important}
+#page-hscpolicy .rpt-tab.active{background:var(--accent)!important;color:#fff!important;box-shadow:0 6px 16px rgba(225,37,27,.28)}
+.hse-tab-n{font-size:11px;font-weight:800;padding:1px 8px;border-radius:99px;background:var(--bg4);color:var(--text2);line-height:1.5}
+#page-hscpolicy .rpt-tab.active .hse-tab-n,.hse-subtab.active .hse-tab-n{background:rgba(255,255,255,.24);color:#fff}
+.hse-subtabs{display:inline-flex;gap:4px;padding:4px;background:var(--bg2);border:1px solid var(--border);border-radius:99px;margin-bottom:14px}
+.hse-subtab{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border:none;border-radius:99px;background:transparent;color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.hse-subtab:hover{color:var(--text)}
+.hse-subtab.active{background:var(--text);color:var(--bg2)}
+.hse-ib{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:none;background:none;border-radius:8px;color:var(--text3);cursor:pointer}
+.hse-ib:hover{background:var(--bg4);color:var(--text)}`;
+                document.head.appendChild(st);
+            }
+            function setHseVehTab(k) { hseVehTab = k; renderHscPolicies(); }
+            // The filled checklist drawn like the printed form (same layout as hse-page.html → paperHtml).
+            function hsePaperHtml(kind, r) {
+                const e = x => esc(x || ''), fill = (x, w) => `<span class="p-fill" style="min-width:${w || 160}px">${e(x)}&nbsp;</span>`;
+                const ans = i => i.ans || (i.ok === true ? 'yes' : i.ok === false ? 'no' : ''), dt = x => x ? hscDateLabel(x) : '';
+                const secs = [];
+                hseArr(r.items).forEach(i => { let g = secs.find(x => x.sec === i.sec); if (!g) secs.push(g = { sec: i.sec, items: [] }); g.items.push(i); });
+                const head = '<div class="p-head"><img src="images/hse-letterhead.png" alt="3 RAG company LTD"></div>';
+                if (kind === 'safeToLoad') {
+                    const ok = r.verdict ? r.verdict === 'ok' : hseVehScore(r).no === 0, box = on => `<span class="p-box-t">${on ? '✓' : ''}</span>`;
+                    return `<div class="hse-paper" id="hsePaper">${head}<div class="p-title">SAFE TO LOAD INSPECTION CHECKLIST</div>
+                        <div class="p-line"><b>DATE:</b> ${fill(dt(r.date), 220)}</div><div class="p-line"><b>TRUCK NO.</b> ${fill(r.plate, 220)}</div>
+                        <div class="p-line"><b>TRAILER NO.</b> ${fill(r.trailer, 220)}</div><div class="p-line"><b>DRIVER NAME</b> ${fill(r.driver, 280)}</div>
+                        <table class="p-tbl"><thead><tr><th style="width:44px">ITEM</th><th>DESCRIPTION</th><th style="width:40px">YES</th><th style="width:40px">NO</th><th style="width:26%">INSPECTION REMARKS</th></tr></thead><tbody>
+                        ${secs.map(g => { const m = /^([A-Z])\.\s*(.*)$/.exec(g.sec) || ['', '', g.sec];
+                            return `<tr class="p-sec"><td>${e(m[1])}${m[1] ? '.' : ''}</td><td colspan="4">${e(m[2]).toUpperCase()}</td></tr>` + g.items.map(i => { const a = ans(i); return `<tr><td class="c">${e(i.no)}</td><td>${e(i.label)}</td><td class="mk">${a === 'yes' ? '✓' : ''}</td><td class="mk">${a === 'no' ? '✓' : ''}</td><td>${e(i.remark)}</td></tr>`; }).join(''); }).join('')}
+                        </tbody></table>
+                        <div class="p-tick"><b>TICK ONE</b><span class="${ok ? 'on' : ''}">${box(ok)} OK TO LOAD</span><span class="${ok ? '' : 'on'}">${box(!ok)} REJECTED</span></div>
+                        <div class="p-line"><b>DRIVER NAME</b> ${fill(r.driver, 260)} <b>SIGN</b> ${fill('', 150)}</div>
+                        <div class="p-line"><b>ID &amp; DL NO.</b> ${fill(r.driverId, 220)}</div>
+                        <div class="p-line"><b>Truck Inspected by</b> ${fill(r.inspectedBy || r.checkedBy, 240)} <b>SIGN</b> ${fill('', 150)}</div></div>`;
+                }
+                const sg = hseArr(r.sign), sl = (lab, role) => { const x = sg.find(y => y.role === role) || {}; return `<div class="p-line"><b>${lab}:</b> ${fill(x.name, 150)} <b>Date:</b> ${fill(dt(x.date), 90)} <b>Signature:</b> ${fill('', 100)}</div>`; };
+                return `<div class="hse-paper" id="hsePaper">${head}<div class="p-title">Safe trip Vehicle Inspection form</div>
+                    <div class="p-line"><b>DATE:</b> ${fill(dt(r.date), 160)}</div>
+                    <div class="p-line"><b>VEHICLE Reg. #:</b> ${fill(r.plate, 100)} <b>MARK/MODEL:</b> ${fill(r.model, 110)} <b>KM:</b> ${fill(r.km, 70)} <b>Age:</b> ${fill(r.age, 50)}</div>
+                    <div class="p-note">Mark x in applicable box</div>
+                    ${secs.map((g, gi) => `${gi ? '' : `<div class="p-sub">${e(g.sec.replace(/^360° inspection$/i, '360° Inspection'))}</div>`}<table class="p-tbl${gi ? ' joined' : ''}"><thead><tr><th style="text-align:left">${gi ? e(g.sec) : 'ITEM'}</th><th style="width:44px">YES</th><th style="width:44px">NO</th><th style="width:30%">${gi ? '' : 'COMMENTS'}</th></tr></thead><tbody>
+                        ${g.items.map(i => { const a = ans(i); return `<tr><td>${e(i.no)}${i.no ? '.&nbsp; ' : ''}${e(i.label)}</td><td class="mk">${a === 'yes' ? 'X' : ''}</td><td class="mk">${a === 'no' ? 'X' : ''}</td><td>${e(i.remark)}</td></tr>`; }).join('')}</tbody></table>`).join('')}
+                    <div class="p-sub">Other defects, list below</div><div class="p-defects">${e(r.defects)}</div>
+                    <div class="p-sub">VEHICLE INSPECTED BY:</div>
+                    ${sl('Work Shop Manager', 'Workshop Manager')}${sl('Driver', 'Driver')}${sl('HSSE', 'HSSE')}${sl('Operations Manager', 'Operations Manager')}</div>`;
+            }
+            let _hsePaperName = 'checklist.pdf';
+            function openHseChecklist(kind, id) {
+                const r = ((hseData && hseData[kind]) || {})[id];
+                if (!r) return;
+                hseEnsureCss();
+                const stl = kind === 'safeToLoad', label = stl ? 'Safe to Load' : 'Truck Inspection';
+                _hsePaperName = `${label.replace(/\s+/g, '-')}_${String(r.plate || '').replace(/[^A-Za-z0-9]+/g, '')}_${r.date || ''}.pdf`;
+                openModal(`
+                    <div class="modal-header" style="align-items:center"><div style="flex:1"><div class="modal-name">${label} · <span style="font-family:var(--font-mono)">${esc(r.plate || '')}</span></div></div>
+                        <button type="button" class="hse-ib" title="Print" aria-label="Print" onclick="App.hsePrintPaper()">${HSE_ICON.print}</button>
+                        <button type="button" class="hse-ib" id="hsePdfBtn" title="Download PDF" aria-label="Download PDF" onclick="App.hseDownloadPaper()">${HSE_ICON.download}</button>
+                        <div class="modal-close" onclick="App.closeModal()">✕</div></div>
+                    <div class="modal-body" style="background:var(--bg4);padding:14px;overflow-x:auto">${hsePaperHtml(stl ? 'safeToLoad' : 'inspection', r)}</div>`);
+                document.getElementById('modalBox').classList.add('modal-wide');
+            }
+            function hsePrintPaper() {
+                const el = document.getElementById('hsePaper');
+                if (!el) return;
+                const w = window.open('', '_blank');
+                if (!w) { showToast('Allow pop-ups for this site to print the form.', 5000); return; }
+                const base = location.href.replace(/[^/]*([?#].*)?$/, '');
+                w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(_hsePaperName.replace(/\.pdf$/, ''))}</title><base href="${esc(base)}"><style>@page{size:A4;margin:6mm 0 10mm}body{margin:0}${HSE_PAPER_CSS}.hse-paper{min-width:0}</style></head><body>${el.outerHTML}<script>window.onload=function(){setTimeout(function(){window.focus();window.print()},350)}<\/script></body></html>`);
+                w.document.close();
+            }
+            async function hseDownloadPaper() {
+                const el = document.getElementById('hsePaper'), b = document.getElementById('hsePdfBtn');
+                if (!el) return;
+                if (b) b.disabled = true;
+                showToast('Preparing the PDF…');
+                try {
+                    if (!window.html2pdf) await new Promise((res, rej) => { const x = document.createElement('script'); x.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; x.onload = res; x.onerror = () => rej(new Error('could not load the PDF tool')); document.head.appendChild(x); });
+                    await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+                    await window.html2pdf().set({ margin: [5, 0, 10, 0], filename: _hsePaperName, image: { type: 'jpeg', quality: .96 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' } }).from(el).save();
+                    showToast('PDF downloaded');
+                } catch (err) { showToast('PDF not made (' + ((err && err.message) || err) + '). Use Print and choose "Save as PDF".', 6000); }
+                if (b) b.disabled = false;
+            }
+            function hseVehScore(r) { const it = hseArr(r.items), a = i => i.ans || (i.ok === true ? 'yes' : i.ok === false ? 'no' : ''); return { yes: it.filter(i => a(i) === 'yes').length, no: it.filter(i => a(i) === 'no').length }; }
+            function renderHseViewer(el) {
+                const tab = HSE_VIEW_TABS.includes(hscActiveSubpage) ? hscActiveSubpage : 'rules';
+                const waiting = hseLegacyWaiting();
+                const grid = cards => `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">${cards}</div>`;
+                const none = t => `<div style="border:1px dashed var(--border2);border-radius:14px;padding:36px 16px;text-align:center;color:var(--text3);font-size:13px">${t}</div>`;
+                const n = (x, w) => `${x} ${w}${x === 1 ? '' : 's'}`;
+                let body = '';
+                if (tab === 'rules') {
+                    const rows = hseList('policies').sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+                    body = rows.length ? grid(rows.map(r => hseCardHtml('policies', r, esc(String(r.type || 'Policy').toUpperCase()) + (r.category ? ' · ' + esc(r.category) : ''), r.title || 'Untitled', r.details || r.description, n(hseArr(r.files).length, 'file') + (r.severity ? ' · ' + r.severity + ' severity' : ''))).join('')) : none('No rules or policies on the HSE page yet.');
+                } else if (tab === 'meetings') {
+                    const rows = hseList('toolbox').sort(hseByDate);
+                    body = rows.length ? grid(rows.map(r => hseCardHtml('toolbox', r, esc(hscDateLabel(r.date)), r.topic || r.title || 'Toolbox meeting', r.summary, hseArr(r.attendees).length + ' attended · ' + n(hseArr(r.files).length, 'file'))).join('')) : none('No toolbox meetings on the HSE page yet.');
+                } else if (tab === 'trainings') {
+                    const rows = hseList('trainings').sort(hseByDate);
+                    body = rows.length ? grid(rows.map(r => hseCardHtml('trainings', r, esc(hscDateLabel(r.date)) + ' · ' + esc(hseTrainName(r.typeId)), r.title || 'Training session', r.details, hseArr(r.attendees).length + ' attended · ' + n(hseArr(r.files).length, 'file'))).join('')) : none('No training sessions on the HSE page yet.');
+                } else {
+                    const kinds = { safeToLoad: ['Safe to Load', 'Trailer', 'trailer'], inspections: ['Truck Inspection', 'Mark / model', 'model'] };
+                    if (!kinds[hseVehTab]) hseVehTab = 'safeToLoad';
+                    const k = kinds[hseVehTab], stl = hseVehTab === 'safeToLoad', rows = hseList(hseVehTab).sort(hseByDate);
+                    const th = 'text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:11px 14px;border-bottom:1px solid var(--border)', td = 'padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle';
+                    const badge = (r, s) => { if (stl) { const ok = r.verdict ? r.verdict === 'ok' : s.no === 0; return [ok ? 'OK to load' : 'Rejected', ok]; } return [s.no ? s.no + ' marked No' : 'No defects', !s.no]; };
+                    body = `<div class="hse-subtabs">${Object.keys(kinds).map(x => `<button type="button" class="hse-subtab ${x === hseVehTab ? 'active' : ''}" onclick="App.setHseVehTab('${x}')">${kinds[x][0]}<span class="hse-tab-n">${hseList(x).length}</span></button>`).join('')}</div>` +
+                        (rows.length ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="${th}">Plate number</th><th style="${th}">${k[1]}</th><th style="${th}">${k[0]}</th><th style="${th}">Date</th><th style="${th}"></th></tr></thead><tbody>${rows.map(r => { const s = hseVehScore(r), b = badge(r, s); return `<tr><td style="${td};font-family:var(--font-mono);font-weight:700">${esc(r.plate || '')}</td><td style="${td}">${esc(r[k[2]] || '—')}</td><td style="${td}"><b style="color:var(--${b[1] ? 'green' : 'red'})">${esc(b[0])}</b> <span style="color:var(--text3);font-size:11px">${s.yes} Yes · ${s.no} No</span></td><td style="${td}">${esc(hscDateLabel(r.date))}</td><td style="${td};text-align:right"><button type="button" class="hse-ib" title="View" aria-label="View this checklist" onclick="App.openHseChecklist('${hseVehTab}','${escAttr(r.id)}')">${HSE_ICON.eye}</button></td></tr>`; }).join('')}</tbody></table></div>` : none(stl ? 'No safe to load checklists on the HSE page yet.' : 'No truck inspections on the HSE page yet.'));
+                }
+                hseEnsureCss();
+                const counts = { rules: hseList('policies').length, meetings: hseList('toolbox').length, trainings: hseList('trainings').length, vehicles: hseList('safeToLoad').length + hseList('inspections').length };
+                HSE_VIEW_TABS.forEach(t => { const b = document.getElementById('hscTab-' + t); if (!b) return; let c = b.querySelector('.hse-tab-n'); if (!c) { c = document.createElement('span'); c.className = 'hse-tab-n'; b.appendChild(c); } c.textContent = counts[t]; });
+                el.innerHTML = `
+                    ${waiting ? `<div style="background:rgba(255,193,7,0.10);border:1px solid rgba(255,193,7,0.3);border-radius:12px;padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:14px"><b>${n(waiting, 'earlier record')}</b> from this page ${waiting === 1 ? 'has' : 'have'} not been transferred to the HSE page yet. Open the HSE page and choose "Transfer now" — nothing is lost, the records are still stored.</div>` : ''}
+                    ${body}`;
+            }
+            // `onTop` = opened from inside another window (the driver card): it goes on top of it, and closing comes back to it.
+            function openHseRecord(col, id, onTop) {
+                const r = ((hseData && hseData[col]) || {})[id];
+                if (!r) return;
+                const sec = (t, h) => h ? `<div class="section"><div class="section-title">${t}</div>${h}</div>` : '';
+                const text = v => v ? `<div style="font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere">${esc(v)}</div>` : '';
+                const people = a => hseArr(a).length ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${hseArr(a).map(x => `<span style="background:var(--bg3);border:1px solid var(--border);border-radius:99px;padding:3px 10px;font-size:12px">${esc(x.name || x.driverName || '')}${x.type === 'staff' ? ' · staff' : ''}</span>`).join('')}</div>` : '';
+                let title = '', sub = '', body = '';
+                if (col === 'policies') {
+                    title = r.title || 'Untitled';
+                    sub = [r.type || 'Policy', r.category, r.severity && r.severity + ' severity', r.effectiveDate && 'effective ' + hscDateLabel(r.effectiveDate)].filter(Boolean).join(' · ');
+                    body = sec('Full details', text(r.details || r.description)) + sec('What happens when it is broken', text(r.violationMeasure)) +
+                           sec('Linked violation types', people(hseArr(r.linkedViolationTypes).map(x => ({ name: x })))) + sec(`Acknowledged by (${hseArr(r.acknowledgements).length})`, people(r.acknowledgements));
+                } else if (col === 'toolbox') {
+                    title = r.topic || r.title || 'Toolbox meeting';
+                    sub = hscDateLabel(r.date);
+                    const acts = hseArr(r.actionItems);
+                    body = sec('Brief / report summary', text(r.summary)) + sec(`Attended (${hseArr(r.attendees).length})`, people(r.attendees)) + sec('Other members present', text(r.membersNote)) +
+                           sec(`Action items (${acts.length})`, acts.map(a => `<div style="font-size:13px;padding:5px 0;border-bottom:1px solid var(--border)">${a.done ? '✓' : '○'} ${esc(a.text || '')} <span style="color:var(--text3);font-size:11px">${esc([a.owner, a.dueDate && 'due ' + hscDateLabel(a.dueDate), a.done ? 'done' : 'open'].filter(Boolean).join(' · '))}</span></div>`).join(''));
+                } else {
+                    title = r.title || 'Training session';
+                    sub = [hscDateLabel(r.date), hseTrainName(r.typeId), r.provider].filter(Boolean).join(' · ');
+                    body = sec('About this training', text(r.details)) + sec(`Attended (${hseArr(r.attendees).length})`, people(r.attendees));
+                }
+                (onTop ? pushModal : openModal)(`
+                    <div class="modal-header"><div style="flex:1"><div class="modal-name">${esc(title)}</div><div class="modal-sub" style="margin-top:4px">${esc(sub)}</div></div><div class="modal-close" onclick="App.closeModal()">✕</div></div>
+                    <div class="modal-body">${body}${sec(`Attachments (${hseArr(r.files).length})`, hseFilesHtml(r.files))}</div>
+                    <div class="modal-actions"><button class="btn btn-primary btn-sm" onclick="App.closeModal()">${onTop ? '← Back' : 'Close'}</button></div>`);
+            }
+
             // ═══════════ HSE POLICY & MEETINGS ═══════════
             let hscActiveSubpage = 'rules';
             let hscMeetingsFilter = 'recent'; // Filter state: 'recent', 'day', 'week', 'month', 'year'
@@ -10646,12 +10906,9 @@ function _afterLoad() {
             }
 
             function switchHscSubpage(subpage) {
-                hscActiveSubpage = subpage === 'meetings' ? 'meetings' : 'rules';
+                hscActiveSubpage = HSE_VIEW_TABS.includes(subpage) ? subpage : 'rules';
                 try { localStorage.setItem('fg3_hsc_subpage', hscActiveSubpage); } catch (e) { /* ignore */ }
-                const tabRules = document.getElementById('hscTab-rules');
-                const tabMeetings = document.getElementById('hscTab-meetings');
-                if (tabRules) tabRules.classList.toggle('active', hscActiveSubpage === 'rules');
-                if (tabMeetings) tabMeetings.classList.toggle('active', hscActiveSubpage === 'meetings');
+                HSE_VIEW_TABS.forEach(t => { const b = document.getElementById('hscTab-' + t); if (b) b.classList.toggle('active', hscActiveSubpage === t); });
                 renderHscPolicies();
             }
 
@@ -10777,6 +11034,9 @@ function _afterLoad() {
             function renderHscPolicies() {
                 const el = document.getElementById('hscSubpageContent');
                 if (!el) return;
+                // Nov 2026: this page is a viewer of the HSE page (hse-page.html). The earlier screens below are kept
+                // but no longer reached; their records stay stored untouched and are copied across from the HSE page.
+                renderHseViewer(el); return;
                 if (hscActiveSubpage === 'rules') {
                     const categories = [...new Set(hscPolicies.map(p => String(p.category || 'General')))].sort();
                     const selStyle = 'padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-size:12px';
@@ -19069,7 +19329,7 @@ ${sheets.map(s => sheetXml(s.name, s.rows)).join('')}
                 switchViolationSubpage, renderViolationSubpage, renderAccidentsSubpage, openAddAccidentModal, syncAccidentDriverSelection, handleAccidentFileSelection, handleAccidentVideoSelection, updateAccidentFilesDisplay, removeAccidentFileAt, saveAccidentFromForm, previewAccidentAttachment, downloadAccidentAttachment, deleteAccidentEntry,
                 openEditAccidentModal, syncEditAccidentDriverSelection, renderEditAccidentExistingFiles, removeEditAccidentExistingFileAt, updateEditAccidentFilesDisplay, removeEditAccidentFileAt, handleEditAccidentFileSelection, handleEditAccidentVideoSelection, saveEditAccidentForm,
                 renderHscPolicies, openAddHscPolicy, saveHscPolicyFromForm, handlePolicyPdfSelect, viewPolicyPdf, downloadPolicyPdf, commitHscPolicy, deleteHscPolicy,
-                switchHscSubpage, setHscMeetingsFilter, openAddHscMeeting, handleMeetingFileSelect, updateMeetingFilesDisplay, renameMeetingFileAt, removeMeetingFileAt, saveHscMeetingFromForm, deleteHscMeeting, openHscMeetingDetailModal, previewMeetingAttachment, downloadMeetingAttachment,
+                openHseRecord, setHseVehTab, openHseChecklist, hsePrintPaper, hseDownloadPaper, switchHscSubpage, setHscMeetingsFilter, openAddHscMeeting, handleMeetingFileSelect, updateMeetingFilesDisplay, renameMeetingFileAt, removeMeetingFileAt, saveHscMeetingFromForm, deleteHscMeeting, openHscMeetingDetailModal, previewMeetingAttachment, downloadMeetingAttachment,
                 populateOrderClientFilter, renderOrders, openAddOrderModal, createOrderFromForm,
                 updateOrderStatus, deleteOrder, setOrderStatusFilter, handleOrderDateFilter,
                 handleOrderSearchInput, clearOrderSearch, openOrderWithTruck,

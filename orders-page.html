@@ -575,7 +575,7 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
       <button class="gate-btn" id="gateBtn" type="submit">Sign in</button>
       <a href="#" class="gate-demo" id="gateDemo" onclick="event.preventDefault();T.enterDemo()">Open the demo — this computer only, nothing is shared</a>
     </form>
-    <div class="gate-foot">Authorized personnel only · 3 RAG company LTD</div>
+    <div class="gate-foot">Authorized personnel only · 3 RAG company LTD<div style="font-size:10px;color:#3d7fff;margin-top:6px;letter-spacing:.05em;font-weight:500">Orders V2.2</div></div>
   </div>
 </div>
 <div class="fg-loader" id="fgLoader" role="status" aria-live="polite"><img src="images/Logo 123.jpg" alt="3 RAG"><div class="t">Loading Live 3 RAG Fleet Data</div><div class="s">Fetching trucks, drivers and trailers…</div></div>
@@ -583,7 +583,7 @@ tr.busyrow td{background:rgba(167,139,250,.05)}
 <script>
 (function(){
 'use strict';
-const KEY='fg_orders_v3';const APP_VERSION='1.6';
+const KEY='fg_orders_v3';const APP_VERSION='2.2';   /* V2.125 = system 2 · HSE 1 · Orders 2 · FleetGuard 5 — this page shows its own level */
 const ALLOC=['Allocated to Dar','Allocated to Tanga'];
 const TRIP_STATUSES=[...ALLOC,'WD','In Transit','Offloaded'];
 const QUEUED='Queued';
@@ -2754,7 +2754,7 @@ window.T={
   invMonth:m=>{S.ui.invMonth=m;render()},invTab:t=>{S.ui.invTab=t;render()},invoiceOne,invoiceAll,uninvoice,openInvoice,closeInvoice,invoiceOrder,
   _state:()=>S,_fb:()=>FB,_cloud:()=>CLOUD,_cloudConnect:()=>cloudConnect()
 };
-load();document.getElementById('appVer').textContent='v'+APP_VERSION;render();fbConnect();
+load();document.getElementById('appVer').textContent='Orders V'+APP_VERSION;render();fbConnect();
 })();
 </script>
 </body>

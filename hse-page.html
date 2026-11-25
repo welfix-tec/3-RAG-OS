@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSE · 3RAG</title>
+<link rel="icon" type="image/png" href="Favicon.png">
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;--bg:#f0f2f5;--bg2:#ffffff;--bg3:#f4f6f9;--bg4:#e2e8f0;--border:rgba(0,0,0,.09);--border2:rgba(0,0,0,.16);--text:#111827;--text2:#374151;--text3:#6b7280;--accent:#e1251b;--accent2:#c41f17;--green:#15803d;--amber:#b45309;--red:#dc2626;--blue:#2563eb;--purple:#7c3aed;--shadow:0 1px 2px rgba(15,23,42,.05),0 1px 3px rgba(15,23,42,.06);--accent-soft:rgba(225,37,27,.08);--accent-border:rgba(225,37,27,.35);--font-body:'Satoshi',sans-serif;--font-mono:'DM Mono',monospace;--radius:10px;--radius-lg:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:13px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 10px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=checkbox]{width:16px;height:16px;flex-shrink:0;accent-color:var(--accent);padding:0}
+textarea{resize:vertical;min-height:90px;line-height:1.5}
+label.fl{display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 5px}
+.mono{font-family:var(--font-mono)}
+.tiny{font-size:11.5px;color:var(--text3)}
+.muted{color:var(--text3)}
+
+/* layout */
+.app{display:flex;min-height:100vh}
+.side{width:230px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.side-logo{display:flex;align-items:center;gap:10px;padding:18px 16px 14px;border-bottom:1px solid var(--border)}
+.side-logo img{width:36px;height:36px;object-fit:contain;border-radius:8px}
+.side-logo b{font-size:16px;font-weight:800;letter-spacing:.02em}
+.side-logo span{display:block;font-size:11px;color:var(--text3)}
+.side-sec{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:16px 16px 6px}
+.nav{display:flex;align-items:center;gap:10px;width:calc(100% - 16px);margin:2px 8px;padding:9px 10px;border:none;background:none;border-radius:8px;font-size:13.5px;font-weight:500;color:var(--text2);text-align:left}
+.nav:hover{background:var(--bg3);color:var(--text)}
+.nav.on{background:var(--accent-soft);color:var(--accent2);font-weight:700}
+.ico{width:16px;height:16px;flex-shrink:0;vertical-align:-3px}
+.nav .ic{display:flex}.nav .ic .ico{width:18px;height:18px}
+.h-ic{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent2);flex-shrink:0}
+.h-ic .ico{width:19px;height:19px}
+.file>.ico{color:var(--text3)}
+.nav .ct{margin-left:auto;font-size:11px;font-family:var(--font-mono);color:var(--text3)}
+.side-foot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text3);display:flex;flex-direction:column;gap:8px}
+.side-foot a{color:var(--blue);text-decoration:none;font-weight:600}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text3);margin-right:6px}
+.dot.on{background:var(--green)}
+.main{flex:1;min-width:0;padding:22px 26px 60px}
+.head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.head h1{font-size:21px;font-weight:800;display:flex;align-items:center;gap:10px}
+.head p{font-size:12.5px;color:var(--text3);margin-top:3px}
+.head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* controls */
+.btn{border:1px solid var(--border2);background:var(--bg2);color:var(--text);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600}
+.btn:hover{background:var(--bg3)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{background:var(--accent2)}
+.btn.danger{color:var(--red);border-color:rgba(220,38,38,.35)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn:disabled{opacity:.6;cursor:default}
+.tabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--border2);margin-bottom:16px;align-items:center}
+.tab{border:none;background:none;padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--text3);border-bottom:2px solid transparent;white-space:nowrap;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--accent2);border-bottom-color:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:1px solid var(--border2);background:var(--bg2);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--text2)}
+.chip.on{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent2)}
+.badge{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;border-radius:99px;padding:3px 9px}
+.badge.rule{background:rgba(220,38,38,.10);color:var(--red)}
+.badge.policy{background:rgba(37,99,235,.10);color:var(--blue)}
+.badge.ok{background:rgba(21,128,61,.12);color:var(--green)}
+.badge.bad{background:rgba(220,38,38,.10);color:var(--red)}
+
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:8px;font:inherit;color:inherit}
+.card:hover{border-color:var(--accent-border)}
+.card .date{font-size:11.5px;font-weight:700;color:var(--accent2);font-family:var(--font-mono)}
+.card h3{font-size:15px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.card .snip{font-size:12.5px;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card .meta span{display:inline-flex;align-items:center;gap:5px}.card .meta .ico{width:14px;height:14px}
+.card .meta{display:flex;gap:12px;font-size:11.5px;color:var(--text3);margin-top:auto;padding-top:6px}
+.empty{background:var(--bg2);border:1px dashed var(--border2);border-radius:var(--radius-lg);padding:46px 20px;text-align:center;color:var(--text3)}
+.empty b{display:block;color:var(--text);font-size:15px;margin-bottom:6px}
+
+.pills{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;scrollbar-width:thin}
+.pill{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border2);background:var(--bg2);border-radius:99px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap}
+.pill:hover{color:var(--text)}
+.pill .n{font-family:var(--font-mono);font-size:11px;background:var(--bg4);border-radius:99px;padding:1px 7px;color:var(--text2)}
+.pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pill.on .n{background:rgba(255,255,255,.22);color:#fff}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:16px;min-width:0}
+.panel-h{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.panel-h h2{font-size:16px;font-weight:800}
+.panel-h .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.hrow{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 12px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.hrow .card{flex:0 0 290px;scroll-snap-align:start;background:var(--bg3);box-shadow:none;min-height:190px}
+
+/* table */
+.tbl-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:11px 14px;border-bottom:1px solid var(--border2);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-start;justify-content:center;padding:36px 14px;overflow-y:auto;z-index:50}
+.ov.on{display:flex}
+.ov2{z-index:60;align-items:center}
+.modal{background:var(--bg2);border-radius:var(--radius-lg);width:100%;max-width:680px;box-shadow:0 20px 50px rgba(15,23,42,.3)}
+.modal-h{display:flex;align-items:flex-start;gap:10px;padding:18px 20px 12px;border-bottom:1px solid var(--border)}
+.modal-h h2{font-size:17px;font-weight:800;flex:1;overflow-wrap:anywhere}
+.modal-h .x{border:none;background:none;font-size:22px;line-height:1;color:var(--text3);padding:0 4px}
+.modal-b{padding:6px 20px 18px}
+.modal-f{display:flex;gap:8px;justify-content:flex-end;padding:12px 20px 18px;border-top:1px solid var(--border)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sect{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px}
+.body-text{font-size:13.5px;line-height:1.65;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere}
+.file{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--bg3);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px}
+.file .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file a{color:var(--blue);font-weight:600;text-decoration:none;font-size:12px}
+.file .k{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase}
+.people{display:flex;flex-wrap:wrap;gap:6px}
+.person{background:var(--bg3);border:1px solid var(--border);border-radius:99px;padding:4px 10px;font-size:12px}
+.pick{border:1px solid var(--border2);border-radius:10px;overflow:hidden}
+.pick-top{display:flex;gap:8px;align-items:center;padding:8px;background:var(--bg3);border-bottom:1px solid var(--border)}
+.pick-list{max-height:220px;overflow-y:auto}
+.pick-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px}
+.pick-row:last-child{border-bottom:none}
+.pick-row:hover{background:var(--bg3)}
+.pick-row .pl{margin-left:auto;font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.chk-sec{font-size:12px;font-weight:800;color:var(--accent2);margin:16px 0 6px}
+.chk{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:13px;line-height:1.4}
+.chk:hover{background:var(--bg3)}
+.chk.view{cursor:default}
+.chk .mk{display:flex;flex-shrink:0;padding-top:1px}
+  .q{display:grid;grid-template-columns:26px 1fr auto;gap:6px 10px;align-items:start;padding:9px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:5px;font-size:13px;line-height:1.4}
+.q.miss{border-color:var(--red);background:rgba(220,38,38,.05)}
+.q .qn{font-family:var(--font-mono);font-size:11.5px;color:var(--text3);padding-top:1px}
+.q .yn{display:flex;gap:12px;white-space:nowrap}
+.q .yn label,.verdict label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-weight:600}
+.q input[type=radio],.verdict input{width:16px;height:16px;accent-color:var(--accent);padding:0}
+.q .qr{grid-column:2/4;padding:6px 9px;font-size:12.5px}
+.q .qrem{display:block;font-size:12px;color:var(--text2);margin-top:3px}
+.q .ans{display:inline-flex;align-items:center;gap:4px;font-weight:700;font-size:12.5px}
+.q .ans.yes{color:var(--green)}.q .ans.no{color:var(--red)}
+.verdict{display:flex;gap:22px;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;font-size:14px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:12px}
+.kv div{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 10px;min-width:0}
+.kv span{display:block;font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.kv b{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.modal.wide{max-width:900px}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--border2);background:var(--bg2);border-radius:8px;color:var(--text2)}
+.icon-btn:hover{background:var(--bg3);color:var(--accent2)}
+.icon-btn .ico{width:17px;height:17px}
+.hdr{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+.combo{position:relative}
+.combo-list{display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,.18);max-height:230px;overflow-y:auto;z-index:5;min-width:210px}
+.combo-list.on{display:block}
+.combo-opt{display:flex;align-items:center;gap:10px;width:100%;border:none;background:none;text-align:left;padding:8px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)}
+.combo-opt:last-child{border-bottom:none}
+.combo-opt:hover{background:var(--accent-soft)}
+.combo-opt small{margin-left:auto;font-size:11px;color:var(--text3);white-space:nowrap}
+.combo-none{padding:10px;font-size:12px;color:var(--text3)}
+/* the paper form */
+.paper-wrap{background:var(--bg4);padding:16px;overflow-x:auto}
+.paper{background:#fff;color:#000;font-family:Calibri,Arial,Helvetica,sans-serif;font-size:12.5px;line-height:1.35;padding:0 30px 26px;min-width:640px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.p-head{margin:0 -30px 14px;overflow:hidden;aspect-ratio:1414/276}
+.p-head img{display:block;width:100%}
+.p-box{border:1px solid #000;min-height:48px;padding:6px 8px;white-space:pre-wrap}
+.p-tbl td.k{font-weight:700;background:#f1f1f1;width:19%}
+#printHost{position:absolute;left:-10000px;top:0;width:794px}
+.p-logo{display:block;height:58px;margin:0 auto 6px}
+.p-title{text-align:center;font-size:17px;font-weight:700;margin:4px 0 14px;text-decoration:underline}
+.p-line{margin:7px 0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 6px}
+.p-fill{display:inline-block;border-bottom:1px dotted #000;padding:0 6px;font-weight:600}
+.p-note{font-style:italic;margin:8px 0 2px}
+.p-sub{font-weight:700;margin:12px 0 5px}
+.p-tbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+.p-tbl.joined{margin-top:0}.p-tbl.joined thead th{border-top:none}
+.p-tbl th,.p-tbl td{border:1px solid #000;padding:4px 6px;color:#000;vertical-align:top;text-transform:none;letter-spacing:0;font-size:12px;white-space:normal}
+.p-tbl th{background:#e6e6e6;font-weight:700;text-align:center}
+.p-tbl td.c{text-align:center}.p-tbl td.mk{font-weight:700;font-size:14px;vertical-align:middle}
+.p-tbl tr{break-inside:avoid;page-break-inside:avoid}
+.p-sec td{font-weight:700;background:#f1f1f1}
+.p-tick{display:flex;align-items:center;gap:26px;margin:16px 0 12px;font-weight:700}
+.p-tick span{display:inline-flex;align-items:center;gap:8px}
+.p-box{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1.5px solid #000;font-size:15px}
+.p-defects{border:1px solid #000;min-height:64px;padding:6px 8px;white-space:pre-wrap}
+@media print{
+  @page{size:A4;margin:6mm 0 10mm}
+  body.ph .ov{display:none!important}
+  body.ph #printHost{position:static;width:auto}
+  body{background:#fff}
+  .app,.toast,.gate,.modal-h,.modal-f,.no-print,#ov2{display:none!important}
+  .ov{position:static;display:block;padding:0;background:none;overflow:visible}
+  .modal,.modal.wide{max-width:none;box-shadow:none;border-radius:0}
+  .paper-wrap{padding:0;background:none;overflow:visible}
+  .paper{box-shadow:none;min-width:0}
+}
+.err{background:rgba(220,38,38,.08);color:var(--red);border-radius:8px;padding:8px 12px;font-size:12.5px;margin-top:12px;display:none}
+.err.on{display:block}
+.banner{background:rgba(180,83,9,.10);color:var(--amber);border:1px solid rgba(180,83,9,.25);border-radius:10px;padding:9px 14px;font-size:12.5px;margin-bottom:16px}
+
+/* sign-in */
+.gate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;padding:16px;z-index:80}
+.gate.on{display:flex}
+.gate-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:28px;width:100%;max-width:360px}
+.gate-box h1{font-size:20px;font-weight:800;margin-bottom:4px}
+.gate-err{background:var(--red);color:#fff;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-top:12px;display:none}
+.gate-err.on{display:block}
+.gate-err a{color:#fff;font-weight:700;display:block;margin-top:6px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:99px;font-size:13px;z-index:90;opacity:0;pointer-events:none;transition:opacity .2s;max-width:92vw}
+.toast.on{opacity:1}
+
+@media(max-width:800px){
+  .app{flex-direction:column}
+  .side{width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid var(--border)}
+  .side-sec{display:none}
+  .side-nav{display:flex;overflow-x:auto;padding:6px 8px}
+  .nav{width:auto;white-space:nowrap;margin:2px}
+  .nav .ct{margin-left:6px}
+  .side-foot{flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px}
+  .main{padding:16px 16px 60px}
+}
+@media(max-width:520px){.row2{grid-template-columns:1fr}}
+
+/* ===== Nov 2026 restyle: FleetGuard colours, bolder cards and windows ===== */
+.side-logo>div{flex:1;text-align:center}
+.side-logo b{display:block;font-size:26px;font-weight:900;letter-spacing:.08em;line-height:1.1}
+.side-logo span{margin-top:2px}
+.side-logo span.ver{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:99px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent2);font-size:10.5px;font-weight:800;letter-spacing:.05em}
+.nav.on{color:var(--text);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.nav.on .ic{color:var(--accent2)}
+.side-foot a{color:var(--text2)}.side-foot a:hover{color:var(--accent2)}
+.head h1{font-weight:900;letter-spacing:-.01em}
+.btn{background:var(--bg3)}.btn:hover{background:var(--bg4)}
+.btn{background:var(--bg2)}.btn:hover{background:var(--bg3)}.btn.pri{background:var(--accent);font-weight:700}.btn.pri:hover{background:#c41f17;border-color:#c41f17}
+.btn.danger{border-color:rgba(240,76,90,.4)}
+.badge.rule,.badge.bad{background:rgba(220,38,38,.10)}
+.badge.policy{background:rgba(37,99,235,.10)}
+.badge.ok{background:rgba(21,128,61,.12)}
+.banner{background:rgba(180,83,9,.08);border-color:rgba(180,83,9,.25)}
+.toast{background:#111827;box-shadow:0 10px 30px rgba(15,23,42,.3)}
+.grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{position:relative;overflow:hidden;padding:18px 18px 14px 22px;gap:10px;border-radius:16px;transition:transform .15s,border-color .15s,box-shadow .15s}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+.card.policy::before{background:var(--blue)}
+.card:hover{transform:translateY(-2px);border-color:var(--accent-border);box-shadow:0 12px 26px rgba(15,23,42,.12)}
+.card h3{font-size:17px;font-weight:800;line-height:1.3;color:var(--text)}
+.card .snip{color:var(--text2)}
+.card-top{display:flex;align-items:center;gap:12px}
+.card-top>div{min-width:0}
+.dblock{flex:0 0 54px;height:54px;border-radius:12px;background:var(--accent-soft);border:1px solid var(--accent-border);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.dblock b{font-size:20px;font-weight:900;color:var(--text)}
+.dblock i{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent2);margin-top:3px}
+.card .lbl{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)}
+.card .meta{gap:8px;padding-top:8px;border-top:1px solid var(--border);flex-wrap:wrap}
+.card .meta span{background:var(--bg3);border:1px solid var(--border);border-radius:99px;padding:3px 9px;font-weight:600;color:var(--text2)}
+.empty{padding:54px 20px}.empty .ico{width:34px;height:34px;color:var(--text3);margin-bottom:10px}
+.empty b{font-weight:800}
+th{font-weight:800}
+.panel-h h2{font-weight:900}
+.hrow .card{background:var(--bg3)}
+.ov{background:rgba(15,23,42,.5);backdrop-filter:blur(2px)}
+.modal{border:1px solid var(--border);box-shadow:0 30px 70px rgba(15,23,42,.3)}
+.modal-h{padding:20px 22px 14px;align-items:center}
+.modal-h h2{font-size:20px;font-weight:900;line-height:1.25}
+.modal-h .sub{display:block;font-size:12px;font-weight:600;color:var(--text3);margin-top:4px}
+.modal-b{padding:6px 22px 20px}
+.sect{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:900;color:var(--text);letter-spacing:.07em;margin:22px 0 10px}
+.sect::before{content:'';width:3px;height:14px;border-radius:2px;background:var(--accent)}
+.kv b{font-weight:800}
+.person{font-weight:600}
+.view-hero{display:flex;align-items:center;gap:14px;margin-top:14px;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:12px}
+.view-hero .t{font-size:13px;font-weight:700}
+.view-hero .t span{display:block;font-size:11.5px;font-weight:500;color:var(--text3);margin-top:2px}
+.file{gap:12px;padding:8px 10px 8px 8px;border-radius:12px}
+.file .nm{font-weight:700;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.file .nm small{display:block;font-size:11px;font-weight:500;color:var(--text3);margin-top:1px}
+.thumb{position:relative;flex:0 0 46px;height:46px;border-radius:9px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg4);border:1px solid var(--border2);font-size:10.5px;font-weight:900;letter-spacing:.04em;color:var(--text2)}
+.thumb.pdf{background:rgba(220,38,38,.10);color:var(--red)}
+.thumb.img{background:rgba(21,128,61,.10);color:var(--green)}
+.thumb.doc{background:rgba(37,99,235,.10);color:var(--blue)}
+.thumb.xls{background:rgba(21,128,61,.10);color:var(--green)}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}
+/* small grey icon buttons: eye, bin, pencil, X, print, download */
+.ib,.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:none;background:none;border-radius:8px;color:var(--text3);text-decoration:none;flex-shrink:0}
+.ib:hover,.icon-btn:hover{background:var(--bg4);color:var(--text)}
+.ib .ico,.icon-btn .ico{width:17px;height:17px;stroke-width:2.3}
+.ib.del:hover{color:var(--red)}
+.file a.ib{color:var(--text3)}.file a.ib:hover{color:var(--text)}
+.ib:disabled{opacity:.5}
+.modal-f.icons{gap:4px;padding:10px 16px}
+.paper-wrap{background:var(--bg4)}
+.hrow .card{background:var(--bg2)}
+/* incidents */
+.addfiles{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.addfiles .btn{display:inline-flex;align-items:center;gap:6px}
+.thumb{cursor:default}
+.view-hero .t span.badge{display:inline-block;font-size:10.5px;font-weight:800;margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;border-left:4px solid var(--text3)}
+.stat span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.stat b{font-size:20px;font-weight:900}
+.stat.bad{border-left-color:var(--red)}.stat.warn{border-left-color:var(--amber)}.stat.ok{border-left-color:var(--green)}
+.badge.warn{background:rgba(180,83,9,.12);color:var(--amber)}
+.badge.mute{background:var(--bg4);color:var(--text2)}
+.card .lbl.mono{font-family:var(--font-mono);letter-spacing:0}
+/* filters */
+.fbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.fbar select,.fbar input[type=date]{width:auto;background:var(--bg2)}
+.fsearch{position:relative;flex:1 1 240px;min-width:200px}
+.fsearch .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3)}
+.fsearch input{padding-left:34px;background:var(--bg2)}
+.fcount{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text3);margin-bottom:10px}
+@media print{body{background:#fff}.modal{border:none}}
+
+/* ===== printed forms: closed tables, tick boxes, report layout ===== */
+.p-tbl{border-collapse:separate;border-spacing:0;border-top:1px solid #000;border-left:1px solid #000}
+.p-tbl tr>th,.p-tbl tr>td{border:none;border-right:1px solid #000;border-bottom:1px solid #000}
+.p-tbl.joined{border-top:none}
+.p-tick{display:flex;align-items:stretch;gap:0;margin:16px 0 14px;border:1.5px solid #000;font-weight:700;width:fit-content;max-width:100%}
+.p-tick>b{display:flex;align-items:center;padding:8px 14px;background:#e6e6e6;border-right:1.5px solid #000;letter-spacing:.04em}
+.p-tick>span{display:inline-flex;align-items:center;gap:10px;padding:8px 18px;font-weight:600;color:#444}
+.p-tick>span+span{border-left:1px solid #000}
+.p-tick>span.on{font-weight:800;color:#000}
+.p-box-t{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:2px solid #000;border-radius:3px;font-size:17px;font-weight:900;line-height:1;background:#fff}
+.p-ref{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;margin:-4px 0 8px}
+.p-h{background:#e6e6e6;border:1px solid #000;border-bottom:none;font-weight:700;padding:4px 8px;margin-top:12px;text-transform:uppercase;font-size:11.5px;letter-spacing:.04em}
+.p-area{display:block;border:1px solid #000;min-height:56px;padding:6px 8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.p-sign td{height:34px;vertical-align:middle}
+.lower{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:6px 16px 14px;margin-top:14px}
+.lower .sect:first-child{margin-top:14px}
+
+/* ===== sign-in screen: the same as FleetGuard's ===== */
+.gate{background:linear-gradient(135deg,rgba(13,15,20,.922) 0%,rgba(19,22,30,.539) 100%),url('background%20Image.jpeg') center/cover no-repeat;backdrop-filter:blur(10px);z-index:999;flex-direction:column}
+.gate{overflow-y:auto;padding:24px 0;justify-content:flex-start}
+.gate>div{margin:auto}
+.gate-form{background:linear-gradient(135deg,rgba(19,22,30,.9) 0%,rgba(26,30,40,.7) 100%);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:32px 28px;backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.gate-form label{display:block;font-size:11px;font-weight:600;color:#b4b9c8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.gate-form .gi{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:18px;pointer-events:none}
+.gate-form input{width:100%;padding:13px 14px 13px 44px;background:rgba(13,15,20,.6);border:1px solid rgba(255,255,255,.08);border-radius:12px;color:#e8eaf0;font-size:14px;outline:none;transition:all .2s;color-scheme:dark}
+.gate-form input:focus{border-color:rgba(225,37,27,.6)}
+.gate-form #si_eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;opacity:.7}
+.gate-form #si_btn{width:100%;padding:14px 16px;background:linear-gradient(135deg,#de200e 0%,#871704 100%);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;box-shadow:0 8px 20px rgba(61,127,255,.3)}
+.gate-form #si_btn:disabled{opacity:.7;cursor:default}
+.gate-err{background:rgba(240,76,90,.15);border:1px solid rgba(240,76,90,.3);border-radius:10px;color:#ff9a9e;padding:12px 14px;font-size:12px;font-weight:500;margin:0 0 24px;line-height:1.4}
+.gate-err a{color:#fff}
+</style>
+</head>
+<body>
+
+<!-- Sign-in: the same screen as FleetGuard's (truck background, same email and password boxes) -->
+<div class="gate" id="gate">
+  <div style="max-width:480px;width:90%">
+    <div style="text-align:center;margin-bottom:32px">
+      <img src="images/Logo 123.jpg" alt="3 RAG company LTD" style="width:84px;height:84px;object-fit:contain;border-radius:16px;margin-bottom:16px;background:#fff;padding:6px">
+      <h1 style="font-size:32px;font-weight:700;color:#e8eaf0;margin-bottom:8px">HSE</h1>
+      <p style="font-size:14px;color:#8b90a0" id="gateMsg">3 RAG company LTD · Health, Safety &amp; Environment</p>
+    </div>
+    <form class="gate-form" onsubmit="H.signIn(event)">
+      <div style="margin-bottom:24px"><label for="si_e">Email</label>
+        <div style="position:relative"><div class="gi">✉</div><input type="email" id="si_e" name="email" autocomplete="email" placeholder="name@3rag.rw" required></div></div>
+      <div style="margin-bottom:24px"><label for="si_p">Password</label>
+        <div style="position:relative"><div class="gi">🔑</div><input type="password" id="si_p" name="password" autocomplete="current-password" placeholder="••••••••••" required style="padding-right:44px">
+          <button type="button" id="si_eye" onclick="H.togglePass()" title="Show password">👁</button></div></div>
+      <div class="gate-err" id="gateErr"></div>
+      <button id="si_btn" type="submit">Sign in</button>
+    </form>
+    <div style="text-align:center;margin-top:24px">
+      <p style="font-size:11px;color:#565b6e;line-height:1.6">Authorized personnel only · 3 RAG company LTD</p>
+      <p style="font-size:10px;color:#3d7fff;margin-top:6px;letter-spacing:.05em;font-weight:500">HSE V2.1</p>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <aside class="side">
+    <div class="side-logo"><img src="images/Logo.png" alt=""><div><b>HSE</b><span>Health · Safety · Environment</span><span class="ver">V2.1</span></div></div>
+    <div class="side-sec">Pages</div>
+    <nav class="side-nav" id="nav"></nav>
+    <div class="side-foot">
+      <div><span class="dot" id="liveDot"></span><span id="liveTxt">Connecting…</span></div>
+      <div id="acct"></div>
+      <a href="index.html">← FleetGuard</a>
+      <span style="font-size:10px;letter-spacing:.04em;font-weight:600">HSE V2.1</span>
+      <button class="btn sm" id="signOutBtn" onclick="H.signOut()" style="display:none">Sign out</button>
+    </div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+
+<div class="ov" id="ov"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div class="ov ov2" id="ov2"><div class="modal" style="max-width:400px" role="alertdialog" aria-modal="true"><div class="modal-b" style="padding-top:20px"><div class="body-text" id="askMsg"></div></div><div class="modal-f" style="border-top:none"><button class="btn" id="askNo">Cancel</button><button class="btn danger" id="askYes">Delete</button></div></div></div>
+<div id="printHost" aria-hidden="true"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== HSE page (Nov 2026) =====
+   A page of its own, beside FleetGuard and the Orders page. Everything it saves lives under fleetguard/hse/<collection>/<id>
+   and is written ONLY here; FleetGuard reads it (driver card → Trainings & Meetings) and never changes it.
+   Attachments go to Google Drive through the same Apps Script FleetGuard uses (the Firebase plan has no file storage).
+   hse-page.html?demo opens the page with sample data kept in this browser only — no sign-in, nothing saved to the cloud. */
+const DRIVE_UPLOAD_URL='https://script.google.com/macros/s/AKfycbwDl0DgjPLh_1-uPD3qvjPUbLpWai0pBNO2OW0rd8zYWob1ysBki2WxYL8s6OnQNd01/exec';
+const FB_CFG={apiKey:"AIzaSyAilKo_Lc2SWlxDrRQrzjHhqrf6oH0k824",authDomain:"rag-os-e9382.firebaseapp.com",databaseURL:"https://rag-os-e9382-default-rtdb.firebaseio.com",projectId:"rag-os-e9382",storageBucket:"rag-os-e9382.firebasestorage.app",messagingSenderId:"522385154864",appId:"1:522385154864:web:1af1905244f3b7144b9ef5"};
+const DEMO=new URLSearchParams(location.search).has('demo');
+const ROOT='fleetguard/hse';
+const COLS=['toolbox','policies','trainTypes','trainings','safeToLoad','inspections','transferred'];
+const S={toolbox:{},policies:{},trainTypes:{},trainings:{},safeToLoad:{},inspections:{},transferred:{}};
+const LEG={policies:[],meetings:[]};   /* FleetGuard's earlier HSE Policy page: fleetguard/hscPolicies and fleetguard/hscMeetings (read only here) */
+const FB={state:'connecting',user:null,drivers:[],trucks:[],trailers:[],incidents:[],dkey:{},currency:'RWF'};
+const UI={page:'toolbox',polFilter:'all',trainTab:'defensive',vehTab:'safeToLoad',incTab:'accident'};
+let FORM=null;
+
+const PAGES=[
+  {id:'toolbox',ic:'users',name:'Toolbox Meeting',desc:'Meeting topics, attendance and reports. Ticked drivers get the meeting on their FleetGuard driver card.'},
+  {id:'policies',ic:'book',name:'Rules & Policy',desc:'Company rules and policies, with the full wording and attached documents.'},
+  {id:'trainings',ic:'cap',name:'Trainings',desc:'Training sessions by type. Ticked drivers get the training on their FleetGuard driver card.'},
+  {id:'vehicles',ic:'truck',name:'Vehicles',desc:'Safe to load checklists and truck inspections.'},
+  {id:'incidents',ic:'alert',name:'Incidents & Accidents',desc:'The accident and incident register. Records show in FleetGuard on the driver card, the dashboard and the reports.'},
+  {id:'jmps',ic:'map',name:'JMPs',desc:'Journey Management Plans.'}
+];
+const BUILTIN_TYPES=[{id:'defensive',name:'Driver Defensive Training'},{id:'fire',name:'Fire fighting Training'}];
+/* Vehicles page — the two company checklists, item for item.
+   safeToLoad : "SAFE TO LOAD INSPECTION CHECKLIST" (SAFE TO LOAD -current.xlsx, sheet "Sheet4": sections A–F, Yes / No / remarks,
+                OK TO LOAD or REJECTED). A * is on the paper form and is kept.
+   inspection : "Safe trip Vehicle Inspection form" (3RAG - VEHICLE INSPECTION.docx). The paper form numbers the 360° items 1–13
+                then 15–24 (there is no 14) and has "All components securely attached" twice — both are kept as they are.
+   Each saved record keeps its own copy of the items, so changing a list later never changes what an older record shows. */
+const num=a=>a.map((l,i)=>[String(i+1),l]);
+const VEH={
+  safeToLoad:{col:'safeToLoad',tab:'Safe to Load',title:'Safe to Load Inspection Checklist',plateLabel:'Truck No.',
+    top:[['trailer','Trailer No.'],['driver','Driver name']],
+    secs:[
+      {sec:'A. Legal / statutory requirements',items:num(['Correct and valid calibration chart/certificates and dipsticks present*','Valid insurance certificate*','Yellow reflective code and product code*','Valid annual inspection sticker and other licence*','Control Technique Truck','Control Technique Trailer'])},
+      {sec:'B. Mechanical requirements',items:num(['Can the truck self start*','Tyre condition - min 3mm treads, no re-tread tyres; all tyres uniform on each axle*','All tyres have nuts attaching to the axle*','Bonding lugs provided, free from rust and paint*','Operational doors and windows','Operational hand brake and foot brakes*','Condition of rear view and side mirrors','Service tag to show routine maintenance','Visual integrity of the tank (shell not damaged, not leaking, paint work is ok, and securely mounted on the chassis)','Condition of engine, gearbox (not leaking oil)','Offloading valves / fittings (not leaking, proper sealing provision)*','4 inch hoses with male and female couplings (not leaking, continuous / no use of polythene, with year of manufacture)*','Working speedometer*','Handrails, safety harness (either 1 handrail & 1 safety harness or 2 handrails)'])},
+      {sec:'C. Electrical requirements',items:num(['Battery cut-off switch provided - clearly marked, accessible*','Electrical wiring in conduit; no exposed wires','Operational lights, indicators, reverse lights and buzzer*','Operational horn*','Battery enclosed within insulation box with ventilation'])},
+      {sec:'D. Safety requirements',items:num(['Minimum (2) 9 kg valid dry-powder (serviced) fire extinguishers provided','2 kg CO2 cabin fire extinguisher','First-aid kit (check contents); anti-spill kit (cotton rug, splits of wood, anti-static hammer, saw-dust)*','Tank top fitted with non-skid surface*','Wheel chocks (wooden or aluminium) provided and located outside the cabin','Spare tyre available and properly inflated','Functioning seat belts and warning triangles*','Exhaust pipe fitted at least 1 m from tank, with spark arrestor*','Emergency telephone numbers; test safety foot-valves are working*'])},
+      {sec:'E. Truck driver',items:num(['Driver must have valid and right type of driving licence*','Driver must have valid passbook indicative of trainings attended','Driver must have correct PPE - PVC gloves, safety goggles, helmet, reflective overall, safety shoes, breathing mask (Drivers\' Handbook)'])},
+      {sec:'F. General',items:num(['Cabin / tank is clean and free from loose and dangerous material','OBC checked by tracking team and found in good working condition'])}
+    ],
+    remarkLabel:'Inspection remarks',verdict:true,
+    bottom:[['driverId','Driver ID & DL No.'],['inspectedBy','Truck inspected by']]},
+  inspection:{col:'inspections',tab:'Truck Inspection',title:'Safe Trip Vehicle Inspection Form',plateLabel:'Vehicle Reg. #',
+    top:[['model','Mark / model'],['km','KM'],['age','Age']],
+    secs:[
+      {sec:'360° inspection',items:[['1','Vehicle has valid licence, COR & Op. Card'],['2','Vehicle issued with valid fire certificate'],['3','Document holder fitted'],['4','Appropriate hazchem placards clearly fitted'],['5','Two fire extinguishers per tanker'],['6','Electrical wiring condition'],['7','Batteries covered and master switch fitted'],['8','Exhaust shielded appropriately'],['9','Condition of tyres, wheels'],['10','Check for leaks [air, water, oil, product]'],['11','All components securely attached'],['12','5th wheel and/or trailer coupling'],['13','All components securely attached'],['15','Two external handbrake per tanker'],['16','Check external ladder and handrails'],['17','Condition of manhole covers'],['18','Static chains fitted in each compartment (where applicable)'],['19','Compartment carrying capacity indicated versus the loading order given'],['20','Check status of all delivery valves'],['21','Loading earth bonding point fitted'],['22','Check the functionality of GPS tracking system'],['23','Check the validity of driver medical certificate'],['24','Is the JMP discussed with the driver?']]},
+      {sec:'Before starting engine',items:num(['Is there sufficient fuel compared to the trip ahead (status of fuel level gauge)','Check engine oil','Check radiator coolant','Check brake fluid level','Check hydraulic fluid level','Next service due km as per service tag'])},
+      {sec:'Start engine, leave it running about 20 min and check the following',items:num(['No complication / delay for engine to start','Colour / quantity of exhaust smoke','All lights in good order & operating','Check steering free play','Check compressed air gauge','Check the engine rounds per minute gauge (rpm) as per manual instructions','Check temperature gauge for staying in green zone','Is the computer alerting you for anything going wrong','Check brake performance by moving a bit'])}
+    ],
+    remarkLabel:'Comments',defects:true,
+    sign:[['workshop','Workshop Manager'],['driverSign','Driver'],['hsse','HSSE'],['ops','Operations Manager']]}
+};
+const vehOf=col=>Object.values(VEH).find(v=>v.col===col);
+/* line icons (drawn here, so they look the same on every device) */
+const ICONS={
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  book:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  cap:'<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  map:'<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15"/><path d="M15 6v15"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  clip:'<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  printer:'<path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  trash:'<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+  pencil:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>'
+};
+const ico=n=>`<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||''}</svg>`;
+
+/* ---------- helpers ---------- */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const asArr=v=>!v?[]:Array.isArray(v)?v.filter(Boolean):Object.values(v).filter(Boolean);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtD(iso){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));return m?`${m[3]} ${MON[+m[2]-1]} ${m[1]}`:(iso||'—')}
+const newId=p=>p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const who=()=>DEMO?'demo':(FB.user&&FB.user.email)||'';
+const list=col=>Object.values(S[col]||{}).filter(Boolean);
+const byDateDesc=(a,b)=>String(b.date||'').localeCompare(String(a.date||''))||(b.createdAt||0)-(a.createdAt||0);
+const safeUrl=u=>/^https:\/\//i.test(String(u||''))?String(u):'';
+let toastT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),3200)}
+function trainTypes(){return BUILTIN_TYPES.concat(list('trainTypes').sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)))}
+
+/* ---------- storage ---------- */
+function demoSave(){try{localStorage.setItem('hse_demo_v1',JSON.stringify(S))}catch(e){}}
+function put(col,rec){
+  rec=JSON.parse(JSON.stringify(rec));S[col][rec.id]=rec;
+  if(DEMO){demoSave();return Promise.resolve()}
+  return firebase.database().ref(`${ROOT}/${col}/${rec.id}`).set(rec);
+}
+function del(col,id){
+  delete S[col][id];
+  if(DEMO){demoSave();return Promise.resolve()}
+  return firebase.database().ref(`${ROOT}/${col}/${id}`).remove();
+}
+/* upload to the same Google Drive folder FleetGuard uses (Apps Script; busy answers are tried again) */
+async function driveUpload(file,folder){
+  if(file.size>15*1024*1024)throw new Error(`"${file.name}" is over 15 MB — use a smaller file`);
+  const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(new Error('could not read the file'));r.readAsDataURL(file)});
+  const clean=String(file.name||'file').replace(/[^A-Za-z0-9_.-]+/g,'_').slice(-120);
+  const body=JSON.stringify({base64:b64,fileName:Date.now().toString(36)+'_'+clean,mimeType:file.type||'application/octet-stream',folder});
+  let res=null,last='';
+  for(const w of [0,3000,8000]){
+    if(w)await new Promise(r=>setTimeout(r,w));
+    try{res=await fetch(DRIVE_UPLOAD_URL,{method:'POST',mode:'cors',redirect:'follow',headers:{'Content-Type':'text/plain'},body})}catch(e){res=null;last='the Google Drive upload service did not answer';continue}
+    if(res.ok)break;last='the Google Drive upload service answered '+res.status;if(![404,408,429,500,502,503,504].includes(res.status))break;
+  }
+  if(!res||!res.ok)throw new Error(last||'upload failed');
+  let j;try{j=await res.json()}catch(e){throw new Error('the upload service sent back something unreadable')}
+  if(Array.isArray(j))j=j[0]||{};
+  if(!j||j.success===false||!j.url)throw new Error((j&&j.error)||'no Google Drive link came back');
+  return j.url;
+}
+
+/* ---------- sign-in and access ---------- */
+/* Nov 2026: the HSE page has its own tick in FleetGuard → Settings → Users (pages.hse). FleetGuard access alone no longer
+   opens it; an Admin always can, so the administrator is never locked out. Same rule as userPages() in js/app.js and as
+   the database rules. Signing in is also this page's own: a session carried over from FleetGuard or the Orders page in
+   the same tab is not accepted — the person signs in here. */
+function mayOpen(r){
+  if(!r||typeof r!=='object'||r.active===false)return false;
+  if(r.role==='Admin')return true;
+  return !!(r.pages&&typeof r.pages==='object'&&r.pages.hse===true);
+}
+const hseSignedHere=v=>{try{if(v===undefined)return sessionStorage.getItem('hse_signed_here')==='1';v?sessionStorage.setItem('hse_signed_here','1'):sessionStorage.removeItem('hse_signed_here')}catch(e){return v===undefined?true:undefined}};
+function gateErr(msg){const e=$('gateErr');e.textContent=msg;e.classList.toggle('on',!!msg);$('si_btn').textContent='Sign in';$('si_btn').disabled=false}
+function deny(msg){hseSignedHere(false);firebase.auth().signOut().catch(()=>{});setTimeout(()=>gateErr(msg),80)}
+function connect(){
+  if(typeof firebase==='undefined'){FB.state='offline';$('gate').classList.add('on');gateErr('Could not reach the sign-in service — check the internet connection and reload.');render();return}
+  if(!firebase.apps.length)firebase.initializeApp(FB_CFG);
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
+  firebase.auth().onAuthStateChanged(u=>{
+    if(u&&!hseSignedHere()){FB.user=null;firebase.auth().signOut().catch(()=>{});return}   /* came in with another page's session — sign in here first */
+    FB.user=u;
+    if(!u){hseSignedHere(false);FB.state='signedout';$('gate').classList.add('on');render();return}
+    const ref=firebase.database().ref('users/'+u.uid);
+    ref.once('value').then(s=>{
+      const rec=s.val();
+      if(!rec){   /* an account nobody added: register it with no access so it shows in FleetGuard → Settings → Users */
+        ref.set({email:u.email||'',role:'Driver',pages:{orders:false,fleetguard:false,hse:false},pagesSetAt:Date.now(),pagesSetBy:'first sign-in (no access yet)',active:true,firstSeen:Date.now(),via:'HSE page'}).catch(()=>{});
+        deny('Your account is registered. Ask the administrator to give it access in FleetGuard → Settings → Users, then sign in again.');return}
+      if(rec.active===false){deny('This account has been turned off. Ask the administrator.');return}
+      if(!mayOpen(rec)){deny('This account has no access to the HSE page. Ask the administrator to tick HSE for it in FleetGuard → Settings → Users.');return}
+      $('gate').classList.remove('on');gateErr('');listen();render();
+    }).catch(()=>deny('Could not check this account\'s access — check the internet connection and try again.'));
+  });
+}
+let listening=false;
+function listen(){
+  if(listening)return;listening=true;const db=firebase.database(),got={};
+  db.ref('fleetguard/incidents').on('value',s=>{FB.incidents=asArr(s.val());safeRender()},()=>{});
+  ['drivers','trucks','trailers'].forEach(c=>db.ref('fleetguard/'+c).on('value',s=>{if(c==='drivers'){FB.dkey={};s.forEach(ch=>{const v=ch.val();if(v&&v._idx!=null)FB.dkey[v._idx]=ch.key})}FB[c]=asArr(s.val());got[c]=1;if(got.drivers&&got.trucks&&got.trailers&&got.hse)FB.state='live';safeRender()},e=>{FB.state='denied';FB.err=e.message;safeRender()}));
+  [['hscPolicies','policies'],['hscMeetings','meetings']].forEach(x=>db.ref('fleetguard/'+x[0]).on('value',s=>{LEG[x[1]]=asArr(s.val());safeRender()},()=>{}));
+  db.ref(ROOT).on('value',s=>{const v=s.val()||{};COLS.forEach(c=>{S[c]=v[c]&&typeof v[c]==='object'?v[c]:{}});got.hse=1;if(got.drivers&&got.trucks&&got.trailers)FB.state='live';safeRender()},e=>{FB.state='denied';FB.err=e.message;safeRender()});
+}
+/* live data must not redraw the page under an open form */
+function safeRender(){renderShell();if(!$('ov').classList.contains('on'))renderMain()}
+
+/* ---------- demo ---------- */
+function enterDemo(){
+  FB.state='demo';
+  FB.drivers=[['Jean Bosco Habimana','RAD 801 E'],['Eric Mugisha','RAE 214 K'],['Patrick Niyonzima','RAF 550 B'],['Claude Uwimana','RAG 119 T'],['Samuel Nkurunziza','RAH 702 M'],['Emmanuel Kalisa','']].map((x,i)=>({_idx:i+1,id:'DRV'+(i+1),name:x[0],license_plate:x[1]}));
+  FB.trucks=FB.drivers.filter(d=>d.license_plate).map((d,i)=>({plate:d.license_plate,trailer:'RL '+(1200+i*37)}));
+  FB.trailers=FB.trucks.map(t=>({id:t.trailer}));
+  let inc=null;try{inc=JSON.parse(localStorage.getItem('hse_demo_inc')||'null')}catch(e){}
+  if(inc){FB.incidents=inc.incidents||[];FB.drivers.forEach(d=>{d.accidentsList=(inc.acc||{})[d._idx]||[]})}
+  else{FB.drivers[1].accidentsList=[{id:'INC-2026-0001',recordType:'accident',date:today(),description:'Rear-ended by a minibus while slowing for a police checkpoint. Rear bumper and under-run bar damaged, no product loss.',truckPlate:'RAE 214 K',measuresTaken:'Truck taken to the workshop. Driver statement and photos collected.',status:'Under investigation',severity:'Minor',location:'Kigali–Rusumo road, km 45',injuries:0,thirdParty:'Minibus RAC 310 T',policeReport:'RNP/2026/0123',costEstimate:450000,notes:'',files:[],createdAt:new Date().toISOString(),createdBy:'demo'}];
+    FB.incidents=[{id:'INC-2026-0002',recordType:'incident',date:today(),description:'Small diesel spill at the depot gantry when a hose coupling was not fully locked. Contained with the spill kit.',truckPlate:'',driverName:'',measuresTaken:'Area cleaned. Coupling checks added to the toolbox talk.',status:'Closed',closedAt:today(),severity:'Minor',location:'Depot loading bay 2',injuries:0,thirdParty:'',policeReport:'',costEstimate:0,notes:'',files:[],createdAt:new Date().toISOString(),createdBy:'demo'}]}
+  let saved=null;try{saved=JSON.parse(localStorage.getItem('hse_demo_v1')||'null')}catch(e){}
+  if(saved){COLS.forEach(c=>{S[c]=saved[c]||{}})}
+  else{
+    const a=n=>FB.drivers.slice(0,n).map(d=>({idx:d._idx,id:d.id,name:d.name}));
+    S.toolbox.tb_1={id:'tb_1',date:today(),topic:'Safe following distance on wet roads',summary:'Reviewed last month\'s near misses on the Rusumo road. Agreed a minimum four-second gap when loaded and when it rains, and no overtaking on the descents.',files:[{name:'Topic - following distance.pdf',kind:'Topic document',url:''},{name:'Attendance list.jpg',kind:'Attendance list',url:''}],attendees:a(4),createdAt:Date.now()};
+    S.policies.pol_1={id:'pol_1',type:'Rule',title:'No mobile phone while driving',details:'Drivers must not hold or use a mobile phone while the vehicle is moving. Calls are answered only after stopping in a safe place with the parking brake applied.\n\nA first breach is a written warning. A second breach is a suspension.',files:[],createdAt:Date.now()};
+    S.policies.pol_2={id:'pol_2',type:'Policy',title:'Alcohol and drugs policy',details:'The company operates a zero-tolerance policy on alcohol and drugs for every person who drives, loads or maintains its vehicles. Random testing may be carried out at any depot or loading point.',files:[],createdAt:Date.now()-1};
+    S.trainings.tr_1={id:'tr_1',typeId:'defensive',date:today(),title:'Defensive driving refresher 2026',provider:'Road Safety Academy',details:'One-day refresher covering hazard perception, speed management on descents, fatigue and rollover prevention for tankers.',files:[],attendees:a(3),createdAt:Date.now()};
+    demoSave();
+  }
+}
+
+/* ---------- transfer from FleetGuard's earlier HSE Policy page ----------
+   Every field of the old record is carried across as it is (…o) and the fields this page uses are added on top, so nothing
+   is lost: category, severity, rank, enforcement measure, linked violation types, acknowledgements, version history,
+   action items, staff attendees and every attachment. The old records are only read, never changed or removed.
+   fleetguard/hse/transferred/<key> remembers what was copied, so a record is never copied twice — also not after it
+   is deleted here. hseLegacyKey() in js/app.js builds the same key; keep the two in step. */
+const legKey=(p,r)=>'fg_'+p+'_'+String(r.id||r.title||'').replace(/[^A-Za-z0-9_-]+/g,'_').slice(0,60);
+function legacyPending(){return {pol:LEG.policies.filter(r=>r&&!S.transferred[legKey('pol',r)]),mtg:LEG.meetings.filter(r=>r&&!S.transferred[legKey('mtg',r)])}}
+const stamp=v=>{const n=typeof v==='number'?v:Date.parse(v);return n>0?n:Date.now()};
+function mapPolicy(o){
+  const files=[],u=o.pdfUrl||o.pdfStorageUrl||o.pdfFileData||'';
+  if(u||o.pdfFileName)files.push({name:o.pdfFileName||'Signed policy.pdf',kind:'Signed PDF',url:u,driveId:o.pdfDriveId||''});
+  return {...o,id:legKey('pol',o),legacyId:o.id||'',source:'FleetGuard HSE Policy page',type:'Policy',title:o.title||'Untitled policy',details:o.description||'',files,
+    createdAt:stamp(o.createdAt),createdAtOriginal:o.createdAt||'',createdBy:o.createdBy||'',transferredAt:Date.now(),transferredBy:who()};
+}
+function mapMeeting(o){
+  const low=x=>String(x||'').trim().toLowerCase();
+  const attendees=asArr(o.attendees).map(a=>{
+    const d=a.type==='staff'?null:(FB.drivers.find(x=>a.name&&low(x.name)===low(a.name))||FB.drivers.find(x=>a.id&&low(x.id)===low(a.id)));
+    const out={id:a.id||'',name:a.name||(d&&d.name)||'',type:a.type==='staff'?'staff':'driver'};if(d)out.idx=d._idx;return out});
+  let files=asArr(o.attachments).map(a=>({...a,name:a.name||'Attachment',kind:'',url:a.url||'',at:a.uploadedAt||''}));
+  if(!files.length&&(o.pdfUrl||o.pdfFileName))files=[{name:o.pdfFileName||'Meeting report.pdf',kind:'',url:o.pdfUrl||''}];
+  return {...o,id:legKey('mtg',o),legacyId:o.id||'',source:'FleetGuard HSE Policy page',date:o.date||'',topic:o.title||'Untitled meeting',summary:o.summary||'',attendees,files,
+    createdAt:stamp(o.createdAt),createdAtOriginal:o.createdAt||'',createdBy:o.createdBy||'',transferredAt:Date.now(),transferredBy:who()};
+}
+function transferBanner(){
+  const p=legacyPending(),n=p.pol.length+p.mtg.length;if(!n)return '';
+  return `<div class="banner" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span><b>${n} record${n===1?'':'s'} from FleetGuard's HSE Policy page ${n===1?'is':'are'} not here yet</b> — ${p.pol.length} polic${p.pol.length===1?'y':'ies'} and ${p.mtg.length} meeting${p.mtg.length===1?'':'s'}. Transferring copies everything across; nothing is removed from FleetGuard.</span><button class="btn pri sm" style="margin-left:auto" onclick="H.transfer()">Transfer now</button></div>`;
+}
+async function transferLegacy(){
+  const p=legacyPending(),n=p.pol.length+p.mtg.length;if(!n)return;
+  if(!await ask(`Transfer ${p.pol.length} polic${p.pol.length===1?'y':'ies'} to Rules & Policy and ${p.mtg.length} meeting${p.mtg.length===1?'':'s'} to Toolbox Meeting? Nothing is removed from FleetGuard.`,'Transfer'))return;
+  let done=0;const failed=[];
+  for(const [col,pre,rows,map] of [['policies','pol',p.pol,mapPolicy],['toolbox','mtg',p.mtg,mapMeeting]]){
+    for(const o of rows){
+      const key=legKey(pre,o);
+      try{await put(col,map(o));await put('transferred',{id:key,from:o.id||'',at:Date.now(),by:who()});done++}
+      catch(e){failed.push((o.title||o.id||'record')+': '+(e&&e.message||e))}
+    }
+  }
+  render();toast(failed.length?`${done} transferred, ${failed.length} failed — ${failed[0]}`:`${done} record${done===1?'':'s'} transferred`);
+}
+
+/* ---------- drawing ---------- */
+function render(){renderShell();renderMain()}
+function renderShell(){
+  const counts={toolbox:list('toolbox').length,policies:list('policies').length,trainings:list('trainings').length,vehicles:list('safeToLoad').length+list('inspections').length,incidents:incAll().length};
+  $('nav').innerHTML=PAGES.map(p=>`<button class="nav ${UI.page===p.id?'on':''}" onclick="H.go('${p.id}')"><span class="ic">${ico(p.ic)}</span>${esc(p.name)}${counts[p.id]?`<span class="ct">${counts[p.id]}</span>`:''}</button>`).join('');
+  const live=FB.state==='live';
+  $('liveDot').classList.toggle('on',live||DEMO);
+  $('liveTxt').textContent=DEMO?'Demo data · this browser only':live?`Live · ${FB.drivers.length} drivers · ${FB.trucks.length} trucks`:FB.state==='denied'?'Blocked: '+(FB.err||'no permission'):FB.state==='signedout'?'Signed out':'Connecting…';
+  $('acct').textContent=DEMO?'':(FB.user&&FB.user.email)||'';
+  $('signOutBtn').style.display=FB.user?'':'none';
+}
+function head(p,btn){return `<div class="head"><div><h1><span class="h-ic">${ico(p.ic)}</span>${esc(p.name)}</h1><p>${esc(p.desc)}</p></div><div class="right">${btn||''}</div></div>${DEMO?'<div class="banner"><b>Demo</b> — sample drivers and trucks. Records are kept in this browser only and attachments are not uploaded.</div>':''}`}
+function empty(t,s,ic){return `<div class="empty">${ic?ico(ic)+'<br>':''}<b>${esc(t)}</b>${esc(s)}</div>`}
+function dblock(iso){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));return m?`<span class="dblock"><b>${m[3]}</b><i>${MON[+m[2]-1]} ${m[1].slice(2)}</i></span>`:`<span class="dblock"><b>—</b></span>`}
+function renderMain(){
+  const p=PAGES.find(x=>x.id===UI.page)||PAGES[0];
+  $('main').innerHTML=({toolbox:pgToolbox,policies:pgPolicies,trainings:pgTrainings,vehicles:pgVeh,incidents:pgIncidents,jmps:pgJmps})[p.id](p);
+}
+/* Filters: a search box and a period on Toolbox Meeting, Vehicles and JMPs (Vehicles also by result). Typing redraws only
+   the results, so the box keeps the cursor. */
+const FLT={incidents:{q:'',period:'all',from:'',to:'',status:'all',severity:'all'},toolbox:{q:'',period:'all',from:'',to:''},vehicles:{q:'',period:'all',from:'',to:'',result:'all'},jmps:{q:'',period:'all',from:'',to:''}};
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function inPeriod(date,f){
+  if(f.period==='all')return true;const d=String(date||'').slice(0,10),t=today();if(!d)return false;
+  if(f.period==='today')return d===t;
+  if(f.period==='month')return d.slice(0,7)===t.slice(0,7);
+  if(f.period==='year')return d.slice(0,4)===t.slice(0,4);
+  if(f.period==='week'){const n=new Date(),a=new Date(n);a.setDate(n.getDate()-(n.getDay()+6)%7);const b=new Date(a);b.setDate(a.getDate()+6);return d>=ymd(a)&&d<=ymd(b)}
+  return (!f.from||d>=f.from)&&(!f.to||d<=f.to);
+}
+const fActive=f=>!!(f.q.trim()||f.period!=='all'||['result','status','severity'].some(k=>f[k]&&f[k]!=='all'));
+const fText=(f,...parts)=>{const q=f.q.trim().toLowerCase(),h=parts.join(' ').toLowerCase(),ns=x=>x.replace(/\s+/g,'');return !q||h.includes(q)||ns(h).includes(ns(q))};   /* "rad801" finds "RAD 801 E" */
+function filterBar(k,ph,extra){
+  const f=FLT[k];
+  return `<div class="fbar"><div class="fsearch">${ico('search')}<input type="search" placeholder="${esc(ph)}" value="${esc(f.q)}" oninput="H.fq('${k}',this.value)" aria-label="Search"></div>
+    <select onchange="H.fset('${k}','period',this.value)" aria-label="Period">${[['all','All dates'],['today','Today'],['week','This week'],['month','This month'],['year','This year'],['custom','Custom range']].map(o=>`<option value="${o[0]}" ${f.period===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>
+    ${f.period==='custom'?`<input type="date" value="${esc(f.from)}" onchange="H.fset('${k}','from',this.value)" aria-label="From date"><span class="tiny">to</span><input type="date" value="${esc(f.to)}" onchange="H.fset('${k}','to',this.value)" aria-label="To date">`:''}${extra||''}</div>`;
+}
+function fCount(k,shown,total){return fActive(FLT[k])?`<div class="fcount"><span>${shown} of ${total} shown</span><button class="btn sm" onclick="H.fclear('${k}')">Clear filters</button></div>`:''}
+function cardMeta(r){const a=asArr(r.attendees).length,f=asArr(r.files).length;return `<div class="meta">${r.attendees!==undefined||a?`<span>${ico('user')}${a} attended</span>`:''}<span>${ico('clip')}${f} file${f===1?'':'s'}</span></div>`}
+
+function toolboxResults(){
+  const all=list('toolbox').sort(byDateDesc),f=FLT.toolbox;
+  const rows=all.filter(r=>inPeriod(r.date,f)&&fText(f,r.topic,r.summary,asArr(r.attendees).map(a=>a.name).join(' ')));
+  if(!all.length)return empty('No toolbox meetings yet','Record the first one with "+ New meeting".','users');
+  return fCount('toolbox',rows.length,all.length)+(rows.length?`<div class="grid">${rows.map(r=>`<button class="card" onclick="H.view('toolbox','${r.id}')"><span class="card-top">${dblock(r.date)}<div><span class="lbl">Toolbox meeting</span><h3>${esc(r.topic)}</h3></div></span><span class="snip">${esc(r.summary||'')}</span>${cardMeta({attendees:asArr(r.attendees),files:r.files})}</button>`).join('')}</div>`
+    :empty('No meeting matches the filter','Change the search or the period.','search'));
+}
+function pgToolbox(p){
+  return head(p,`<button class="btn pri" onclick="H.form('toolbox')">+ New meeting</button>`)+transferBanner()+filterBar('toolbox','Search topic, summary or driver…')+`<div id="results">${toolboxResults()}</div>`;
+}
+function pgPolicies(p){
+  const all=list('policies').sort((a,b)=>String(a.title||'').localeCompare(String(b.title||'')));
+  const rows=all.filter(r=>UI.polFilter==='all'||r.type===UI.polFilter);
+  const n=t=>all.filter(r=>r.type===t).length;
+  return head(p,`<button class="btn pri" onclick="H.form('policies')">+ New rule / policy</button>`)+transferBanner()+
+    `<div class="chips">${[['all','All',all.length],['Rule','Rules',n('Rule')],['Policy','Policies',n('Policy')]].map(c=>`<button class="chip ${UI.polFilter===c[0]?'on':''}" onclick="H.polFilter('${c[0]}')">${c[1]} · ${c[2]}</button>`).join('')}</div>`+
+    (rows.length?`<div class="grid">${rows.map(r=>`<button class="card ${r.type==='Rule'?'':'policy'}" onclick="H.view('policies','${r.id}')"><span><span class="badge ${r.type==='Rule'?'rule':'policy'}">${esc(r.type)}</span>${r.category||r.severity?`<span class="tiny" style="margin-left:8px">${esc([r.category,r.severity&&r.severity+' severity'].filter(Boolean).join(' · '))}</span>`:''}</span><h3>${esc(r.title)}</h3><span class="snip">${esc(r.details||'')}</span>${cardMeta({files:r.files})}</button>`).join('')}</div>`
+      :empty('Nothing here yet','Add a rule or a policy with the button above.','book'));
+}
+function pgTrainings(p){
+  const types=trainTypes();if(!types.some(t=>t.id===UI.trainTab))UI.trainTab=types[0].id;
+  const cur=types.find(t=>t.id===UI.trainTab),custom=!BUILTIN_TYPES.some(t=>t.id===cur.id);
+  const all=list('trainings'),rows=all.filter(r=>r.typeId===cur.id).sort(byDateDesc);
+  const people=new Set();rows.forEach(r=>asArr(r.attendees).forEach(a=>people.add(String(a.idx))));
+  return head(p,`<button class="btn pri" onclick="H.addType()">+ Add training</button>`)+
+    `<div class="pills" id="trainTabs">${types.map(t=>`<button class="pill ${t.id===cur.id?'on':''}" onclick="H.trainTab('${t.id}')">${esc(t.name)}<span class="n">${all.filter(r=>r.typeId===t.id).length}</span></button>`).join('')}</div>`+
+    `<div class="panel"><div class="panel-h"><div><h2>${esc(cur.name)}</h2><p class="tiny">${rows.length} session${rows.length===1?'':'s'} · ${people.size} driver${people.size===1?'':'s'} trained${rows.length?' · last on '+esc(fmtD(rows[0].date)):''}</p></div>
+      <div class="right">${custom&&!rows.length?`<button class="btn sm danger" onclick="H.delType('${cur.id}')">Remove this training</button>`:''}<button class="btn" onclick="H.form('trainings')">+ New session</button></div></div>`+
+    (rows.length?`<div class="hrow">${rows.map(r=>`<button class="card" onclick="H.view('trainings','${r.id}')"><span class="card-top">${dblock(r.date)}<div><span class="lbl">${esc(r.provider||'Training session')}</span><h3>${esc(r.title)}</h3></div></span><span class="snip">${esc(r.details||'')}</span>${cardMeta({attendees:asArr(r.attendees),files:r.files})}</button>`).join('')}</div>`
+      :`<div class="empty" style="border:none">${ico('cap')}<br><b>No sessions yet</b>Add one with "+ New session".</div>`)+`</div>`;
+}
+const ansOf=i=>i.ans||(i.ok===true?'yes':i.ok===false?'no':'');
+function vehScore(r){const it=asArr(r.items);return {yes:it.filter(i=>ansOf(i)==='yes').length,no:it.filter(i=>ansOf(i)==='no').length,total:it.length}}
+function vehBadge(kind,r){
+  const s=vehScore(r);
+  if(kind==='safeToLoad'){const ok=r.verdict?r.verdict==='ok':s.no===0;return `<span class="badge ${ok?'ok':'bad'}">${ok?'OK to load':'Rejected'}</span>`}
+  return `<span class="badge ${s.no?'bad':'ok'}">${s.no?s.no+' marked No':'No defects'}</span>`;
+}
+function vehResults(){
+  const kind=UI.vehTab,v=VEH[kind],stl=kind==='safeToLoad',all=list(v.col).sort(byDateDesc),f=FLT.vehicles;
+  const pass=r=>{const s=vehScore(r);return stl?(r.verdict?r.verdict==='ok':s.no===0):s.no===0};
+  const rows=all.filter(r=>inPeriod(r.date,f)&&fText(f,r.plate,r.trailer,r.driver,r.model)&&(f.result==='all'||(f.result==='pass')===pass(r)));
+  if(!all.length)return empty(stl?'No safe to load checklists yet':'No truck inspections yet','Start one with the button above.','truck');
+  return fCount('vehicles',rows.length,all.length)+(rows.length?`<div class="tbl-wrap"><table><thead><tr><th>Plate number</th><th>${stl?'Trailer':'Mark / model'}</th><th>${stl?'Safe to load checklist':'Truck inspection'}</th><th>Date</th><th></th></tr></thead><tbody>${rows.map(r=>{const s=vehScore(r);
+      return `<tr><td class="mono"><b>${esc(r.plate)}</b></td><td class="${stl?'mono':''}">${esc((stl?r.trailer:r.model)||'—')}</td><td>${vehBadge(kind,r)} <span class="tiny">${s.yes} Yes · ${s.no} No</span></td><td>${esc(fmtD(r.date))}</td><td style="text-align:right"><button class="ib" title="View" aria-label="View checklist" onclick="H.vehView('${kind}','${r.id}')">${ico('eye')}</button></td></tr>`}).join('')}</tbody></table></div>`
+    :empty('Nothing matches the filter','Change the search, the period or the result.','search'));
+}
+function pgVeh(p){
+  if(!VEH[UI.vehTab])UI.vehTab='safeToLoad';
+  const kind=UI.vehTab,stl=kind==='safeToLoad',f=FLT.vehicles;
+  return head(p,`<button class="btn pri" onclick="H.vehForm()">+ New ${stl?'safe to load checklist':'truck inspection'}</button>`)+
+    `<div class="pills">${Object.keys(VEH).map(k=>`<button class="pill ${k===kind?'on':''}" onclick="H.vehTab('${k}')">${esc(VEH[k].tab)}<span class="n">${list(VEH[k].col).length}</span></button>`).join('')}</div>`+
+    filterBar('vehicles','Search plate, trailer or driver…',`<select onchange="H.fset('vehicles','result',this.value)" aria-label="Result">${[['all','All results'],['pass',stl?'OK to load':'No defects'],['fail',stl?'Rejected':'With defects']].map(o=>`<option value="${o[0]}" ${f.result===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>`)+
+    `<div id="results">${vehResults()}</div>`;
+}
+function jmpResults(){return empty('No JMPs yet','This page will be set up later.','map')}
+function pgJmps(p){return head(p,`<button class="btn pri" onclick="H.jmp()">+ Create a JMP</button>`)+filterBar('jmps','Search route, truck or driver…')+`<div id="results">${jmpResults()}</div>`}
+
+/* ---------- incidents & accidents ----------
+   The register is FleetGuard's own and stays where FleetGuard keeps it, so the driver card, the dashboard and the reports
+   go on working unchanged: a record with a driver lives in fleetguard/drivers/<n>/accidentsList, a record without one in
+   fleetguard/incidents. This page is now the only place that adds, edits or deletes them; FleetGuard only shows them.
+   Every write is a transaction on that one driver (checked by _idx) or on the incidents list, so nothing else on the
+   driver is touched. A deleted record goes to FleetGuard's Recycle Bin, where it can be restored. */
+const INC_STATUS=['Open','Under investigation','Closed'],INC_SEV=['Minor','Major','Fatal'];
+const incSig=r=>r.id||JSON.stringify([r.date,r.description,r.createdAt]);
+function incView(r,d){
+  return {type:String(r.recordType||r.type||'accident').toLowerCase()==='incident'?'incident':'accident',status:INC_STATUS.includes(r.status)?r.status:'Open',severity:INC_SEV.includes(r.severity)?r.severity:'Minor',
+    cost:Number(r.costEstimate!==undefined&&r.costEstimate!==null&&r.costEstimate!==''?r.costEstimate:(r.cost||0))||0,plate:r.truckPlate||(d&&d.license_plate)||'',driver:d?d.name:(r.driverName||'')};
+}
+function incAll(){
+  const out=[];
+  FB.drivers.forEach(d=>asArr(d.accidentsList).forEach(a=>out.push({rec:a,src:'driver',didx:d._idx,driver:d})));
+  FB.incidents.forEach(a=>out.push({rec:a,src:'incident',didx:-1,driver:null}));
+  return out.map((x,n)=>({...x,v:incView(x.rec,x.driver),key:String(n)}));
+}
+const incGet=key=>incAll().find(x=>x.key===String(key));
+const incBySig=sig=>incAll().find(x=>incSig(x.rec)===sig);
+const money=n=>Number(n||0).toLocaleString('en-US')+' '+FB.currency;
+function demoIncSave(){const acc={};FB.drivers.forEach(d=>{if(asArr(d.accidentsList).length)acc[d._idx]=d.accidentsList});try{localStorage.setItem('hse_demo_inc',JSON.stringify({incidents:FB.incidents,acc}))}catch(e){}}
+/* change one list of records: fn gets the current list and returns the new one (or throws to cancel) */
+async function incTx(src,didx,fn){
+  const clean=l=>JSON.parse(JSON.stringify(l));
+  if(DEMO){
+    if(src==='driver'){const d=FB.drivers.find(x=>x._idx===didx);if(!d)throw new Error('driver not found');d.accidentsList=clean(fn(asArr(d.accidentsList).slice()))}
+    else FB.incidents=clean(fn(FB.incidents.slice()));
+    demoIncSave();return;
+  }
+  const db=firebase.database();let why='';
+  const run=src==='driver'
+    ?(async()=>{const k=FB.dkey[didx];if(k==null)throw new Error('this driver is no longer in FleetGuard');
+        if((await db.ref('fleetguard/drivers/'+k+'/_idx').once('value')).val()!==didx)throw new Error('the driver list changed — reload the page and try again');
+        return db.ref('fleetguard/drivers/'+k+'/accidentsList').transaction(cur=>{try{return clean(fn(asArr(cur)))}catch(e){why=e.message;return}})})()
+    :db.ref('fleetguard/incidents').transaction(cur=>{try{return clean(fn(asArr(cur)))}catch(e){why=e.message;return}});
+  const res=await run;if(!res.committed)throw new Error(why||'the record could not be saved');
+}
+async function incNextId(year){
+  let max=0;const scan=r=>{const m=/^INC-(\d{4})-(\d+)$/.exec(String((r&&r.id)||''));if(m&&+m[1]===year)max=Math.max(max,+m[2])};
+  incAll().forEach(x=>scan(x.rec));
+  if(!DEMO){try{asArr((await firebase.database().ref('fleetguard/recycleBin').once('value')).val()).forEach(b=>{if(b.type==='accident'||b.type==='incident')scan(b.data)})}catch(e){}}
+  return `INC-${year}-${String(max+1).padStart(4,'0')}`;
+}
+const incReplaceIn=(sig,rec)=>l=>{const k=l.findIndex(x=>incSig(x)===sig);if(k<0)throw new Error('this record was changed or removed by someone else — reopen it');if(rec)l[k]=rec;else l.splice(k,1);return l};
+const sevBadge=s=>`<span class="badge ${s==='Fatal'?'bad':s==='Major'?'warn':'mute'}">${esc(s)}</span>`;
+const stBadge=s=>`<span class="badge ${s==='Closed'?'ok':s==='Open'?'bad':'warn'}">${esc(s)}</span>`;
+function incResults(){
+  const f=FLT.incidents,t=UI.incTab,noun=t==='incident'?'incident':'accident';
+  const all=incAll().filter(x=>x.v.type===t).sort((a,b)=>String(b.rec.date||'').localeCompare(String(a.rec.date||'')));
+  const rows=all.filter(x=>inPeriod(x.rec.date,f)&&(f.status==='all'||x.v.status===f.status)&&(f.severity==='all'||x.v.severity===f.severity)&&
+    fText(f,x.rec.id,x.v.driver,x.v.plate,x.rec.trailerPlate,x.rec.description,x.rec.location,x.rec.notes,x.rec.policeReport,x.rec.thirdParty,x.v.status,x.v.severity));
+  if(!all.length)return empty(`No ${noun}s recorded yet`,`Record one with "+ New ${noun}".`,'alert');
+  return fCount('incidents',rows.length,all.length)+
+    (rows.length?`<div class="grid">${rows.map(x=>{const r=x.rec,v=x.v,nf=asArr(r.files).length;
+      return `<button class="card ${t==='incident'?'policy':''}" onclick="H.incView('${x.key}')"><span class="card-top">${dblock(r.date)}<div><span class="lbl mono">${esc(r.id||'Unregistered')}</span><h3>${esc(v.driver||'No driver')}</h3></div></span>
+        <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${sevBadge(v.severity)}${stBadge(v.status)}${v.plate?`<span class="tiny mono" style="font-weight:700">${esc([v.plate,r.trailerPlate].filter(Boolean).join(' / '))}</span>`:''}</span>
+        <span class="snip">${esc(r.description||'No details recorded.')}</span>
+        <div class="meta">${r.location?`<span>${ico('map')}${esc(r.location)}</span>`:''}<span>${ico('clip')}${nf} file${nf===1?'':'s'}</span></div></button>`}).join('')}</div>`
+      :empty(`No ${noun} matches the filter`,'Change the search, the period, the status or the severity.','search'));
+}
+function pgIncidents(p){
+  const f=FLT.incidents,all=incAll(),cnt=t=>all.filter(x=>x.v.type===t).length,sel=(k,opts,label)=>`<select onchange="H.fset('incidents','${k}',this.value)" aria-label="${label}"><option value="all">All ${label}</option>${opts.map(o=>`<option ${f[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
+  return head(p,`<button class="btn pri" onclick="H.incForm()">+ New ${UI.incTab==='incident'?'incident':'accident'}</button>`)+
+    `<div class="pills">${[['accident','Accidents'],['incident','Incidents']].map(t=>`<button class="pill ${UI.incTab===t[0]?'on':''}" onclick="H.incTab('${t[0]}')">${t[1]}<span class="n">${cnt(t[0])}</span></button>`).join('')}</div>`+
+    filterBar('incidents','Search ID, driver, truck, trailer, location…',sel('status',INC_STATUS,'statuses')+sel('severity',INC_SEV,'severities'))+`<div id="results">${incResults()}</div>`;
+}
+const incFiles=r=>asArr(r.files).map(f=>({...f,url:f.data||f.url||''}));
+function incViewOpen(key){
+  const x=incGet(key);if(!x)return;const r=x.rec,v=x.v,label=v.type==='incident'?'Incident':'Accident';
+  FORM={view:{inc:incSig(r)}};
+  modal(`<div class="modal-h"><h2>${label} · <span class="mono">${esc(r.id||'Unregistered')}</span></h2>
+      <button class="icon-btn" onclick="H.incPrint()" title="Print" aria-label="Print">${ico('printer')}</button>
+      <button class="icon-btn" onclick="H.incDownload()" title="Download PDF" aria-label="Download PDF" id="dlBtn">${ico('download')}</button></div>
+    <div class="modal-b paper-wrap">${incPaperHtml(x)}
+      <div class="lower no-print">
+        <div class="sect">Status</div><select id="i_quick" onchange="H.incStatus(this.value)" style="width:auto" aria-label="Status">${INC_STATUS.map(o=>`<option ${v.status===o?'selected':''}>${o}</option>`).join('')}</select>
+        <div class="sect">Attachments (${asArr(r.files).length})</div>${filesHtml(incFiles(r))}
+        <p class="tiny" style="margin-top:12px">Attachments are not part of the printed report or the PDF.</p></div></div>
+    <div class="modal-f icons"><button class="ib del" title="Delete" aria-label="Delete" onclick="H.incDelete()">${ico('trash')}</button><button class="ib" title="Edit" aria-label="Edit" onclick="H.incForm('${x.key}')">${ico('pencil')}</button><button class="ib" title="Close" aria-label="Close" onclick="H.close()">${ico('x')}</button></div>`,true);
+}
+function incForm(key){
+  const x=key!=null?incGet(key):null,r=x?x.rec:{},v=x?x.v:{type:UI.incTab,status:'Open',severity:'Minor',cost:0};
+  FORM={inc:x?{sig:incSig(r),src:x.src,didx:x.didx}:null,isInc:true,files:x?incFiles(r):[],picked:new Set()};
+  const opt=(l,cur)=>l.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('');
+  modal(`<div class="modal-h"><h2>${x?'Edit':'New'} ${v.type==='incident'?'incident':'accident'}</h2><button class="x" onclick="H.close()" aria-label="Close">×</button></div>
+    <div class="modal-b">
+    <div class="hdr"><div><label class="fl" for="i_type">Type</label><select id="i_type"><option value="accident" ${v.type==='accident'?'selected':''}>Accident</option><option value="incident" ${v.type==='incident'?'selected':''}>Incident</option></select></div>
+      <div><label class="fl" for="i_date">Date</label><input type="date" id="i_date" value="${esc(r.date||today())}"></div>
+      <div><label class="fl" for="i_sev">Severity</label><select id="i_sev">${opt(INC_SEV,v.severity)}</select></div>
+      <div><label class="fl" for="i_status">Status</label><select id="i_status">${opt(INC_STATUS,v.status)}</select></div></div>
+    <div class="hdr">${comboHtml('driver','Driver (empty if none)','Name, truck or trailer…')}${comboHtml('plate','Truck plate','Plate or driver…')}${comboHtml('trailer','Trailer plate','Trailer or truck…')}</div>
+    <label class="fl" for="i_loc">Location</label><input id="i_loc" value="${esc(r.location||'')}" placeholder="e.g. Kigali–Rusumo road, km 45">
+    <label class="fl" for="i_desc">Description</label><textarea id="i_desc" style="min-height:110px" placeholder="Describe what happened">${esc(r.description||'')}</textarea>
+    <div class="row2"><div><label class="fl" for="i_inj">Injuries (number of people)</label><input type="number" min="0" step="1" id="i_inj" value="${esc(r.injuries??'')}" placeholder="0"></div>
+      <div><label class="fl" for="i_third">Third party involved</label><input id="i_third" value="${esc(r.thirdParty||'')}" placeholder="Name / vehicle plate"></div>
+      <div><label class="fl" for="i_police">Police report reference</label><input id="i_police" value="${esc(r.policeReport||'')}" placeholder="e.g. RNP/2026/0123"></div></div>
+    <label class="fl" for="i_meas">Measures taken</label><textarea id="i_meas" style="min-height:70px" placeholder="Measures taken after the event">${esc(r.measuresTaken||'')}</textarea>
+    <label class="fl" for="i_notes">Notes</label><textarea id="i_notes" style="min-height:60px" placeholder="Internal notes, follow-ups, insurer reference…">${esc(r.notes||'')}</textarea>
+    ${fileInput('i_files','Attach photos, PDFs or short videos','image/*,application/pdf,.pdf,video/*,.mp4,.mov,.webm,.m4v')}
+    <div id="keptFiles" style="margin-top:8px">${keptFilesHtml()}</div>
+    <div class="err" id="formErr"></div></div>
+    <div class="modal-f"><button class="btn" onclick="H.close()">Cancel</button><button class="btn pri" id="saveBtn" onclick="H.incSave()">Save</button></div>`);
+  $('v_driver').value=x&&x.driver?x.driver.name:'';$('v_plate').value=r.truckPlate||(x&&x.driver&&x.driver.license_plate)||'';$('v_trailer').value=r.trailerPlate||'';
+}
+async function incSave(){
+  const err=$('formErr'),btn=$('saveBtn'),val=id=>$(id).value.trim(),old=FORM.inc;
+  const fail=m=>{err.textContent=m;err.classList.add('on');btn.disabled=false;btn.textContent='Save'};
+  const name=val('v_driver');let d=null;
+  if(name){const m=FB.drivers.filter(x=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());
+    if(m.length!==1)return fail(m.length?'Several drivers have this name — choose the right one in FleetGuard first.':'No driver with this name. Choose one from the list, or clear the field for a record without a driver.');d=m[0]}
+  if(!val('i_date'))return fail('Choose the date.');
+  if(!val('i_desc'))return fail('Describe what happened.');
+  btn.disabled=true;btn.textContent='Saving…';err.classList.remove('on');
+  try{
+    const status=INC_STATUS.includes($('i_status').value)?$('i_status').value:'Open';
+    const fields={recordType:$('i_type').value==='incident'?'incident':'accident',date:val('i_date'),description:val('i_desc'),truckPlate:val('v_plate').toUpperCase()||(d?d.license_plate||'':''),trailerPlate:val('v_trailer').toUpperCase(),measuresTaken:val('i_meas'),status,
+      severity:INC_SEV.includes($('i_sev').value)?$('i_sev').value:'Minor',location:val('i_loc'),injuries:Math.max(0,parseInt(val('i_inj'),10)||0),thirdParty:val('i_third'),policeReport:val('i_police'),notes:val('i_notes')};
+    const files=FORM.files.map(({url,...f})=>f);
+    for(const {file} of pendList('i_files')){
+      const u=DEMO?'':await driveUpload(file,'fleetguard/attachments/accident/'+(d?d._idx:'register')),thumb=await makeThumb(file);
+      files.push({id:'f_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:file.name,mimeType:file.type||'application/octet-stream',uploadedAt:today(),size:file.size||0,data:u,driveId:driveId({url:u})||null,...(thumb?{thumb}:{})});
+    }
+    const prev=old?incBySig(old.sig):null;if(old&&!prev)throw new Error('this record was changed or removed by someone else — reopen it');
+    const now=new Date().toISOString();let rec;
+    if(prev){rec={...prev.rec,...fields,files,updatedAt:now,updatedBy:who()};if(status==='Closed'){if(!rec.closedAt)rec.closedAt=today()}else if(rec.closedAt)rec.closedAt=''}
+    else{rec={...fields,files,createdAt:now,createdBy:who()};if(status==='Closed')rec.closedAt=today()}
+    if(!rec.id)rec.id=await incNextId(+rec.date.slice(0,4)||new Date().getFullYear());
+    if(!d)rec.driverName='';else delete rec.driverName;
+    const src=d?'driver':'incident',didx=d?d._idx:-1;
+    if(prev&&prev.src===src&&prev.didx===didx)await incTx(src,didx,incReplaceIn(old.sig,rec));
+    else{await incTx(src,didx,l=>{l.push(rec);return l});if(prev)await incTx(prev.src,prev.didx,incReplaceIn(old.sig,null))}   /* the driver changed: the record moves with them */
+    UI.incTab=rec.recordType;closeModal();toast(`${rec.recordType==='incident'?'Incident':'Accident'} ${rec.id} saved`);
+  }catch(e){fail('Not saved: '+(e&&e.message||e))}
+}
+
+/* ---------- modal pieces ---------- */
+function modal(html,wide){$('modal').classList.toggle('wide',!!wide);$('modal').innerHTML=html;$('ov').classList.add('on');$('ov').scrollTop=0}
+function closeModal(){$('ov').classList.remove('on');$('modal').innerHTML='';FORM=null;render()}
+/* A small picture of the file on the left: the image itself, Google Drive's own preview of the file when it is on Drive,
+   and otherwise a tile with the file type. If the preview cannot be loaded the tile stays. */
+function driveId(f){if(f.driveId)return String(f.driveId);const m=/\/d\/([A-Za-z0-9_-]{10,})|[?&]id=([A-Za-z0-9_-]{10,})/.exec(String(f.url||''));return m?(m[1]||m[2]):''}
+function thumbHtml(f){
+  const u=String(f.url||''),ext=(/\.([A-Za-z0-9]{2,5})$/.exec(String(f.name||''))||['',''])[1].toLowerCase();
+  const isImg=/^(jpe?g|png|gif|webp|bmp)$/.test(ext)||/^image/.test(String(f.mimeType||f.type||''))||/^data:image\//.test(u);
+  const cls=ext==='pdf'||f.type==='pdf'?'pdf':isImg?'img':/^docx?$/.test(ext)?'doc':/^(xlsx?|csv)$/.test(ext)?'xls':'';
+  const id=driveId(f),src=/^data:image\//.test(String(f.thumb||''))?f.thumb:/^(data:image\/|blob:)/.test(u)?u:id?`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w160`:(isImg&&safeUrl(u))||'';
+  return `<span class="thumb ${cls}">${esc((ext||(cls==='pdf'?'pdf':'file')).toUpperCase().slice(0,4))}${src?`<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</span>`;
+}
+function filesHtml(files){
+  files=asArr(files);if(!files.length)return '<p class="tiny">No attachments.</p>';
+  return files.map(f=>{const u=safeUrl(f.url),inl=/^data:(application\/pdf|image\/)/i.test(String(f.url||''))?String(f.url):'';
+    return `<div class="file">${thumbHtml(f)}<span class="nm">${esc(f.name)}<small>${esc(f.kind||(u||inl?'Attachment':f.uploadFailed?'Upload failed — attach again':'Not uploaded'))}</small></span>${u?`<a class="ib" href="${esc(u)}" target="_blank" rel="noopener" title="Open the file" aria-label="Open ${esc(f.name)}">${ico('eye')}</a>`:inl?`<button class="ib" data-u="${esc(inl)}" onclick="H.openInline(this)" title="Open the file" aria-label="Open ${esc(f.name)}">${ico('eye')}</button>`:`<button class="ib" onclick="H.noFile()" title="This file was not uploaded" aria-label="Open ${esc(f.name)}">${ico('eye')}</button>`}</div>`}).join('');
+}
+function peopleHtml(att){att=asArr(att);return att.length?`<div class="people">${att.map(a=>`<span class="person">${esc(a.name)}${a.type==='staff'?' <span class="tiny">staff</span>':''}</span>`).join('')}</div>`:'<p class="tiny">No drivers ticked.</p>'}
+function pickerHtml(){
+  const ds=FB.drivers.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  if(!ds.length)return '<p class="tiny">No drivers loaded from FleetGuard yet.</p>';
+  return `<div class="pick"><div class="pick-top"><input type="search" placeholder="Search driver or plate…" oninput="H.pickSearch(this.value)" aria-label="Search drivers"><button type="button" class="btn sm" onclick="H.pickAll(true)" style="white-space:nowrap">Tick shown</button><button type="button" class="btn sm" onclick="H.pickAll(false)">Clear</button></div>
+    <div class="pick-list" id="pickList">${ds.map(d=>`<label class="pick-row" data-q="${esc((d.name+' '+(d.license_plate||'')+' '+(d.id||'')).toLowerCase())}"><input type="checkbox" value="${esc(d._idx)}" ${FORM.picked.has(String(d._idx))?'checked':''} onchange="H.pickCount()"><span>${esc(d.name||'Driver')}</span><span class="pl">${esc(d.license_plate||'')}</span></label>`).join('')}</div></div>
+    <div class="tiny" id="pickCount" style="margin-top:6px"></div>`;
+}
+function pickedDrivers(){
+  const ids=[...document.querySelectorAll('#pickList input:checked')].map(i=>i.value);
+  return ids.map(v=>{const d=FB.drivers.find(x=>String(x._idx)===v);return d?{idx:d._idx,id:d.id||'',name:d.name||''}:null}).filter(Boolean);
+}
+function keptFilesHtml(){return FORM.files.map((f,i)=>`<div class="file">${thumbHtml(f)}<span class="nm">${esc(f.name)}<small>${esc(f.kind||'Attachment')}</small></span><button type="button" class="ib del" title="Remove this file" aria-label="Remove ${esc(f.name)}" onclick="H.dropFile(${i})">${ico('trash')}</button></div>`).join('')}
+/* Attachments in a form: "Add files" can be used again and again, each time with one file or several; every chosen file
+   is listed with its picture before saving and can be taken off again. A small picture of each image is kept in the
+   record, so it shows when the record is opened even where Google Drive does not hand out a preview. */
+const FILE_ACCEPT='image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
+function fileInput(id,label,accept){return `<label class="fl">${label}</label><div class="addfiles"><button type="button" class="btn sm" onclick="document.getElementById('${id}').click()">${ico('clip')} Add files</button><span class="tiny">One or several at a time — add more as often as you need.</span><input type="file" id="${id}" multiple hidden accept="${accept||FILE_ACCEPT}" onchange="H.addFiles('${id}',this)"></div><div id="pend_${id}"></div>`}
+const pendList=id=>(FORM&&FORM.pending&&FORM.pending[id])||[];
+const sizeTxt=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
+function pendHtml(id){return pendList(id).map((p,i)=>`<div class="file">${thumbHtml({name:p.file.name,url:p.url,mimeType:p.file.type})}<span class="nm">${esc(p.file.name)}<small>New · ${sizeTxt(p.file.size)}</small></span><button type="button" class="ib del" title="Take this file off" aria-label="Remove ${esc(p.file.name)}" onclick="H.dropPending('${id}',${i})">${ico('trash')}</button></div>`).join('')}
+function makeThumb(file){
+  if(!/^image\//.test(file.type||''))return Promise.resolve('');
+  return new Promise(res=>{const u=URL.createObjectURL(file),im=new Image();
+    im.onload=()=>{try{const k=Math.min(1,140/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.6))}catch(e){res('')}URL.revokeObjectURL(u)};
+    im.onerror=()=>{URL.revokeObjectURL(u);res('')};im.src=u});
+}
+async function gatherFiles(slots,folder){
+  const out=FORM.files.slice();
+  for(const [id,kind] of slots){
+    for(const p of pendList(id)){
+      const url=DEMO?'':await driveUpload(p.file,folder),thumb=await makeThumb(p.file);
+      out.push({name:p.file.name,kind,url,at:Date.now(),mimeType:p.file.type||'',size:p.file.size||0,...(thumb?{thumb}:{})});
+    }
+  }
+  return out;
+}
+
+/* ---------- forms: toolbox, policies, trainings ---------- */
+const DEF={
+  toolbox:{noun:'toolbox meeting',title:r=>r.topic,slots:[['f_topic','Topic document'],['f_att','Attendance list']],people:true},
+  policies:{noun:'rule / policy',title:r=>r.title,slots:[['f_doc','']],people:false},
+  trainings:{noun:'training session',title:r=>r.title,slots:[['f_doc','']],people:true}
+};
+function openForm(col,id){
+  const r=id?S[col][id]:null,d=DEF[col];
+  FORM={col,id:id||null,files:asArr(r&&r.files).map(f=>({...f})),picked:new Set(asArr(r&&r.attendees).filter(a=>a.idx!=null).map(a=>String(a.idx)))};
+  let f='';
+  if(col==='toolbox')f=`<div class="row2"><div><label class="fl" for="f_date">Date of meeting</label><input type="date" id="f_date" value="${esc(r?r.date:today())}"></div><div><label class="fl" for="f_title">Topic</label><input id="f_title" value="${esc(r?r.topic:'')}" placeholder="e.g. Safe following distance"></div></div>
+    <label class="fl" for="f_text">Brief / report summary</label><textarea id="f_text" placeholder="What was discussed and agreed">${esc(r?r.summary:'')}</textarea>
+    ${fileInput('f_topic','Topic document')}${fileInput('f_att','Attendance list')}`;
+  if(col==='policies')f=`<div class="row2"><div><label class="fl" for="f_type">Type</label><select id="f_type"><option ${r&&r.type==='Policy'?'':'selected'}>Rule</option><option ${r&&r.type==='Policy'?'selected':''}>Policy</option></select></div><div><label class="fl" for="f_title">Title</label><input id="f_title" value="${esc(r?r.title:'')}" placeholder="e.g. No mobile phone while driving"></div></div>
+    <div class="hdr"><div><label class="fl" for="f_cat">Category</label><input id="f_cat" list="f_cats" value="${esc(r&&r.category||'')}" placeholder="e.g. Safety"><datalist id="f_cats">${[...new Set(list('policies').map(x=>x.category).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div><label class="fl" for="f_sev">Severity</label><select id="f_sev">${[['','Not set'],['high','High'],['medium','Medium'],['low','Low']].map(o=>`<option value="${o[0]}" ${String(r&&r.severity||'').toLowerCase()===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div>
+      <div><label class="fl" for="f_eff">Effective date</label><input type="date" id="f_eff" value="${esc(r&&r.effectiveDate||'')}"></div></div>
+    <label class="fl" for="f_text">Full details</label><textarea id="f_text" style="min-height:180px" placeholder="What this rule or policy means">${esc(r?r.details:'')}</textarea>
+    <label class="fl" for="f_meas">What happens when it is broken</label><textarea id="f_meas" style="min-height:70px" placeholder="e.g. First breach: written warning. Second breach: suspension.">${esc(r&&r.violationMeasure||'')}</textarea>
+    ${fileInput('f_doc','Attach documents')}`;
+  if(col==='trainings'){const t=trainTypes().find(x=>x.id===(r?r.typeId:UI.trainTab));
+    f=`<p class="tiny" style="margin-top:12px">Training: <b style="color:var(--text)">${esc(t?t.name:'')}</b></p>
+    <div class="row2"><div><label class="fl" for="f_date">Date of training</label><input type="date" id="f_date" value="${esc(r?r.date:today())}"></div><div><label class="fl" for="f_prov">Trainer / provider</label><input id="f_prov" value="${esc(r?r.provider:'')}"></div></div>
+    <label class="fl" for="f_title">Session title</label><input id="f_title" value="${esc(r?r.title:'')}" placeholder="e.g. Defensive driving refresher 2026">
+    <label class="fl" for="f_text">What the training was about</label><textarea id="f_text" style="min-height:140px">${esc(r?r.details:'')}</textarea>
+    ${fileInput('f_doc','Attach documents')}`}
+  modal(`<div class="modal-h"><h2>${r?'Edit':'New'} ${esc(d.noun)}</h2><button class="x" onclick="H.close()" aria-label="Close">×</button></div>
+    <div class="modal-b">${f}<div id="keptFiles" style="margin-top:8px">${keptFilesHtml()}</div>
+    ${d.people?`<label class="fl">Drivers who attended</label>${pickerHtml()}`:''}
+    <div class="err" id="formErr"></div></div>
+    <div class="modal-f"><button class="btn" onclick="H.close()">Cancel</button><button class="btn pri" id="saveBtn" onclick="H.save()">Save</button></div>`);
+  if(d.people)H.pickCount();
+}
+async function saveForm(){
+  const {col,id}=FORM,d=DEF[col],old=id?S[col][id]:null,err=$('formErr'),btn=$('saveBtn');
+  const title=$('f_title').value.trim(),text=$('f_text').value.trim(),date=$('f_date')?$('f_date').value:'';
+  const fail=m=>{err.textContent=m;err.classList.add('on');btn.disabled=false;btn.textContent='Save'};
+  if(!title)return fail(col==='toolbox'?'Enter the topic.':'Enter the title.');
+  if($('f_date')&&!date)return fail('Choose the date.');
+  err.classList.remove('on');btn.disabled=true;btn.textContent='Saving…';
+  try{
+    const files=await gatherFiles(d.slots,'fleetguard/hse/'+col);
+    const rec={...(old||{}),id:id||newId(col.slice(0,2)),files,createdAt:old?old.createdAt:Date.now(),createdBy:old?old.createdBy||'':who(),updatedAt:Date.now(),updatedBy:who()};
+    const keep=asArr(old&&old.attendees).filter(a=>a.idx==null);   /* staff and unmatched names carried over from FleetGuard stay on the record */
+    if(col==='toolbox')Object.assign(rec,{date,topic:title,title,summary:text,attendees:pickedDrivers().concat(keep)});
+    if(col==='policies')Object.assign(rec,{type:$('f_type').value==='Policy'?'Policy':'Rule',title,details:text,description:text,category:$('f_cat').value.trim(),severity:$('f_sev').value,effectiveDate:$('f_eff').value,violationMeasure:$('f_meas').value.trim()});
+    if(col==='trainings')Object.assign(rec,{typeId:old?old.typeId:UI.trainTab,date,title,details:text,provider:$('f_prov').value.trim(),attendees:pickedDrivers().concat(keep)});
+    await put(col,rec);
+    closeModal();toast('Saved'+(rec.attendees?` · ${rec.attendees.length} driver${rec.attendees.length===1?'':'s'} marked as attended`:''));
+  }catch(e){fail('Not saved: '+(e&&e.message||e))}
+}
+function openView(col,id){
+  const r=S[col][id];if(!r)return;let b='',t='',sub='';
+  if(col==='toolbox'){t=r.topic;sub='Toolbox meeting';b=`<div class="view-hero">${dblock(r.date)}<div class="t">${esc(fmtD(r.date))}<span>${asArr(r.attendees).length} attended · ${asArr(r.files).length} file${asArr(r.files).length===1?'':'s'}</span></div></div><div class="sect">Brief / report summary</div><div class="body-text">${esc(r.summary||'—')}</div><div class="sect">Attended (${asArr(r.attendees).length})</div>${peopleHtml(r.attendees)}
+    ${r.membersNote?`<div class="sect">Other members present</div><div class="body-text">${esc(r.membersNote)}</div>`:(!asArr(r.attendees).length&&r.membersPresent?`<div class="sect">Members present</div><div class="body-text">${esc(r.membersPresent)}</div>`:'')}
+    ${asArr(r.actionItems).length?`<div class="sect">Action items (${asArr(r.actionItems).filter(a=>a.done).length}/${asArr(r.actionItems).length} done)</div>${asArr(r.actionItems).map(a=>`<div class="chk view"><span class="mk" style="color:var(--${a.done?'green':'amber'})">${ico(a.done?'check':'cal')}</span><span>${esc(a.text)}<span class="tiny" style="display:block">${esc([a.owner&&'Owner: '+a.owner,a.dueDate&&'Due '+fmtD(a.dueDate),a.done?'Done'+(a.doneAt?' '+fmtD(a.doneAt):''):'Open'].filter(Boolean).join(' · '))}</span></span></div>`).join('')}`:''}`}
+  if(col==='policies'){t=r.title;sub=r.type==='Rule'?'Rule':'Policy';
+    const kv=[['Policy No.',r.legacyId],['Category',r.category],['Severity',r.severity],['Effective date',r.effectiveDate&&fmtD(r.effectiveDate)],['Rank',typeof r.rank==='number'&&r.rank<999?r.rank:''],['Committed',r.committed===true?'Yes':r.committed===false?'No':'']].filter(x=>x[1]!==''&&x[1]!=null);
+    const meas=String(r.violationMeasure||'').trim(),acks=asArr(r.acknowledgements),hist=asArr(r.versionHistory),links=asArr(r.linkedViolationTypes);
+    b=`<p style="margin-top:12px"><span class="badge ${r.type==='Rule'?'rule':'policy'}">${esc(r.type)}</span></p>
+    ${kv.length?`<div class="kv">${kv.map(x=>`<div><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('')}</div>`:''}
+    <div class="sect">Full details</div><div class="body-text">${esc(r.details||'—')}</div>
+    ${meas?`<div class="sect">What happens when it is broken</div><div class="body-text">${esc(meas)}</div>`:''}
+    ${links.length?`<div class="sect">Linked violation types</div><div class="people">${links.map(x=>`<span class="person">${esc(x)}</span>`).join('')}</div>`:''}
+    ${acks.length?`<div class="sect">Acknowledged by (${acks.length})</div><div class="people">${acks.map(a=>`<span class="person">${esc(a.driverName||a.driverId||'Driver')}${a.date?' <span class="tiny">'+esc(fmtD(a.date))+'</span>':''}</span>`).join('')}</div>`:''}
+    ${hist.length?`<div class="sect">Version history</div>${hist.map(h=>`<p class="tiny">${esc(fmtD(h.date))} · ${esc(h.by||'')} · ${esc(h.changes||'')}</p>`).join('')}`:''}`}
+  if(col==='trainings'){const ty=trainTypes().find(x=>x.id===r.typeId);t=r.title;sub=ty?ty.name:'Training';b=`<div class="view-hero">${dblock(r.date)}<div class="t">${esc(fmtD(r.date))}<span>${esc([r.provider,asArr(r.attendees).length+' attended'].filter(Boolean).join(' · '))}</span></div></div><div class="sect">About this training</div><div class="body-text">${esc(r.details||'—')}</div><div class="sect">Attended (${asArr(r.attendees).length})</div>${peopleHtml(r.attendees)}`}
+  FORM={view:{col,id}};
+  modal(`<div class="modal-h"><h2>${esc(t)}<span class="sub">${esc(sub)}</span></h2></div>
+    <div class="modal-b">${b}<div class="sect">Attachments (${asArr(r.files).length})</div>${filesHtml(r.files)}${r.source?`<p class="tiny" style="margin-top:14px">Transferred from ${esc(r.source)}${r.legacyId?' ('+esc(r.legacyId)+')':''}${r.createdBy?' · first recorded by '+esc(r.createdBy):''}</p>`:''}</div>
+    <div class="modal-f icons"><button class="ib del" title="Delete" aria-label="Delete" onclick="H.remove('${col}','${id}')">${ico('trash')}</button><button class="ib" title="Edit" aria-label="Edit" onclick="H.form('${col}','${id}')">${ico('pencil')}</button><button class="ib" title="Close" aria-label="Close" onclick="H.close()">${ico('x')}</button></div>`);
+}
+
+/* ---------- vehicles: safe to load + truck inspection ---------- */
+function comboHtml(k,label,ph){return `<div class="combo"><label class="fl" for="v_${k}">${esc(label)}</label><input id="v_${k}" autocomplete="off" placeholder="${esc(ph)}" oninput="H.combo('${k}')" onfocus="H.combo('${k}')" onblur="H.comboClose('${k}')" onchange="H.comboTyped('${k}')"><div class="combo-list" id="cl_${k}"></div></div>`}
+function vehForm(){
+  const kind=UI.vehTab,v=VEH[kind];
+  FORM={col:v.col,kind,files:[],picked:new Set()};
+  const inp=(k,l,extra)=>`<div><label class="fl" for="v_${k}">${esc(l)}</label><input id="v_${k}" ${extra||''}></div>`;
+  let n=0;
+  modal(`<div class="modal-h"><h2>${esc(v.title)}</h2><button class="x" onclick="H.close()" aria-label="Close">×</button></div>
+    <div class="modal-b">
+    <div class="hdr"><div><label class="fl" for="v_date">Date</label><input type="date" id="v_date" value="${today()}"></div>
+      ${v.top.some(f=>f[0]==='driver')?comboHtml('driver','Driver name','Search by name…'):''}
+      ${comboHtml('plate',v.plateLabel,'Search by plate…')}
+      ${v.top.filter(f=>f[0]!=='driver').map(f=>f[0]==='trailer'?comboHtml('trailer',f[1],'Search trailer…'):inp(f[0],f[1])).join('')}</div>
+    <div style="display:flex;align-items:center;margin-top:16px;gap:8px"><span class="tiny">Mark Yes or No on every item${kind==='safeToLoad'?'. Items with * are as marked on the form':''}.</span><button type="button" class="btn sm" style="margin-left:auto;white-space:nowrap" onclick="H.vehAll()">Mark all Yes</button></div>
+    ${v.secs.map(s=>`<div class="chk-sec">${esc(s.sec)}</div>${s.items.map(it=>{const i=n++;return `<div class="q" data-sec="${esc(s.sec)}" data-no="${esc(it[0])}" data-label="${esc(it[1])}"><span class="qn">${esc(it[0])}</span><span class="ql">${esc(it[1])}</span>
+      <span class="yn"><label><input type="radio" name="q${i}" value="yes">Yes</label><label><input type="radio" name="q${i}" value="no">No</label></span>
+      <input class="qr" placeholder="${esc(v.remarkLabel)}" aria-label="${esc(v.remarkLabel)} for item ${esc(it[0])}"></div>`}).join('')}`).join('')}
+    ${v.defects?`<label class="fl" for="v_defects">Other defects, list below</label><textarea id="v_defects"></textarea>`:''}
+    ${v.verdict?`<div class="chk-sec">Tick one</div><div class="verdict"><label><input type="radio" name="v_verdict" value="ok">OK to load</label><label><input type="radio" name="v_verdict" value="rejected">Rejected</label></div>`:''}
+    ${v.bottom?`<div class="row2">${v.bottom.map(f=>inp(f[0],f[1])).join('')}</div>`:''}
+    ${v.sign?`<div class="chk-sec">Vehicle inspected by</div>${v.sign.map(f=>`<div class="row2"><div><label class="fl" for="v_${f[0]}">${esc(f[1])}</label><input id="v_${f[0]}" placeholder="Name"></div><div><label class="fl" for="v_${f[0]}_d">Date</label><input type="date" id="v_${f[0]}_d"></div></div>`).join('')}`:''}
+    <div class="err" id="formErr"></div></div>
+    <div class="modal-f"><button class="btn" onclick="H.close()">Cancel</button><button class="btn pri" id="saveBtn" onclick="H.vehSave()">Save</button></div>`);
+  if(v.bottom&&$('v_inspectedBy'))$('v_inspectedBy').value=who();
+}
+async function vehSave(){
+  const {kind}=FORM,v=VEH[kind],err=$('formErr'),btn=$('saveBtn'),val=k=>{const e=$('v_'+k);return e?e.value.trim():''};
+  const fail=m=>{err.textContent=m;err.classList.add('on');btn.disabled=false};
+  document.querySelectorAll('.q.miss').forEach(q=>q.classList.remove('miss'));
+  if(!val('plate'))return fail('Enter the truck plate number.');
+  if(!val('date'))return fail('Choose the date.');
+  const items=[...document.querySelectorAll('#modal .q')].map(q=>{const c=q.querySelector('input[type=radio]:checked');return {el:q,sec:q.dataset.sec,no:q.dataset.no,label:q.dataset.label,ans:c?c.value:'',remark:q.querySelector('.qr').value.trim()}});
+  const miss=items.filter(i=>!i.ans);
+  if(miss.length){miss.forEach(i=>i.el.classList.add('miss'));miss[0].el.scrollIntoView({block:'center'});return fail(`${miss.length} item${miss.length===1?' is':'s are'} not marked Yes or No (shown in red).`)}
+  const rec={id:newId(kind==='safeToLoad'?'sl':'vi'),kind,plate:val('plate'),date:val('date'),items:items.map(({el,...i})=>i),checkedBy:who(),createdAt:Date.now()};
+  v.top.concat(v.bottom||[]).forEach(f=>{rec[f[0]]=val(f[0])});
+  if(v.defects)rec.defects=val('defects');
+  if(v.sign)rec.sign=v.sign.map(f=>({role:f[1],name:val(f[0]),date:val(f[0]+'_d')}));
+  if(v.verdict){const c=document.querySelector('input[name=v_verdict]:checked');if(!c)return fail('Tick one: OK to load or Rejected.');rec.verdict=c.value}
+  btn.disabled=true;
+  try{await put(v.col,rec);const nos=items.filter(i=>i.ans==='no').length;closeModal();
+    toast(v.verdict?(rec.verdict==='ok'?'Saved · OK to load':'Saved · Rejected'):`Saved · ${nos?nos+' item'+(nos===1?'':'s')+' marked No':'no defects'}`)}
+  catch(e){fail('Not saved: '+(e&&e.message||e))}
+}
+/* The saved checklist drawn like the printed form it came from, so the screen, the print-out and the PDF all match the hard copy. */
+/* The company letterhead exactly as supplied (images/hse-letterhead.png is the full A4 sheet; only its header band is shown). */
+const LETTERHEAD='<div class="p-head"><img src="images/hse-letterhead.png" alt="3 RAG company LTD"></div>';
+function paperHtml(kind,r){
+  const v=VEH[kind],secs=[],e=x=>esc(x||''),fill=(x,w)=>`<span class="p-fill" style="min-width:${w||160}px">${e(x)}&nbsp;</span>`;
+  asArr(r.items).forEach(i=>{let g=secs.find(x=>x.sec===i.sec);if(!g)secs.push(g={sec:i.sec,items:[]});g.items.push(i)});
+  const logo=LETTERHEAD;
+  if(kind==='safeToLoad'){
+    const ok=r.verdict?r.verdict==='ok':vehScore(r).no===0,box=on=>`<span class="p-box-t">${on?'✓':''}</span>`;
+    return `<div class="paper" id="paper">${logo}<div class="p-title">SAFE TO LOAD INSPECTION CHECKLIST</div>
+      <div class="p-line"><b>DATE:</b> ${fill(fmtD(r.date),220)}</div><div class="p-line"><b>TRUCK NO.</b> ${fill(r.plate,220)}</div>
+      <div class="p-line"><b>TRAILER NO.</b> ${fill(r.trailer,220)}</div><div class="p-line"><b>DRIVER NAME</b> ${fill(r.driver,280)}</div>
+      <table class="p-tbl"><thead><tr><th style="width:44px">ITEM</th><th>DESCRIPTION</th><th style="width:40px">YES</th><th style="width:40px">NO</th><th style="width:26%">INSPECTION REMARKS</th></tr></thead><tbody>
+      ${secs.map(g=>{const m=/^([A-Z])\.\s*(.*)$/.exec(g.sec)||['','',g.sec];
+        return `<tr class="p-sec"><td>${e(m[1])}${m[1]?'.':''}</td><td colspan="4">${e(m[2]).toUpperCase()}</td></tr>`+g.items.map(i=>{const a=ansOf(i);return `<tr><td class="c">${e(i.no)}</td><td>${e(i.label)}</td><td class="c mk">${a==='yes'?'✓':''}</td><td class="c mk">${a==='no'?'✓':''}</td><td>${e(i.remark)}</td></tr>`}).join('')}).join('')}
+      </tbody></table>
+      <div class="p-tick"><b>TICK ONE</b><span class="${ok?'on':''}">${box(ok)} OK TO LOAD</span><span class="${ok?'':'on'}">${box(!ok)} REJECTED</span></div>
+      <div class="p-line"><b>DRIVER NAME</b> ${fill(r.driver,260)} <b>SIGN</b> ${fill('',150)}</div>
+      <div class="p-line"><b>ID &amp; DL NO.</b> ${fill(r.driverId,220)}</div>
+      <div class="p-line"><b>Truck Inspected by</b> ${fill(r.inspectedBy||r.checkedBy,240)} <b>SIGN</b> ${fill('',150)}</div></div>`;
+  }
+  const sg=asArr(r.sign),who=role=>sg.find(x=>x.role===role)||{},sl=(lab,role)=>{const x=who(role);return `<div class="p-line"><b>${lab}:</b> ${fill(x.name,150)} <b>Date:</b> ${fill(x.date?fmtD(x.date):'',90)} <b>Signature:</b> ${fill('',100)}</div>`};
+  return `<div class="paper" id="paper">${logo}<div class="p-title">Safe trip Vehicle Inspection form</div>
+    <div class="p-line"><b>DATE:</b> ${fill(fmtD(r.date),160)}</div>
+    <div class="p-line"><b>VEHICLE Reg. #:</b> ${fill(r.plate,100)} <b>MARK/MODEL:</b> ${fill(r.model,110)} <b>KM:</b> ${fill(r.km,70)} <b>Age:</b> ${fill(r.age,50)}</div>
+    <div class="p-note">Mark x in applicable box</div>
+    ${secs.map((g,gi)=>`${gi?'':`<div class="p-sub">${e(g.sec.replace(/^360° inspection$/i,'360° Inspection'))}</div>`}<table class="p-tbl${gi?' joined':''}"><thead><tr><th style="text-align:left">${gi?e(g.sec):'ITEM'}</th><th style="width:44px">YES</th><th style="width:44px">NO</th><th style="width:30%">${gi?'':'COMMENTS'}</th></tr></thead><tbody>
+      ${g.items.map(i=>{const a=ansOf(i);return `<tr><td>${e(i.no)}${i.no?'.&nbsp; ':''}${e(i.label)}</td><td class="c mk">${a==='yes'?'X':''}</td><td class="c mk">${a==='no'?'X':''}</td><td>${e(i.remark)}</td></tr>`}).join('')}</tbody></table>`).join('')}
+    <div class="p-sub">Other defects, list below</div><div class="p-defects">${e(r.defects)}</div>
+    <div class="p-sub">VEHICLE INSPECTED BY:</div>
+    ${sl('Work Shop Manager','Workshop Manager')}${sl('Driver','Driver')}${sl('HSSE','HSSE')}${sl('Operations Manager','Operations Manager')}</div>`;
+}
+function vehView(kind,id){
+  const v=VEH[kind],r=S[v.col][id];if(!r)return;
+  FORM={view:{kind,id}};
+  modal(`<div class="modal-h"><h2>${esc(v.tab)} · <span class="mono">${esc(r.plate)}</span></h2>
+      <button class="icon-btn" onclick="H.vehPrint()" title="Print" aria-label="Print">${ico('printer')}</button>
+      <button class="icon-btn" onclick="H.vehDownload()" title="Download PDF" aria-label="Download PDF" id="dlBtn">${ico('download')}</button>
+</div>
+    <div class="modal-b paper-wrap">${paperHtml(kind,r)}<p class="tiny no-print" style="margin-top:10px">Recorded by ${esc(r.checkedBy||'—')}</p></div>
+    <div class="modal-f icons"><button class="ib del" title="Delete" aria-label="Delete" onclick="H.remove('${v.col}','${id}')">${ico('trash')}</button><button class="ib" title="Close" aria-label="Close" onclick="H.close()">${ico('x')}</button></div>`,true);
+}
+function loadScript(src){return new Promise((res,rej)=>{const x=document.createElement('script');x.src=src;x.onload=res;x.onerror=()=>rej(new Error('could not load the PDF tool'));document.head.appendChild(x)})}
+async function pdfFrom(el,name,asBlob){
+  if(!window.html2pdf)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js');
+  await Promise.all([...el.querySelectorAll('img')].map(i=>i.complete?0:new Promise(r=>{i.onload=i.onerror=r})));
+  const job=html2pdf().set({margin:[5,0,10,0],filename:name,image:{type:'jpeg',quality:.96},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy'],avoid:'tr'}}).from(el);
+  return asBlob?job.outputPdf('blob'):job.save();
+}
+function vehPdf(asBlob){
+  const {kind,id}=FORM.view,v=VEH[kind],r=S[v.col][id];
+  return pdfFrom($('paper'),`${v.tab.replace(/\s+/g,'-')}_${String(r.plate||'').replace(/[^A-Za-z0-9]+/g,'')}_${r.date||''}.pdf`,asBlob);
+}
+/* Accident / incident report on the letterhead, for printing and for the PDF */
+function incPaperHtml(x){
+  const r=x.rec,v=x.v,e=t=>esc(t||''),dash=t=>t?e(t):'—';
+  const rows=[['Driver',v.driver||'No driver','Date of '+v.type,fmtD(r.date)],['Truck plate',v.plate,'Trailer plate',r.trailerPlate],['Location',r.location,'Severity',v.severity],
+    ['Injuries (people)',r.injuries!==undefined&&r.injuries!==null&&r.injuries!==''?String(r.injuries):'','Status',v.status+(r.closedAt?' — closed '+fmtD(r.closedAt):'')],['Third party involved',r.thirdParty,'Police report ref.',r.policeReport]];
+  const box=(t,txt)=>`<div class="p-h">${t}</div><div class="p-area">${e(txt)}</div>`;
+  return `<div class="paper" id="incPaper">${LETTERHEAD}<div class="p-title">${v.type==='incident'?'INCIDENT':'ACCIDENT'} REPORT</div>
+    <div class="p-ref"><span><b>Register No.:</b> ${e(r.id||'Unregistered')}</span><span><b>Recorded by:</b> ${dash(r.createdBy)}</span></div>
+    <table class="p-tbl" style="margin-top:0"><tbody>${rows.map(a=>`<tr><td class="k">${a[0]}</td><td>${dash(a[1])}</td><td class="k">${a[2]}</td><td>${dash(a[3])}</td></tr>`).join('')}</tbody></table>
+    ${box('Description of the '+v.type,r.description)}${box('Measures taken',r.measuresTaken)}${box('Notes',r.notes)}
+    <div class="p-h">Signed</div>
+    <table class="p-tbl p-sign joined" style="margin-top:0"><thead><tr><th style="width:24%;text-align:left">Role</th><th>Name</th><th style="width:20%">Date</th><th style="width:24%">Signature</th></tr></thead>
+      <tbody><tr><td class="k">Driver</td><td>${e(v.driver)}</td><td></td><td></td></tr><tr><td class="k">HSSE</td><td></td><td></td><td></td></tr><tr><td class="k">Operations Manager</td><td></td><td></td><td></td></tr></tbody></table></div>`;
+}
+
+/* our own "are you sure?" box — the browser's confirm() does not open in every window, which left Delete doing nothing */
+function ask(msg,yes){return new Promise(res=>{
+  $('askMsg').textContent=msg;$('askYes').textContent=yes||'Delete';$('ov2').classList.add('on');
+  const done=v=>{$('ov2').classList.remove('on');res(v)};
+  $('askYes').onclick=()=>done(true);$('askNo').onclick=()=>done(false);$('askYes').focus();
+})}
+
+/* ---------- handlers ---------- */
+const H={
+  go(p){UI.page=p;render();window.scrollTo(0,0)},
+  polFilter(f){UI.polFilter=f;renderMain()},
+  trainTab(t){UI.trainTab=t;renderMain();const e=document.querySelector('#trainTabs .pill.on');if(e)e.scrollIntoView({block:'nearest',inline:'center'})},
+  form:openForm,view:openView,save:saveForm,close:closeModal,vehForm,vehSave,vehView,
+  vehTab(t){UI.vehTab=t;renderMain()},
+  dropFile(i){FORM.files.splice(i,1);$('keptFiles').innerHTML=keptFilesHtml()},
+  addFiles(id,inp){if(!FORM)return;FORM.pending=FORM.pending||{};const l=FORM.pending[id]=FORM.pending[id]||[];
+    for(const f of inp.files){if(l.some(p=>p.file.name===f.name&&p.file.size===f.size))continue;l.push({file:f,url:/^image\//.test(f.type||'')?URL.createObjectURL(f):''})}
+    inp.value='';$('pend_'+id).innerHTML=pendHtml(id)},
+  dropPending(id,i){const l=pendList(id),p=l.splice(i,1)[0];if(p&&p.url)URL.revokeObjectURL(p.url);$('pend_'+id).innerHTML=pendHtml(id)},
+  pickSearch(q){q=q.trim().toLowerCase();document.querySelectorAll('#pickList .pick-row').forEach(r=>{r.style.display=!q||r.dataset.q.includes(q)?'':'none'})},
+  pickAll(on){document.querySelectorAll('#pickList .pick-row').forEach(r=>{if(r.style.display!=='none')r.querySelector('input').checked=on});H.pickCount()},
+  pickCount(){const n=document.querySelectorAll('#pickList input:checked').length,e=$('pickCount');if(e)e.textContent=`${n} driver${n===1?'':'s'} ticked`},
+  vehTruck(){const pk=x=>String(x||'').replace(/\s+/g,'').toUpperCase(),t=FB.trucks.find(x=>pk(x.plate)===pk($('v_plate').value));if(!t)return;
+    const d=FB.drivers.find(x=>x.license_plate&&pk(x.license_plate)===pk(t.plate)),set=(k,x)=>{const e=$('v_'+k);if(e)e.value=x||''};
+    set('plate',t.plate);set('trailer',t.trailer||(d&&d.custom&&d.custom.Trailer));set('driver',(d&&d.name)||t.driverName);set('model',[t.brand,t.model].filter(Boolean).join(' '));
+    set('driverId',d&&d.license);set('driverSign',(d&&d.name)||t.driverName)},
+  /* a driver chosen from the list brings the assigned truck and trailer with them; both stay editable */
+  vehDriver(){const nm=String($('v_driver').value||'').trim().toLowerCase(),d=FB.drivers.find(x=>String(x.name||'').trim().toLowerCase()===nm);if(!d)return;
+    const pk=x=>String(x||'').replace(/\s+/g,'').toUpperCase(),t=FB.trucks.find(x=>d.license_plate&&pk(x.plate)===pk(d.license_plate)),set=(k,x)=>{const e=$('v_'+k);if(e)e.value=x||''};
+    set('driver',d.name);set('plate',(t&&t.plate)||d.license_plate);set('trailer',(t&&t.trailer)||(d.custom&&d.custom.Trailer));set('driverId',d.license)},
+  /* one list for each of the three fields; typing a driver's name, a truck plate or a trailer finds the row in any of them */
+  combo(k){
+    const raw=String($('v_'+k).value||'').trim().toLowerCase(),pk=x=>String(x||'').replace(/\s+/g,'').toLowerCase();
+    const drvOf=t=>FB.drivers.find(x=>x.license_plate&&pk(x.license_plate)===pk(t.plate)),trkOf=d=>FB.trucks.find(x=>d.license_plate&&pk(x.plate)===pk(d.license_plate));
+    let opts;
+    if(k==='driver')opts=FB.drivers.map(d=>{const t=trkOf(d);return {v:d.name||'',s:[d.license_plate,(t&&t.trailer)||(d.custom&&d.custom.Trailer)].filter(Boolean).join(' · ')||'no truck'}});
+    else if(k==='plate')opts=FB.trucks.map(t=>{const d=drvOf(t);return {v:t.plate||'',s:[(d&&d.name)||t.driverName,t.trailer].filter(Boolean).join(' · ')||'no driver'}});
+    else{const seen={};opts=[];FB.trucks.forEach(t=>{const d=drvOf(t),id=String(t.trailer||(d&&d.custom&&d.custom.Trailer)||'').trim();if(id&&!seen[pk(id)]){seen[pk(id)]=1;opts.push({v:id,s:[t.plate,(d&&d.name)||t.driverName].filter(Boolean).join(' · ')})}});
+      FB.trailers.forEach(t=>{const id=String(t.id||'').trim();if(id&&!seen[pk(id)]){seen[pk(id)]=1;opts.push({v:id,s:'not on a truck'})}})}
+    opts=opts.filter(o=>{if(!o.v)return false;if(!raw)return true;const h=(o.v+' '+o.s).toLowerCase();return h.includes(raw)||pk(h).includes(pk(raw))}).sort((a,b)=>a.v.localeCompare(b.v)).slice(0,60);
+    const box=$('cl_'+k);
+    box.innerHTML=opts.map(o=>`<button type="button" class="combo-opt" data-v="${esc(o.v)}" onmousedown="event.preventDefault();H.comboPick('${k}',this.dataset.v)"><span>${esc(o.v)}</span><small>${esc(o.s)}</small></button>`).join('')||'<div class="combo-none">No match. You can still type it in.</div>';
+    box.classList.add('on');
+  },
+  vehTrailer(){const pk=x=>String(x||'').replace(/\s+/g,'').toUpperCase(),v=pk($('v_trailer').value);if(!v)return;
+    const t=FB.trucks.find(x=>pk(x.trailer)===v);if(t&&$('v_plate')&&!$('v_plate').value.trim()){$('v_plate').value=t.plate;H.vehTruck()}},
+  comboPick(k,v){$('v_'+k).value=v;$('cl_'+k).classList.remove('on');H.comboTyped(k)},
+  comboClose(k){$('cl_'+k).classList.remove('on')},
+  comboTyped(k){k==='driver'?H.vehDriver():k==='plate'?H.vehTruck():H.vehTrailer()},
+  vehPrint(){window.print()},
+  incPrint(){window.print()},
+  async incDownload(){const x=FORM&&FORM.view&&incBySig(FORM.view.inc),el=$('incPaper');if(!x||!el)return;const b=$('dlBtn');if(b)b.disabled=true;toast('Preparing the PDF…');
+    try{await pdfFrom(el,`${x.v.type==='incident'?'Incident':'Accident'}_${String(x.rec.id||x.rec.date||'report').replace(/[^A-Za-z0-9-]+/g,'')}.pdf`);toast('PDF downloaded')}catch(e){toast('PDF not made ('+(e&&e.message||e)+'). Use Print and choose "Save as PDF".')}
+    if(b)b.disabled=false},
+  async vehDownload(){const b=$('dlBtn');b.disabled=true;toast('Preparing the PDF…');
+    try{await vehPdf();toast('PDF downloaded')}catch(e){toast('PDF not made ('+(e&&e.message||e)+'). Use Print and choose "Save as PDF".')}b.disabled=false},
+  vehAll(){document.querySelectorAll('#modal .q input[value=yes]').forEach(i=>{i.checked=true});document.querySelectorAll('.q.miss').forEach(q=>q.classList.remove('miss'))},
+  addType(){
+    FORM={col:'trainTypes',files:[],picked:new Set()};
+    modal(`<div class="modal-h"><h2>Add training</h2><button class="x" onclick="H.close()" aria-label="Close">×</button></div>
+      <div class="modal-b"><label class="fl" for="t_name">Training name</label><input id="t_name" placeholder="e.g. First Aid Training"><p class="tiny" style="margin-top:8px">It is added as a new tab beside the others.</p><div class="err" id="formErr"></div></div>
+      <div class="modal-f"><button class="btn" onclick="H.close()">Cancel</button><button class="btn pri" onclick="H.saveType()">Add</button></div>`);
+    $('t_name').focus();
+  },
+  async saveType(){
+    const name=$('t_name').value.trim(),err=$('formErr');
+    const fail=m=>{err.textContent=m;err.classList.add('on')};
+    if(!name)return fail('Enter the training name.');
+    if(trainTypes().some(t=>t.name.toLowerCase()===name.toLowerCase()))return fail('There is already a training with this name.');
+    const rec={id:newId('tt'),name,createdAt:Date.now(),createdBy:who()};
+    try{await put('trainTypes',rec);UI.trainTab=rec.id;closeModal();toast('Training added')}catch(e){fail('Not saved: '+(e&&e.message||e))}
+  },
+  async delType(id){if(!await ask('Remove this training tab?','Remove'))return;try{await del('trainTypes',id);UI.trainTab='defensive';render()}catch(e){toast('Not removed: '+(e&&e.message||e))}},
+  async remove(col,id){
+    if(!await ask((col==='safeToLoad'||col==='inspections')?'Delete this checklist? This cannot be undone.':'Delete this record? This cannot be undone.'))return;
+    try{await del(col,id);closeModal();toast('Deleted')}catch(e){toast('Not deleted: '+(e&&e.message||e))}
+  },
+  transfer:transferLegacy,
+  incTab(t){UI.incTab=t;renderMain()},incView:incViewOpen,incForm,incSave,
+  async incStatus(st){
+    const x=FORM&&FORM.view&&incBySig(FORM.view.inc);if(!x||!INC_STATUS.includes(st))return;
+    const rec={...x.rec,status:st,closedAt:st==='Closed'?today():'',updatedAt:new Date().toISOString(),updatedBy:who()};
+    try{await incTx(x.src,x.didx,incReplaceIn(incSig(x.rec),rec));toast(`Marked ${st}`);const y=incBySig(incSig(rec));if(y)incViewOpen(y.key)}catch(e){toast('Not saved: '+(e&&e.message||e))}
+  },
+  async incDelete(){
+    const x=FORM&&FORM.view&&incBySig(FORM.view.inc);if(!x)return;const label=x.v.type==='incident'?'Incident':'Accident',whoFor=x.driver?x.driver.name:(x.rec.truckPlate||'no driver');
+    if(!await ask(`Move this ${label.toLowerCase()} (${x.rec.id||fmtD(x.rec.date)} · ${whoFor}) to FleetGuard's Recycle Bin? It can be restored from there.`,'Move to bin'))return;
+    try{
+      if(!DEMO)await firebase.database().ref('fleetguard/recycleBin').transaction(cur=>{const l=asArr(cur);l.push(JSON.parse(JSON.stringify({id:'hse_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),type:x.src==='incident'?'incident':'accident',label:`${label}: ${whoFor} (${x.rec.id||x.rec.date||'No Date'})`,deletedAt:Date.now(),data:x.rec,meta:{source:x.src,driverIdx:x.driver?x.driver._idx:null,driverName:x.driver?x.driver.name:'',deletedBy:who()+' (HSE page)'}})));return l});
+      await incTx(x.src,x.didx,incReplaceIn(incSig(x.rec),null));closeModal();toast(DEMO?`${label} deleted`:`${label} moved to FleetGuard's Recycle Bin`);
+    }catch(e){toast('Not deleted: '+(e&&e.message||e))}
+  },
+  openInline(el){fetch(el.dataset.u).then(r=>r.blob()).then(b=>window.open(URL.createObjectURL(b),'_blank')).catch(()=>toast('This file could not be opened.'))},
+  noFile(){toast('This file was not uploaded, so there is nothing to open.')},
+  fq(k,v){FLT[k].q=v;const e=$('results');if(e)e.innerHTML=({toolbox:toolboxResults,vehicles:vehResults,incidents:incResults,jmps:jmpResults})[k]()},
+  fset(k,key,v){FLT[k][key]=v;renderMain()},
+  fclear(k){Object.assign(FLT[k],{q:'',period:'all',from:'',to:''});['result','status','severity'].forEach(x=>{if(x in FLT[k])FLT[k][x]='all'});renderMain()},
+  jmp(){toast('JMPs will be set up later.')},
+  signIn(ev){ev.preventDefault();gateErr('');$('si_btn').textContent='Signing in…';$('si_btn').disabled=true;hseSignedHere(true);
+    firebase.auth().signInWithEmailAndPassword($('si_e').value.trim(),$('si_p').value).catch(()=>{hseSignedHere(false);gateErr('Wrong email or password.')})},
+  togglePass(){const i=$('si_p'),b=$('si_eye'),show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'🙈':'👁';b.title=show?'Hide password':'Show password'},
+  signOut(){hseSignedHere(false);firebase.auth().signOut().then(()=>location.reload())}
+};
+/* A click on the dark area outside a window closes it — the one on top first (the "are you sure?" box, then the window
+   under it). The press and the release must both be outside, so dragging to select text inside never closes anything. */
+let ovDown=null;
+['ov','ov2'].forEach(id=>{const o=$(id);
+  o.addEventListener('mousedown',e=>{ovDown=e.target});
+  o.addEventListener('click',e=>{if(e.target!==o||ovDown!==o)return;if(id==='ov2')$('askNo').click();else closeModal()})});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if($('ov2').classList.contains('on'))$('askNo').click();else if($('ov').classList.contains('on'))closeModal()});
+window.H=H;
+if(DEMO){enterDemo();render()}else{render();connect()}
+</script>
+</body>
+</html>
