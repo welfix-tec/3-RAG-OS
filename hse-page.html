@@ -234,8 +234,10 @@ tr:last-child td{border-bottom:none}
 .side-foot{gap:6px}
 .sf-row{display:flex;align-items:center;gap:8px;min-width:0}
 .sf-row #liveTxt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sf-row #acct{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sf-ver{font-size:10px;letter-spacing:.04em;font-weight:700;white-space:nowrap}
+.sf-row #acct{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sf-ver{font-size:11px;font-weight:400;color:var(--text3);white-space:nowrap}
+.sf-sep{color:var(--text3)}
+.sf-row #liveTxt{flex:0 1 auto}
 .sf-row .dot{flex-shrink:0;margin-right:0}
 .side-logo span.ver{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:99px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent2);font-size:10.5px;font-weight:800;letter-spacing:.05em}
 .nav.on{color:var(--text);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
@@ -355,6 +357,15 @@ th{font-weight:800}
 .gate-form #si_btn:disabled{opacity:.7;cursor:default}
 .gate-err{background:rgba(240,76,90,.15);border:1px solid rgba(240,76,90,.3);border-radius:10px;color:#ff9a9e;padding:12px 14px;font-size:12px;font-weight:500;margin:0 0 24px;line-height:1.4}
 .gate-err a{color:#fff}
+
+/* ===== loading screen: the same as FleetGuard's ===== */
+#loader.fg-loader{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px}
+#loader.fg-loader img{width:96px;height:96px;object-fit:contain;border-radius:20px;background:#fff;padding:8px;box-shadow:0 8px 28px rgba(15,23,42,.14);animation:fgLogoPulse 1.6s ease-in-out infinite}
+#loader .fg-loader-t{font-size:15px;font-weight:700;color:var(--text)}
+#loader .fg-loader-s{font-size:12px;color:var(--text3);margin-top:-10px}
+@keyframes fgLogoPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.07);opacity:.55}}
+@media (prefers-reduced-motion:reduce){#loader.fg-loader img{animation:none}}
+@media print{#loader{display:none!important}}
 </style>
 </head>
 <body>
@@ -383,16 +394,23 @@ th{font-weight:800}
   </div>
 </div>
 
+<!-- Loading screen: the same as FleetGuard's, shown until the live data has arrived -->
+<div id="loader" class="fg-loader" role="status" aria-live="polite">
+  <img src="images/Logo 123.jpg" alt="3 RAG company LTD">
+  <div class="fg-loader-t">Loading Live 3 RAG HSE Data</div>
+  <div class="fg-loader-s">Fetching drivers, trucks and HSE records…</div>
+</div>
+
 <div class="app">
   <aside class="side">
     <div class="side-logo"><img src="images/Logo 123.jpg" alt="3 RAG company LTD"><div><b>HSE</b><span>Health · Safety · Environment</span></div></div>
-    <div class="side-sec">Pages</div>
+    <div class="side-sec">Management</div>
     <nav class="side-nav" id="nav"></nav>
     <div class="side-foot">
       <div class="sf-row"><span class="dot" id="liveDot"></span><span id="liveTxt">Connecting…</span>
+        <a class="ib" href="index.html" title="Go to FleetGuard" aria-label="Go to FleetGuard" style="margin-left:auto;width:26px;height:26px"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a></div>
+      <div class="sf-row"><span id="acct"></span><span class="sf-sep" id="acctSep">·</span><span class="sf-ver">HSE V2.2</span>
         <button class="ib" id="signOutBtn" onclick="H.signOut()" title="Sign out" aria-label="Sign out" style="display:none;margin-left:auto;width:26px;height:26px"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px;height:15px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button></div>
-      <div class="sf-row"><div id="acct"></div><span class="sf-ver">HSE V2.2</span>
-        <a class="ib" href="index.html" title="Go to FleetGuard" aria-label="Go to FleetGuard" style="width:26px;height:26px"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a></div>
     </div>
   </aside>
   <main class="main" id="main"></main>
@@ -550,6 +568,7 @@ function connect(){
     if(u&&!hseSignedHere()){FB.user=null;firebase.auth().signOut().catch(()=>{});return}   /* came in with another page's session — sign in here first */
     FB.user=u;
     if(!u){hseSignedHere(false);FB.state='signedout';$('gate').classList.add('on');render();return}
+    if(FB.state!=='live'){FB.state='connecting';FB.loaderGaveUp=false;clearTimeout(FB.loaderT);FB.loaderT=setTimeout(()=>{if(FB.state==='connecting'){FB.loaderGaveUp=true;render()}},20000);render()}
     const ref=firebase.database().ref('users/'+u.uid);
     ref.once('value').then(s=>{
       const rec=s.val();
@@ -647,6 +666,9 @@ function renderShell(){
   $('liveDot').classList.toggle('on',live||DEMO);
   $('liveTxt').textContent=DEMO?'Demo data · this browser only':live?`Live · ${FB.drivers.length} drivers · ${FB.trucks.length} trucks`:FB.state==='denied'?'Blocked: '+(FB.err||'no permission'):FB.state==='signedout'?'Signed out':'Connecting…';
   $('acct').textContent=DEMO?'':(FB.user&&FB.user.email)||'';
+  $('acctSep').style.display=$('acct').textContent?'':'none';
+  /* the loading screen stays up from sign-in until the live data has arrived (or 20 s have passed) */
+  $('loader').style.display=(!DEMO&&FB.state==='connecting'&&!FB.loaderGaveUp)?'flex':'none';
   $('signOutBtn').style.display=FB.user?'':'none';
 }
 function head(p,btn){return `<div class="head"><div><h1><span class="h-ic">${ico(p.ic)}</span>${esc(p.name)}</h1><p>${esc(p.desc)}</p></div><div class="right">${btn||''}</div></div>${DEMO?'<div class="banner"><b>Demo</b> — sample drivers and trucks. Records are kept in this browser only and attachments are not uploaded.</div>':''}`}
