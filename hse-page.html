@@ -230,6 +230,13 @@ tr:last-child td{border-bottom:none}
 .side-logo>div{flex:1;text-align:center}
 .side-logo b{display:block;font-size:26px;font-weight:900;letter-spacing:.08em;line-height:1.1}
 .side-logo span{margin-top:2px}
+.side-logo img{background:#fff}
+.side-foot{gap:6px}
+.sf-row{display:flex;align-items:center;gap:8px;min-width:0}
+.sf-row #liveTxt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sf-row #acct{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sf-ver{font-size:10px;letter-spacing:.04em;font-weight:700;white-space:nowrap}
+.sf-row .dot{flex-shrink:0;margin-right:0}
 .side-logo span.ver{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:99px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent2);font-size:10.5px;font-weight:800;letter-spacing:.05em}
 .nav.on{color:var(--text);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
 .nav.on .ic{color:var(--accent2)}
@@ -371,22 +378,21 @@ th{font-weight:800}
     </form>
     <div style="text-align:center;margin-top:24px">
       <p style="font-size:11px;color:#565b6e;line-height:1.6">Authorized personnel only · 3 RAG company LTD</p>
-      <p style="font-size:10px;color:#3d7fff;margin-top:6px;letter-spacing:.05em;font-weight:500">HSE V2.1</p>
+      <p style="font-size:10px;color:#3d7fff;margin-top:6px;letter-spacing:.05em;font-weight:500">HSE V2.2</p>
     </div>
   </div>
 </div>
 
 <div class="app">
   <aside class="side">
-    <div class="side-logo"><img src="images/Logo.png" alt=""><div><b>HSE</b><span>Health · Safety · Environment</span><span class="ver">V2.1</span></div></div>
+    <div class="side-logo"><img src="images/Logo 123.jpg" alt="3 RAG company LTD"><div><b>HSE</b><span>Health · Safety · Environment</span></div></div>
     <div class="side-sec">Pages</div>
     <nav class="side-nav" id="nav"></nav>
     <div class="side-foot">
-      <div><span class="dot" id="liveDot"></span><span id="liveTxt">Connecting…</span></div>
-      <div id="acct"></div>
-      <a href="index.html">← FleetGuard</a>
-      <span style="font-size:10px;letter-spacing:.04em;font-weight:600">HSE V2.1</span>
-      <button class="btn sm" id="signOutBtn" onclick="H.signOut()" style="display:none">Sign out</button>
+      <div class="sf-row"><span class="dot" id="liveDot"></span><span id="liveTxt">Connecting…</span>
+        <button class="ib" id="signOutBtn" onclick="H.signOut()" title="Sign out" aria-label="Sign out" style="display:none;margin-left:auto;width:26px;height:26px"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:15px;height:15px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button></div>
+      <div class="sf-row"><div id="acct"></div><span class="sf-ver">HSE V2.2</span>
+        <a class="ib" href="index.html" title="Go to FleetGuard" aria-label="Go to FleetGuard" style="width:26px;height:26px"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a></div>
     </div>
   </aside>
   <main class="main" id="main"></main>
